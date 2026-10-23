@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help all check fmt lint test coverage snapshots hooks burn-in
+.PHONY: help all check fmt lint test coverage snapshots screens screenshots hooks burn-in
 
 ##@ General
 
@@ -49,6 +49,19 @@ coverage: ## Run all tests measuring coverage: a summary, htmlcov/, and coverage
 # the snapshots no test reads any more. Serial: syrupy refuses to update under xdist without an experimental file lock.
 snapshots: ## Run all tests, recording every snapshot that differs
 	uv run pytest -q --snapshot-update
+
+##@ Screens
+
+# Not part of check: they drive Chromium. CI runs `screens` as its own job. Playwright's Chromium comes from
+# `uv run playwright install chromium`, or set PLAYWRIGHT_CHROMIUM_EXECUTABLE to one already on the machine.
+SCREENS_TESTS := tests/louvre/web/test_screens.py
+
+screens: ## Check every page at every screen size: no sideways scroll, no page errors (REQUIREMENTS U4)
+	LOUVRE_SCREENS=1 $(PYTEST) $(SCREENS_TESTS)
+
+# Review the diff before committing it: the screenshots are the record of how each page looks on each screen.
+screenshots: ## Check every page at every screen size, and rewrite docs/screenshots and its gallery
+	LOUVRE_SCREENS=update $(PYTEST) $(SCREENS_TESTS)
 
 ##@ Flaky tests
 

@@ -54,6 +54,10 @@ Instructions for any agent working in this repository. Humans should read it too
   - Tests: `uv run pytest -q <test modules>` for the package you changed, which sits parallel to it under `tests/`
     (add `-n auto` for a directory). Add the whole-louvre tests your change can trip: `tests/louvre/test_layers.py`
     for a new import or module, `test_frozen.py` for a dataclass.
+  - A change to a page the web app serves, or a new page: `make screenshots`, which checks every page at every screen
+    size in the matrix (`tests/louvre/web/test_screens.py`, REQUIREMENTS U4) and rewrites `docs/screenshots/` and its
+    gallery. Commit them, and look at the diff: they are the record of how each page looks on each screen. A new page
+    gets a scene in the matrix in the same PR. `make test` fails on a screenshot missing or a stale gallery.
 
   CI skips every check on a pull request that changes only docs, so there the checks you run are the only ones.
 - A pull request's CI is the run GitHub starts for it. Never start CI by hand on a branch with an open pull request
@@ -141,5 +145,6 @@ Instructions for any agent working in this repository. Humans should read it too
 
 - The checks and tests the change reaches pass (Toolchain), and CI passes.
 - New behavior has a test.
+- A page the change touches fits every screen in the matrix, and its screenshots are current (`make screenshots`).
 - Docs updated: `README.md` if the install path or daily surface changed, and `DECISIONS.md` only if the change passes
   its bar.

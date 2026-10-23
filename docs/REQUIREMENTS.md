@@ -31,6 +31,12 @@ own styles, fonts, inline SVG, images, charts, and scripts for interaction. Louv
 inside the sandbox L7 requires, and its threads anchor on its visible words as any artifact's do. The preview
 deployment serves one such report (#4).
 
+### U4. Every page works on every screen
+
+Planned (M1, M2). The operator's priority (2026-10-23): Louvre works well from a small phone to a wide desktop, by
+touch and by pointer. Every page is checked at each size in the screen matrix, dark first, for sideways scrolling and
+errors, and its screenshots are checked in as the record of how it looks there (`docs/screenshots/`).
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP
