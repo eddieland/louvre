@@ -13,7 +13,7 @@ yet).
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP
 
-Planned (M1, M2). `artifact_publish`, `artifact_read`, `artifact_list`, `thread_list`, `comment_feed`,
+Planned (M1, M3). `artifact_publish`, `artifact_read`, `artifact_list`, `thread_list`, `comment_feed`,
 `comment_reply`, `comment_create`, and `thread_resolve`, with the inputs, results, and refusal codes the contract
 names, so a skill written against canopy's local store works against Louvre unchanged. No tool deletes an artifact or
 changes who may see it.
@@ -40,7 +40,7 @@ signed-in person is `kind: person`. Louvre states the fact; whether a comment ca
 
 ### L5. Tokens bound to an account and one namespace
 
-Planned (M2). A person mints a token bound to their account and one namespace, with scopes `read`, `publish`, and
+Planned (M3). A person mints a token bound to their account and one namespace, with scopes `read`, `publish`, and
 `comment`. A token reads, publishes, and comments only within its namespace, and is refused `out_of_scope` outside
 it and `read_only` for a write its scopes lack. This bounds what an agent steered by what it read can leak or deface.
 
@@ -48,12 +48,12 @@ it and `read_only` for a write its scopes lack. This bounds what an agent steere
 
 ### L6. People sign in, read, and comment
 
-Planned (M3). A signed-in person reads an artifact's versions and comments on its passages (`via: web`), edits and
+Planned (M2). A signed-in person reads an artifact's versions and comments on its passages (`via: web`), edits and
 deletes their comments, and resolves threads. People, never tokens, delete an artifact or change who may see it.
 
 ### L7. An artifact's HTML is untrusted content
 
-Planned (M3). It renders only on an origin of its own, in a sandboxed frame without same-origin access, never on the
+Planned (M2). It renders only on an origin of its own, in a sandboxed frame without same-origin access, never on the
 origin that holds a person's session. A comment's text is text.
 
 ## Constraints
@@ -67,9 +67,8 @@ Louvre may offer webhooks to others later; canopy does not use them.
 
 To settle before the milestone that needs it:
 
-- Where Louvre runs and what holds its data: a managed database, or SQLite on one host (M1 needs the answer for its
-  storage, M4 for deployment).
-- How people sign in: the organization's identity provider, or GitHub (M3).
-- Who may read an artifact: everyone in the organization, or a namespace's members (M3).
+- Where Louvre runs, with a managed Postgres (D007) (M4).
+- The web's stack, and how people sign in: the organization's identity provider, or GitHub (M2).
+- Who may read an artifact: everyone in the organization, or a namespace's members (M2).
 - From canopy's open list: whether Louvre's design system is public on npm or internal; what Louvre keeps of an
   artifact whose ticket canopy forgets; and whether Louvre is the name.
