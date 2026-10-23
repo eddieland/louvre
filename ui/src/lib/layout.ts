@@ -19,28 +19,29 @@ export const GAP = 12
  * at its passage, those after it below, those before it above, and all of them pushed down if that leaves the top.
  */
 export function place(items: readonly Item[], active: string | null, gap: number = GAP): number[] {
-    const tops: number[] = Array.from({ length: items.length }, () => 0)
-    const forward = (from: number, keep: boolean) => {
+    const tops: number[] = items.map(() => 0)
+    const top = (k: number) => tops[k] ?? 0
+    const height = (k: number) => items[k]?.height ?? 0
+    const want = (k: number) => items[k]?.want ?? 0
+    const forward = (from: number) => {
         for (let k = from; k < items.length; k++) {
-            const item = items[k]!
-            const before = items[k - 1]
-            const floor = before ? tops[k - 1]! + before.height + gap : 0
-            tops[k] = Math.max(keep && k === from ? tops[k]! : item.want, floor)
+            const floor = k > 0 ? top(k - 1) + height(k - 1) + gap : 0
+            tops[k] = Math.max(want(k), floor)
         }
     }
     const at = items.findIndex((item) => item.id === active)
     if (at < 0) {
-        forward(0, false)
+        forward(0)
         return tops
     }
-    tops[at] = Math.max(items[at]!.want, 0)
-    forward(at + 1, false)
+    tops[at] = Math.max(want(at), 0)
+    forward(at + 1)
     for (let k = at - 1; k >= 0; k--) {
-        tops[k] = Math.min(items[k]!.want, tops[k + 1]! - items[k]!.height - gap)
+        tops[k] = Math.min(want(k), top(k + 1) - height(k) - gap)
     }
-    if ((tops[0] ?? 0) < 0) {
+    if (top(0) < 0) {
         tops[0] = 0
-        forward(1, false)
+        forward(1)
     }
     return tops
 }

@@ -30,9 +30,11 @@ export interface Comment {
     author: Author
     /** Its text, empty once deleted. */
     body: string
-    /** When it was written, edited, and deleted, as ISO 8601. */
+    /** When it was written, as ISO 8601. */
     created_at: string
+    /** When it was last edited, or null. */
     edited_at: string | null
+    /** When it was deleted, or null. */
     deleted_at: string | null
     /** Whether it came from the web or an agent's tools. */
     via: 'web' | 'mcp'
@@ -130,9 +132,11 @@ export interface Token {
     namespace: string
     /** What it may do. */
     scopes: ('read' | 'publish' | 'comment')[]
-    /** When it was made, last used, and revoked. */
+    /** When it was made, as ISO 8601. */
     created_at: string
+    /** When an agent last used it, or null. */
     last_used_at: string | null
+    /** When it was revoked, or null while it works. */
     revoked_at: string | null
 }
 
@@ -154,12 +158,13 @@ export class ApiError extends Error {
 
 /** Ask the server, and read its JSON answer, or throw the refusal it gives. */
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const init: RequestInit = { method, headers: { Accept: 'application/json' }, credentials: 'same-origin' }
+    const headers: Record<string, string> = { Accept: 'application/json' }
     if (method !== 'GET') {
-        init.headers = { ...init.headers, 'X-Louvre': '1' }
+        headers['X-Louvre'] = '1'
     }
+    const init: RequestInit = { method, headers, credentials: 'same-origin' }
     if (body !== undefined) {
-        init.headers = { ...init.headers, 'Content-Type': 'application/json' }
+        headers['Content-Type'] = 'application/json'
         init.body = JSON.stringify(body)
     }
     const response = await fetch(path, init)
