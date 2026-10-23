@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help all check fmt lint test coverage snapshots screens screenshots hooks burn-in
+.PHONY: help all check fmt lint test coverage snapshots screens screenshots hooks burn-in ui-fmt ui-check ui-build
 
 ##@ General
 
@@ -11,11 +11,11 @@ help: ## Show this help
 
 all: fmt check ## Everything to run before committing: fmt, then check
 
-check: lint test ## Verify without modifying files: lint, then test (what CI runs)
+check: lint test ui-check ## Verify without modifying files: lint, test, the UI's checks (what CI runs)
 
 ##@ Development
 
-fmt: ## Run autoformatters (ruff imports and trailing commas, ruff format, rumdl for Markdown)
+fmt: ui-fmt ## Run autoformatters (ruff imports and trailing commas, ruff format, rumdl for Markdown, oxfmt for ui/)
 	uv run ruff check --select I,COM812 --fix .
 	uv run ruff format .
 	uv run rumdl fmt .
@@ -50,17 +50,34 @@ coverage: ## Run all tests measuring coverage: a summary, htmlcov/, and coverage
 snapshots: ## Run all tests, recording every snapshot that differs
 	uv run pytest -q --snapshot-update
 
+##@ Web UI (ui/; needs Node 22.12+)
+
+ui/node_modules: ui/package.json ui/package-lock.json
+	npm --prefix ui ci --no-audit --no-fund
+	@touch $@
+
+ui-fmt: ui/node_modules ## Format ui/ with oxfmt
+	npm --prefix ui run fmt
+
+# COVERAGE=1 also measures the unit tests' coverage.
+ui-check: ui/node_modules ## Check ui/ without changing it: format, lint, types, unit tests, build
+	$(if $(COVERAGE),COVERAGE=1 )npm --prefix ui run check
+
+ui-build: ui/node_modules ## Build ui/dist, which `louvre serve` serves under /app/ and the wheel bundles
+	npm --prefix ui run build
+
 ##@ Screens
 
-# Not part of check: they drive Chromium. CI runs `screens` as its own job. Playwright's Chromium comes from
-# `uv run playwright install chromium`, or set PLAYWRIGHT_CHROMIUM_EXECUTABLE to one already on the machine.
+# Not part of check: they drive Chromium, over a built ui/ (`make ui-build`). CI runs `screens` as its own job.
+# Playwright's Chromium comes from `uv run playwright install chromium`, or set PLAYWRIGHT_CHROMIUM_EXECUTABLE to one
+# already on the machine.
 SCREENS_TESTS := tests/louvre/web/test_screens.py
 
-screens: ## Check every page at every screen size: no sideways scroll, no page errors (REQUIREMENTS U4)
+screens: ui-build ## Check every page at every screen size: no sideways scroll, no page errors (REQUIREMENTS U4)
 	LOUVRE_SCREENS=1 $(PYTEST) $(SCREENS_TESTS)
 
 # Review the diff before committing it: the screenshots are the record of how each page looks on each screen.
-screenshots: ## Check every page at every screen size, and rewrite docs/screenshots and its gallery
+screenshots: ui-build ## Check every page at every screen size, and rewrite docs/screenshots and its gallery
 	LOUVRE_SCREENS=update $(PYTEST) $(SCREENS_TESTS)
 
 ##@ Flaky tests

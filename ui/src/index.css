@@ -1,0 +1,173 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource-variable/instrument-sans';
+@import './styles/tokens.css';
+
+/* Defined so a copied component compiles; `npm run lint` refuses it in our code. Themes change tokens, not pages. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* The tokens as Tailwind's colors and fonts (ui/DESIGN.md, "Tokens" and "Type"). */
+@theme inline {
+    --color-wall: var(--wall);
+    --color-paper: var(--paper);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-faint: var(--faint);
+    --color-rule: var(--rule);
+    --color-accent: var(--accent);
+    --color-accent-ink: var(--accent-ink);
+    --color-hl: var(--hl);
+    --color-hl-strong: var(--hl-strong);
+    --font-display: 'Fraunces Variable', Georgia, serif;
+    --font-serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
+    --font-ui: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+    *,
+    ::before,
+    ::after {
+        border-color: var(--color-rule);
+    }
+
+    html {
+        /* On the root, so it paints the whole canvas. */
+        background-color: var(--wall);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+        min-height: 100dvh;
+        color: var(--ink);
+        font-family: var(--font-serif);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+}
+
+/* The wordmark: Fraunces in tracked capitals (ui/DESIGN.md, "Type"). */
+@utility wordmark {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    @variant sm {
+        font-size: 0.9375rem;
+    }
+}
+
+/* A page's title: Fraunces 600, 28/1.15 on a phone and 40/1.12 above. */
+@utility title {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    @variant sm {
+        font-size: 2.5rem;
+        line-height: 1.12;
+    }
+}
+
+/* A section's head: Fraunces 600, 21 on a phone and 23 above. */
+@utility heading {
+    font-family: var(--font-display);
+    font-size: 1.3125rem;
+    font-weight: 600;
+    @variant sm {
+        font-size: 1.4375rem;
+    }
+}
+
+/* Louvre's labels: Instrument Sans, small, uppercase, tracked. */
+@utility label {
+    font-family: var(--font-ui);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* The wall and the frame side by side above 960 px; the frame alone, filling the screen, at 600 px and below. */
+@utility stage {
+    display: grid;
+    gap: 2.5rem;
+    max-width: 73.75rem;
+    margin-inline: auto;
+    padding: 0 0 6rem;
+    @variant sm {
+        padding: 0.5rem 2rem 7.5rem;
+    }
+    @media (width > 960px) {
+        grid-template-columns: minmax(0, 1fr) 18.75rem;
+        align-items: start;
+    }
+}
+
+/* The frame an artifact hangs in: paper, a hairline, a soft shadow; on a phone, a hairline above and nothing else. */
+@utility sheet {
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+    & > .label {
+        display: none;
+    }
+    @variant sm {
+        border: 1px solid var(--rule);
+        box-shadow: 0 24px 48px -28px var(--shadow);
+        & > .label {
+            display: block;
+            padding: 0.875rem 1.75rem;
+            border-bottom: 1px solid var(--rule);
+        }
+    }
+}
+
+/* What people read: Source Serif 4, 17/1.58 on a phone and 19/1.62 above, at most 680 px wide. */
+@utility reading {
+    max-width: 42.5rem;
+    margin-inline: auto;
+    padding: 1.75rem 1.25rem 3.5rem;
+    font-size: 1.0625rem;
+    line-height: 1.58;
+    @variant sm {
+        padding: 3rem 2rem 4.5rem;
+        font-size: 1.1875rem;
+        line-height: 1.62;
+    }
+}
+
+/* An anchored passage at rest: a low band in hl (ui/DESIGN.md, "Threads"). */
+@utility anchor {
+    background: linear-gradient(transparent 62%, var(--hl) 62%);
+    color: inherit;
+}
+
+/* A margin note: no box; an accent rule on its left while it is active. */
+@utility note {
+    position: relative;
+    margin: 0 1.25rem;
+    padding: 0.125rem 0 0.125rem 0.875rem;
+    border-left: 1px solid var(--accent);
+    font-size: 0.9375rem;
+    line-height: 1.45;
+}
+
+@utility note-n {
+    position: absolute;
+    top: 0.25rem;
+    left: -1rem;
+    font-family: var(--font-ui);
+    font-size: 0.6875rem;
+    color: var(--accent);
+}
+
+@utility note-who {
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    font-size: 1rem;
+}

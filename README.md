@@ -18,13 +18,14 @@ built in is [docs/roadmap/](docs/roadmap/README.md). Nothing past the skeleton i
 
 ## Develop
 
-Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Needs Python 3.12+, [uv](https://docs.astral.sh/uv/), and Node 22.12+ for the web UI in `ui/`.
 
 ```sh
 uv sync          # the environment, with every dev tool
 make hooks       # optional: the formatters and linters on each commit
 make all         # format, lint, type check, and test
 uv run louvre -h
+make ui-build        # the web UI, which `louvre serve` serves under /app/
 uv run louvre serve  # the web app on http://127.0.0.1:8000, as the preview deployment serves it
 ```
 

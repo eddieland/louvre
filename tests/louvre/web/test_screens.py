@@ -81,6 +81,7 @@ SCREENS = (
 #: Every page the web app serves, each in the state worth looking at.
 SCENES = (
     Scene("landing", "Landing", "/"),
+    Scene("app", "The web UI's specimen", "/app/"),
     Scene("artifact", "An artifact, sandboxed", "/a/checkout-latency", _report_drawn),
     Scene("directions", "Design directions", "/directions"),
     Scene("gallery", "Direction: Gallery, a thread open", "/directions/2026-10-23-directions/gallery", _open_thread),

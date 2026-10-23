@@ -39,6 +39,8 @@ Instructions for any agent working in this repository. Humans should read it too
   not Python or Markdown to `.editorconfig`. `shellcheck` lints shell scripts, `actionlint` the GitHub workflows, and
   `zizmor` their security: every action is pinned to a commit, and a finding it allows is ignored inline with a reason.
   All are dev dependencies, so `uv sync` installs them and `make lint` runs them.
+- The web UI lives in `ui/`, on canopy's web stack, and has its own rules: read `ui/AGENTS.md` before touching it. It
+  needs Node 22.12+ and npm; `make check` runs its checks, and the wheel's build hook (`hatch_build.py`) builds it.
 - ruff selects every stable rule, and preview rules named one by one, the pydoclint ones among them (D002): a public
   module, class, or function has a Google docstring, with Returns, Yields, and Raises sections that match its body.
   Every docstring, a test's included, opens with a one-line summary ending in a period, and a blank line before
@@ -48,7 +50,7 @@ Instructions for any agent working in this repository. Humans should read it too
   `make check` before pushing unless the operator asks. Every formatter and linter is cheap, so it runs them all; the
   tests it runs are the ones its change reaches.
   - Always `make fmt` and `make lint`: every formatter, then every linter and the type checker, over the whole
-    repository, in seconds.
+    repository, in seconds. A change under `ui/` also runs `make ui-check`.
   - Optionally `make hooks`, once per clone: prek's git hooks (`prek.toml`) then run the same formatters and linters
     on each commit's files. They do not replace the step above. A Claude Code cloud session installs them when it
     starts (`.claude/settings.json`).

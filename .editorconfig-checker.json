@@ -2,6 +2,11 @@
   "Exclude": [
     "\\.py$",
     "\\.md$",
-    "/__snapshots__/"
+    "/__snapshots__/",
+    "^ui/node_modules/",
+    "^ui/dist/",
+    "^ui/coverage/",
+    "package-lock\\.json$",
+    "\\.gen\\.ts$"
   ]
 }

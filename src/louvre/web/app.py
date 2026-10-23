@@ -11,9 +11,9 @@ from importlib.metadata import version
 from importlib.resources import files
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from louvre.web import explorations
+from louvre.web import explorations, ui
 
 #: Where the pages and the sample artifact live, beside this module.
 PAGES = files("louvre.web") / "pages"
@@ -30,6 +30,11 @@ ARTIFACT_POLICY = (
 PAGE_POLICY = (
     "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src 'self'; frame-ancestors 'none'"
+)
+#: The web UI's pages: its own scripts, styles, and fonts only, and artifacts only in a frame from Louvre itself.
+APP_POLICY = (
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; "
+    "frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 )
 #: Headers every response carries: no guessing a type, and no referrer leaving with a link out of an artifact.
 _NO_SNIFF = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}
@@ -81,12 +86,38 @@ def create() -> FastAPI:
             headers={"Content-Security-Policy": PAGE_POLICY, **_NO_SNIFF},
         )
 
+    @app.get("/app", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/app/{path:path}", response_class=HTMLResponse, include_in_schema=False)
+    def app_page(path: str = "") -> Response:
+        """The web UI: a built file by its path, or the single page that routes every other path itself."""
+        return _app_response(path)
+
     @app.get("/healthz")
     def health() -> dict[str, str]:
         """Liveness, with the version deployed."""
         return {"status": "ok", "version": version("louvre")}
 
     return app
+
+
+def _app_response(path: str) -> Response:
+    root = ui.dist()
+    if root is None:
+        return HTMLResponse(
+            "<!doctype html><title>Louvre</title><p>The web UI is not built: run <code>make ui-build</code>.</p>",
+            status_code=503,
+            headers={"Content-Security-Policy": APP_POLICY, **_NO_SNIFF},
+        )
+    found = ui.asset(root, path) if path else None
+    if found is not None and found.name != "index.html":
+        # Vite names every built asset by its content's hash, so a file under assets/ never changes.
+        cache = "public, max-age=31536000, immutable" if path.startswith("assets/") else "no-cache"
+        return FileResponse(found, headers={"Cache-Control": cache, **_NO_SNIFF})
+    return FileResponse(
+        root / "index.html",
+        media_type="text/html",
+        headers={"Content-Security-Policy": APP_POLICY, "Cache-Control": "no-cache", **_NO_SNIFF},
+    )
 
 
 def _sample(artifact_id: str) -> str:
