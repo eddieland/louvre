@@ -1,0 +1,31 @@
+# Dependabot keeps the pinned dependencies current: https://docs.github.com/code-security/dependabot
+# Updates come weekly, wait out a week's cooldown so a bad release is likely yanked first, and are grouped so each
+# ecosystem opens one PR a week. A major version comes alone, since it is the one most likely to need code changes.
+version: 2
+
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      python:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        update-types: [minor, patch]

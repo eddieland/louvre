@@ -1,0 +1,76 @@
+.DEFAULT_GOAL := help
+
+.PHONY: help all check fmt lint test coverage snapshots hooks burn-in
+
+##@ General
+
+help: ## Show this help
+	@awk 'BEGIN {FS = ":.*## "} \
+		/^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2} \
+		/^##@ / {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)}' $(MAKEFILE_LIST)
+
+all: fmt check ## Everything to run before committing: fmt, then check
+
+check: lint test ## Verify without modifying files: lint, then test (what CI runs)
+
+##@ Development
+
+fmt: ## Run autoformatters (ruff imports and trailing commas, ruff format, rumdl for Markdown)
+	uv run ruff check --select I,COM812 --fix .
+	uv run ruff format .
+	uv run rumdl fmt .
+
+# ruff owns Python and rumdl Markdown; editorconfig-checker holds every other file to .editorconfig.
+# zizmor runs offline, so the lint needs no GitHub token and gives the same answer on every machine.
+lint: ## Lint and type check: ruff, pyrefly, rumdl, ec, shellcheck, actionlint, zizmor
+	uv run ruff format --check .
+	uv run ruff check .
+	uv run pyrefly check
+	uv run rumdl check .
+	uv run ec
+	uv run shellcheck $$(git ls-files '*.sh')
+	uv run actionlint
+	uv run zizmor --offline --quiet .
+
+# One worker per CPU. For one test or a debugger, run `uv run pytest` without -n: it stays serial.
+# A test still running after a minute is hung: faulthandler dumps every thread's stack and ends its worker, which fails
+# that test by name instead of stalling the run until CI's job timeout.
+# COVERAGE=1 also measures coverage and writes coverage.xml, which is how CI feeds Codecov.
+PYTEST := uv run pytest -q -n auto -o faulthandler_timeout=60 -o faulthandler_exit_on_timeout=true
+
+test: ## Run all tests, in parallel (COVERAGE=1: also write coverage.xml)
+	$(PYTEST) $(if $(COVERAGE),--cov --cov-report=xml)
+
+# Coverage settings live in pyproject.toml ([tool.coverage]). Open htmlcov/index.html for the lines a test never ran.
+coverage: ## Run all tests measuring coverage: a summary, htmlcov/, and coverage.xml
+	$(PYTEST) --cov --cov-report=term:skip-covered --cov-report=html --cov-report=xml
+
+# Review the diff before committing it: a snapshot is what the tests hold louvre's output to (syrupy). It also deletes
+# the snapshots no test reads any more. Serial: syrupy refuses to update under xdist without an experimental file lock.
+snapshots: ## Run all tests, recording every snapshot that differs
+	uv run pytest -q --snapshot-update
+
+##@ Flaky tests
+
+# For when a test is suspected of being flaky, and to prove a fix for one: this runs the test files a change touched
+# many times over, and fails if any run does. BASE is what the change is measured from, by default where this branch
+# left origin/main; ALL=1 runs every test instead. REPEAT is how many times each runs.
+BASE ?= $(shell git merge-base origin/main HEAD 2>/dev/null)
+REPEAT ?= 10
+
+# Whole runs one after another, not pytest-repeat's parametrized copies: those rename each test, so no syrupy snapshot
+# matches, and each run here also spreads the tests across xdist's workers in a different order.
+burn-in: ## Run each test file changed since BASE (ALL=1: every one) REPEAT times, the whole file each time
+	@test -n "$(ALL)$(BASE)" || { echo "BASE is empty: fetch origin/main, or pass BASE=ref or ALL=1"; exit 1; }
+	@files=$$($(if $(ALL),echo tests,git diff --name-only --diff-filter=AMR $(BASE) -- 'tests/*test_*.py')); \
+	if [ -z "$$files" ]; then echo "No test file changed since $(BASE)."; exit 0; fi; \
+	for i in $$(seq $(REPEAT)); do \
+		echo "Run $$i of $(REPEAT):" $$files; \
+		$(PYTEST) $$files || { echo "Failed on run $$i of $(REPEAT): flaky, or broken."; exit 1; }; \
+	done
+
+##@ Setup
+
+# Optional: CI's `make check` runs every check anyway. prek.toml says which hook runs what.
+hooks: ## Install git hooks (prek): the formatters and linters on each commit
+	uv run prek install

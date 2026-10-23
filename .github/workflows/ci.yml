@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Every uv command refuses a uv.lock that is out of date with pyproject.toml, not only the explicit `uv sync
+# --locked`: the `uv run` calls after it, in make, would otherwise re-lock and sync quietly.
+env:
+  UV_LOCKED: "1"
+
+# A pull request's runs share a group by branch name, so a newer one cancels the older. A fork's pull request is grouped
+# by its number instead, since two forks can both use `main`. Every other run has a group of its own: GitHub cancels a
+# run left pending in a shared group, so merges in quick succession would leave main's commits untested.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event_name == 'pull_request' && (
+        github.event.pull_request.head.repo.full_name == github.repository && github.head_ref
+        || github.event.pull_request.number
+      )
+      || github.event_name == 'workflow_dispatch' && github.ref_name
+      || github.run_id
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+
+jobs:
+  # A pull request that changes only docs (anything under docs/, and Markdown anywhere) needs none of the checks below,
+  # so they are skipped and take no runner; `ci-passed` accepts a skip only when this job said code=false. Pushes to
+  # main and manual runs always check everything. Anything but code=false runs the checks in full, so an unexpected
+  # output checks too much, never too little.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - name: Check out repository
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # --no-renames lists both sides of a rename, so moving code into docs/ still counts as a code change.
+      - name: Classify the changed files
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo "code=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          code=false
+          while IFS= read -r file; do
+            case "$file" in
+              docs/* | *.md) ;;
+              *) code=true ;;
+            esac
+          done <<<"$(git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA")"
+          echo "code=$code" >>"$GITHUB_OUTPUT"
+          if [ "$code" = false ]; then
+            echo "Only docs changed; the checks pass without running." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # For the OIDC token the Codecov upload authenticates with.
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # --locked fails if uv.lock is out of date with pyproject.toml.
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # `make check` is these two. `make all` would run `fmt`, which rewrites files; these only verify. `lint` includes
+      # `ruff format --check`, so unformatted code still fails.
+      - name: Lint and type check
+        run: make lint
+
+      - name: Test
+        run: make test COVERAGE=1
+
+      # Codecov authenticates with the run's OIDC token, so no secret is needed; the repository only has to be added
+      # on codecov.io. An upload that fails warns and leaves the check green: Codecov being down never blocks a PR.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage.xml
+          use_oidc: true
+          fail_ci_if_error: false
+
+  # The one check branch protection requires, so a new job needs no change to the ruleset: list the job in `needs`
+  # here, or nothing requires it. It runs whatever happened above and fails unless every job it needs succeeded, since
+  # a required check that is skipped counts as passing. The exception is a docs-only pull request (code=false), when
+  # `changes` succeeded.
+  ci-passed:
+    runs-on: ubuntu-latest
+    needs: [changes, lint-and-test]
+    if: ${{ always() }}
+    timeout-minutes: 5
+    steps:
+      - name: Check that every job succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          jq -e '
+            (.changes.result == "success" and .changes.outputs.code == "false") as $docs
+            | all(to_entries[]; .value.result == "success"
+                or (.value.result == "skipped" and .key != "changes" and $docs))
+          ' <<<"$NEEDS" >/dev/null
