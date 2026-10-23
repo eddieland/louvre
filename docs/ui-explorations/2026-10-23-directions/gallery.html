@@ -508,6 +508,108 @@ mark.anchor.is-resolved.is-active {
         box-shadow: none;
     }
 }
+.short {
+    display: none;
+}
+.theme-toggle {
+    background: var(--wall);
+}
+/* A phone: the exhibit fills the wall. No frame around the page, one line of chrome above it, and type set for a */
+/* narrow measure, so a line holds 40 to 45 characters. */
+@media (max-width: 600px) {
+    .top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 20px 6px;
+        text-align: left;
+    }
+    .wordmark {
+        font-size: 12px;
+        letter-spacing: 0.32em;
+    }
+    .provenance {
+        margin: 0;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .long,
+    .versions span,
+    .kbd-hint {
+        display: none;
+    }
+    .short {
+        display: inline;
+    }
+    .toolbar {
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin: 0 auto 10px;
+        padding: 0 14px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .toolbar-right {
+        gap: 4px;
+    }
+    .versions button,
+    .filters button,
+    .gone-jump {
+        padding: 4px 9px;
+        white-space: nowrap;
+    }
+    .stage {
+        padding: 0 0 96px;
+    }
+    .sheet {
+        border: 0;
+        border-top: 1px solid var(--rule);
+        box-shadow: none;
+    }
+    .label {
+        display: none;
+    }
+    .artifact {
+        padding: 28px 20px 56px;
+        font-size: 17px;
+        line-height: 1.58;
+    }
+    .artifact h1 {
+        margin-bottom: 18px;
+        font-size: 28px;
+        line-height: 1.15;
+    }
+    .artifact h2 {
+        margin: 32px 0 6px;
+        font-size: 21px;
+    }
+    .artifact .lede {
+        font-size: 18.5px;
+    }
+    .artifact table {
+        font-size: 13px;
+    }
+    .artifact th,
+    .artifact td {
+        padding: 8px 10px 8px 0;
+    }
+    .rail {
+        padding: 14px 20px 24px;
+    }
+    .thread {
+        padding: 6px 0 4px 14px;
+    }
+    .theme-toggle {
+        right: auto;
+        left: 12px;
+        bottom: 12px;
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+}
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --wall: #13110e;
@@ -539,7 +641,10 @@ mark.anchor.is-resolved.is-active {
 <body class="dir-gallery">
 <header class="top">
     <p class="wordmark">Louvre</p>
-    <p class="provenance">canopy/operator &middot; <b>PAY-142</b> &middot; published by canopy worker for Sam Okafor</p>
+    <p class="provenance">
+        <span class="long">canopy/operator &middot;</span> <b>PAY-142</b>
+        <span class="long">&middot; published by canopy worker for Sam Okafor</span>
+    </p>
 </header>
 <nav class="toolbar" data-toolbar>
     <div class="versions">
@@ -549,7 +654,9 @@ mark.anchor.is-resolved.is-active {
         <button type="button" data-version="3" aria-current="true">III</button>
     </div>
     <div class="toolbar-right">
-        <button type="button" class="gone-jump" data-gone-jump>1 note on a passage since removed</button>
+        <button type="button" class="gone-jump" data-gone-jump>
+            <span class="long">1 note on a passage since removed</span><span class="short">1 removed</span>
+        </button>
         <div class="filters">
             <button type="button" data-filter="open" aria-pressed="true">Open <span data-count="open"></span></button>
             <button type="button" data-filter="all" aria-pressed="false">All</button>
@@ -563,8 +670,8 @@ mark.anchor.is-resolved.is-active {
             <h1>Checkout latency: what we found and what to change</h1>
             <p class="lede">
                 Since the 14 October release, <mark class="anchor" data-thread="t1">p95 checkout latency rose from
-                410 ms to 1.2 s</mark>, and carts abandoned at the payment step rose by 6%. This report traces where
-                the time goes and proposes three changes, smallest first.
+                410&nbsp;ms to 1.2&nbsp;s</mark>, and carts abandoned at the payment step rose by 6%. This report
+                traces where the time goes and proposes three changes, smallest first.
             </p>
             <h2>What we measured</h2>
             <p>
@@ -576,17 +683,17 @@ mark.anchor.is-resolved.is-active {
                     <tr><th>Region</th><th>p50</th><th>p95</th><th>p95 before</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>us-east</td><td>290 ms</td><td>940 ms</td><td>400 ms</td></tr>
-                    <tr><td>eu-west</td><td>350 ms</td><td>1,610 ms</td><td>430 ms</td></tr>
-                    <tr><td>ap-south</td><td>310 ms</td><td>1,050 ms</td><td>420 ms</td></tr>
+                    <tr><td>us-east</td><td>290&nbsp;ms</td><td>940&nbsp;ms</td><td>400&nbsp;ms</td></tr>
+                    <tr><td>eu-west</td><td>350&nbsp;ms</td><td>1,610&nbsp;ms</td><td>430&nbsp;ms</td></tr>
+                    <tr><td>ap-south</td><td>310&nbsp;ms</td><td>1,050&nbsp;ms</td><td>420&nbsp;ms</td></tr>
                 </tbody>
             </table>
             <h2>Where the time goes</h2>
             <p>
                 Two thirds of the added time is the tax quote. The new tax service is called once per line item
                 instead of once per cart, and each call waits on a cold connection pool.
-                <mark class="anchor" data-thread="t3">The payment provider's own p95 held at 180 ms</mark>, so the
-                provider is not the cause.
+                <mark class="anchor" data-thread="t3">The payment provider's own p95 held at 180&nbsp;ms</mark>, so
+                the provider is not the cause.
             </p>
             <p>
                 The rest is the fraud check, which now runs before the payment form renders instead of after the
@@ -594,7 +701,7 @@ mark.anchor.is-resolved.is-active {
             </p>
             <h2>Proposal</h2>
             <ol>
-                <li>Batch the tax quote into one call per cart. This alone should bring p95 under 700 ms.</li>
+                <li>Batch the tax quote into one call per cart. This alone should bring p95 under 700&nbsp;ms.</li>
                 <li>
                     Warm the tax service's connection pool at deploy, and
                     <mark class="anchor" data-thread="t2">cache the tax quote per cart for 60 seconds</mark>.

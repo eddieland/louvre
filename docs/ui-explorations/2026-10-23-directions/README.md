@@ -35,3 +35,10 @@ toggle in the corner to compare light. Mock data only, so nothing is saved, and 
 - How the margin learns where a passage is once the artifact's HTML renders in its own sandboxed frame, on its own
   origin, as it must (REQUIREMENTS L7). Here the artifact sits inline. M2 measures anchors inside the frame and posts
   their positions out.
+
+## Revisions
+
+- Gallery on a phone, after the operator found it cramped: the page fills the screen instead of sitting in a frame,
+  the header and toolbar take one line each instead of four, and the type is set for the narrow measure, so the
+  chrome above the report went from 195 to 71 px and a line holds 40 to 45 characters instead of 30 to 36. In all
+  three, a number keeps its unit on its line.
