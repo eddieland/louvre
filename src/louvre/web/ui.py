@@ -1,4 +1,4 @@
-"""The built web UI, ui/dist, which the app serves under /app/ (ui/DESIGN.md).
+"""The built web UI, ui/dist, which the app serves at its root, and the bridge it adds to artifacts' pages.
 
 In a source checkout it sits at the repository root once `make ui-build` has run. In an installed wheel it is bundled
 inside the package (`louvre/_data/ui`), built by the wheel's hook (hatch_build.py), which is how it reaches Vercel.
@@ -30,3 +30,14 @@ def asset(root: Path, path: str) -> Path | None:
     if not candidate.is_relative_to(root.resolve()) or not candidate.is_file():
         return None
     return candidate
+
+
+def bridge() -> str | None:
+    """Read the built bridge, the script the app adds to every artifact's page (ui/src/bridge).
+
+    Returns:
+        Its JavaScript, or None when this installation has none built.
+    """
+    root = dist()
+    found = None if root is None else root / "bridge" / "bridge.js"
+    return found.read_text(encoding="utf-8") if found is not None and found.is_file() else None

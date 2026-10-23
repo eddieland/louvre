@@ -22,6 +22,37 @@ def serve(host: str, port: int) -> None:
     uvicorn.run(create(), host=host, port=port)
 
 
+@cli.command()
+def migrate() -> None:
+    """Apply the database's migrations: the database DATABASE_URL names."""
+    from louvre.core import db  # noqa: PLC0415  (only the commands that need the database import it)
+
+    with db.connect(_database_url()) as conn:
+        applied = db.migrate(conn)
+    click.echo(f"applied {', '.join(applied)}" if applied else "the database is up to date")
+
+
+@cli.command()
+def demo() -> None:
+    """Publish the demo's artifacts, unless they are published already."""
+    from louvre.core import db  # noqa: PLC0415  (as above)
+    from louvre.core import demo as demo_  # noqa: PLC0415
+
+    with db.connect(_database_url()) as conn:
+        db.migrate(conn)
+        published = demo_.seed(conn)
+    click.echo(f"published the demo in {demo_.NAMESPACE}" if published else "the demo is published already")
+
+
 def main() -> None:
     """Run the CLI as the `louvre` program, exiting with its status."""
     cli(prog_name="louvre")
+
+
+def _database_url() -> str:
+    from louvre.core import db  # noqa: PLC0415  (as above)
+
+    try:
+        return db.database_url()
+    except db.NotConfiguredError as e:
+        raise click.ClickException(str(e)) from None

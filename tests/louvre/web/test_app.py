@@ -1,3 +1,5 @@
+"""The app's own pages: the web UI at every path it routes, the design study, and health."""
+
 import re
 from collections.abc import Iterator
 from importlib.metadata import version
@@ -8,50 +10,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from louvre.web import ui
-from louvre.web.app import create
+from louvre.web.app import create, with_bridge
+from tests.conftest import web_settings
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create())
-
-
-def test_landing_links_the_sample_artifact(client: TestClient) -> None:
-    response = client.get("/")
-
-    assert response.status_code == 200
-    assert 'href="/a/checkout-latency"' in response.text
-    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
-
-
-def test_an_artifact_is_framed_without_same_origin(client: TestClient) -> None:
-    response = client.get("/a/checkout-latency")
-
-    assert response.status_code == 200
-    frame = re.search(r"<iframe[^>]*>", response.text, re.DOTALL)
-    assert frame
-    assert 'src="/a/checkout-latency/content"' in frame.group()
-    sandbox = re.search(r'sandbox="([^"]*)"', frame.group())
-    assert sandbox
-    assert "allow-scripts" in sandbox.group(1).split()
-    assert "allow-same-origin" not in sandbox.group(1).split()
-
-
-def test_an_artifacts_html_is_served_sandboxed_even_alone(client: TestClient) -> None:
-    response = client.get("/a/checkout-latency/content")
-
-    assert response.status_code == 200
-    policy = response.headers["content-security-policy"]
-    assert policy.startswith("sandbox allow-scripts ")
-    assert "allow-same-origin" not in policy
-    assert "default-src 'none'" in policy
-    assert response.headers["x-content-type-options"] == "nosniff"
-    assert "<svg" in response.text
-
-
-@pytest.mark.parametrize("path", ["/a/nope", "/a/nope/content", "/a/..%2Fapp.py/content"])
-def test_an_unknown_artifact_is_not_found(client: TestClient, path: str) -> None:
-    assert client.get(path).status_code == 404
+def client() -> Iterator[TestClient]:
+    """A client of an app with no database, which its pages do not need."""
+    with TestClient(create(web_settings(None))) as found:
+        yield found
 
 
 def test_health_names_the_version(client: TestClient) -> None:
@@ -83,32 +50,37 @@ def test_an_unknown_exploration_is_not_found(client: TestClient, path: str) -> N
     assert client.get(path).status_code == 404
 
 
-def test_the_landing_page_links_the_directions(client: TestClient) -> None:
-    assert 'href="/directions"' in client.get("/").text
-
-
 @pytest.fixture
 def built(tmp_path: Path) -> Iterator[Path]:
-    """A built UI of two files, where louvre.web.ui looks for one."""
+    """A built UI of two files and the bridge, where louvre.web.ui looks for one."""
     (tmp_path / "assets").mkdir()
+    (tmp_path / "bridge").mkdir()
     (tmp_path / "index.html").write_text("<!doctype html><title>Louvre</title><div id=root></div>", encoding="utf-8")
     (tmp_path / "assets" / "index-abc123.js").write_text("console.log(1)", encoding="utf-8")
+    (tmp_path / "bridge" / "bridge.js").write_text("console.log('bridge')", encoding="utf-8")
     with mock.patch.object(ui, "_CANDIDATES", (tmp_path,)):
         yield tmp_path
 
 
-def test_the_app_is_its_index_at_every_route(client: TestClient, built: Path) -> None:
-    for path in ("/app", "/app/", "/app/a/checkout-latency"):
-        response = client.get(path)
+@pytest.mark.parametrize("path", ["/", "/a/a_123", "/tokens", "/a/a_123?v=2"])
+def test_the_app_is_its_index_at_every_route(client: TestClient, built: Path, path: str) -> None:
+    response = client.get(path)
 
-        assert response.status_code == 200, path
-        assert "<div id=root>" in response.text
-        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
-        assert response.headers["cache-control"] == "no-cache"
+    assert response.status_code == 200, path
+    assert "<div id=root>" in response.text
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    assert response.headers["cache-control"] == "no-cache"
+
+
+def test_the_old_app_path_moves_to_the_root(client: TestClient) -> None:
+    response = client.get("/app/a/a_123", follow_redirects=False)
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "/a/a_123"
 
 
 def test_a_built_asset_is_served_and_kept(client: TestClient, built: Path) -> None:
-    response = client.get("/app/assets/index-abc123.js")
+    response = client.get("/assets/index-abc123.js")
 
     assert response.status_code == 200
     assert response.text == "console.log(1)"
@@ -118,14 +90,25 @@ def test_a_built_asset_is_served_and_kept(client: TestClient, built: Path) -> No
 def test_a_path_out_of_the_build_serves_the_index_not_the_file(client: TestClient, built: Path) -> None:
     (built.parent / "secret.txt").write_text("not for the web", encoding="utf-8")
 
-    response = client.get("/app/..%2Fsecret.txt")
+    response = client.get("/..%2Fsecret.txt")
 
     assert "not for the web" not in response.text
 
 
 def test_the_app_says_so_when_it_is_not_built(client: TestClient) -> None:
     with mock.patch.object(ui, "_CANDIDATES", ()):
-        response = client.get("/app/")
+        response = client.get("/")
 
     assert response.status_code == 503
     assert "make ui-build" in response.text
+
+
+def test_the_bridge_is_read_from_the_build(built: Path) -> None:
+    assert ui.bridge() == "console.log('bridge')"
+    with mock.patch.object(ui, "_CANDIDATES", ()):
+        assert ui.bridge() is None
+
+
+def test_a_page_without_a_built_bridge_is_served_as_it_is() -> None:
+    assert with_bridge("<p>Hi</p>", None) == "<p>Hi</p>"
+    assert re.fullmatch(r"<p>Hi</p>\n<script>x</script>\n", with_bridge("<p>Hi</p>", "x"))

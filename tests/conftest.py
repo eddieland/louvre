@@ -1,10 +1,139 @@
-"""Shared fixtures, for every test module."""
+"""Shared fixtures, for every test module.
 
+The store's tests run against a real Postgres, named by `LOUVRE_TEST_DATABASE_URL` (a database the tests may create
+others beside, such as `postgresql://louvre@127.0.0.1:5432/postgres`). Each pytest worker gets a database of its own,
+migrated once, and every test starts from empty tables. Without the variable, those tests are skipped, except in CI,
+where they fail: CI must never pass by skipping them.
+"""
+
+import dataclasses
+import os
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack
+
+import psycopg
 import pytest
 from click.testing import CliRunner
+from fastapi.testclient import TestClient
+from psycopg import conninfo, sql
+
+from louvre.core import accounts, db
+from louvre.core.accounts import Account, upsert_account
+from louvre.core.store import Store
+from louvre.web.app import create
+from louvre.web.settings import Settings
+
+#: The variable that names the Postgres the tests use.
+TEST_DATABASE = "LOUVRE_TEST_DATABASE_URL"
+#: Where Louvre's pages are, in the tests' stores and apps.
+BASE_URL = "https://louvre.test"
+#: The header every write to the web app carries.
+WRITES = {"X-Louvre": "1"}
+#: Every table the store writes, emptied before each test.
+TABLES = ("changes", "comments", "threads", "versions", "artifacts", "authors", "tokens", "sessions", "accounts")
 
 
 @pytest.fixture
 def runner() -> CliRunner:
     """A runner for louvre's commands, in this process, with stdout and stderr kept apart."""
     return CliRunner()
+
+
+@pytest.fixture(scope="session")
+def database_url(request: pytest.FixtureRequest) -> Iterator[str]:
+    """A migrated database of this worker's own, made fresh for the session and dropped after it."""
+    admin = os.environ.get(TEST_DATABASE)
+    if not admin:
+        if os.environ.get("CI"):
+            pytest.fail(f"{TEST_DATABASE} is not set in CI: the store's tests would not run")
+        pytest.skip(f"set {TEST_DATABASE} to run the tests that need Postgres")
+    worker = getattr(request.config, "workerinput", {}).get("workerid", "main")
+    name = f"louvre_test_{worker}"
+    with psycopg.connect(admin, autocommit=True) as conn:
+        conn.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name)))
+        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+    url = conninfo.make_conninfo(admin, dbname=name)
+    with db.connect(url) as conn:
+        db.migrate(conn)
+    yield url
+    with psycopg.connect(admin, autocommit=True) as conn:
+        conn.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+@pytest.fixture
+def conn(database_url: str) -> Iterator[db.Connection]:
+    """A connection to the test database, its tables emptied first."""
+    with db.connect(database_url) as connection:
+        connection.execute(
+            sql.SQL("TRUNCATE {} RESTART IDENTITY CASCADE").format(
+                sql.SQL(", ").join(sql.Identifier(t) for t in TABLES),
+            ),
+        )
+        yield connection
+
+
+def person(conn: db.Connection, login: str, name: str | None = None) -> Account:
+    """Record a person who signed in with the dev sign-in, as `dev:LOGIN`.
+
+    Returns:
+        Their account.
+    """
+    return upsert_account(conn, Account(f"dev:{login}", login, name or login.title()))
+
+
+#: Makes a store as an agent with a token of `scopes` in `namespace`, minted by Sam.
+type MakeAgent = Callable[..., Store]
+
+
+@pytest.fixture
+def agent(conn: db.Connection) -> MakeAgent:
+    """Make a store as an agent of Sam's, with a token of `scopes` in `namespace`."""
+
+    def make(namespace: str = "canopy/sam", scopes: tuple[str, ...] = ("read", "publish", "comment")) -> Store:
+        sam = person(conn, "sam", "Sam Okafor")
+        _, secret = accounts.mint(conn, sam, "canopy worker", namespace, set(scopes))
+        scope = accounts.token_scope(conn, secret)
+        assert scope is not None
+        return Store(conn, scope, base_url=BASE_URL)
+
+    return make
+
+
+#: Makes a client of the web app, configured by `Settings` with the fields given changed.
+type MakeWeb = Callable[..., TestClient]
+
+
+@pytest.fixture
+def web(database_url: str, conn: db.Connection) -> Iterator[MakeWeb]:
+    """Make clients of the web app on the test database, with sign-in by name on, and the demo off unless asked."""
+    with ExitStack() as stack:
+
+        def make(**changes: object) -> TestClient:
+            settings = dataclasses.replace(web_settings(database_url), **changes)  # type: ignore[arg-type]
+            return stack.enter_context(TestClient(create(settings), base_url=BASE_URL))
+
+        yield make
+
+
+def web_settings(database_url: str | None) -> Settings:
+    """Configure the web app for a test: on `database_url`, with GitHub and sign-in by name on, and the demo off.
+
+    Returns:
+        The settings.
+    """
+    return Settings(
+        database_url=database_url,
+        base_url=BASE_URL,
+        github_client_id="client-id",
+        github_client_secret="client-secret",  # noqa: S106  (a test's)
+        allowed_logins=frozenset({"ana"}),
+        dev_sign_in=True,
+        demo=False,
+        secure_cookies=False,
+    )
+
+
+def sign_in(client: TestClient, login: str, name: str | None = None) -> None:
+    """Sign in as `login` by name, as the web UI does."""
+    response = client.post("/auth/dev", json={"login": login, "name": name}, headers=WRITES)
+    assert response.status_code == 204, response.text
