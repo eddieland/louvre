@@ -1,0 +1,133 @@
+{
+  "_comment": [
+    "Cases both louvre.core.text and ui/src/bridge/text.ts answer alike: the visible text of each page (its",
+    "html, the lines joined), and where each anchor is found in it (null: passage gone). Python wrote the answers;",
+    "review a change to them."
+  ],
+  "cases": [
+    {
+      "name": "block tags part words, inline tags do not",
+      "html": [
+        "<h1>Check<em>out</em> latency</h1><p>p95 rose<br>to 1.2&nbsp;s</p><ul><li>one</li><li>two",
+        "</li></ul>"
+      ],
+      "anchors": [
+        {
+          "exact": "Checkout latency",
+          "at": 0
+        },
+        {
+          "exact": "rose to 1.2 s",
+          "at": 21
+        },
+        {
+          "exact": "one two",
+          "at": 35
+        },
+        {
+          "exact": "onetwo",
+          "at": null
+        }
+      ],
+      "text": "Checkout latency p95 rose to 1.2 s one two"
+    },
+    {
+      "name": "hidden elements show nothing",
+      "html": [
+        "<html><head><title>T</title><style>p{color:red}</style></head><body><p>Seen</p>",
+        "<script>var x='hidden'</script><template><p>never</p></template><noscript><p>no script",
+        "</p></noscript><p>also seen</p></body></html>"
+      ],
+      "anchors": [
+        {
+          "exact": "Seen also seen",
+          "at": 0
+        },
+        {
+          "exact": "hidden",
+          "at": null
+        },
+        {
+          "exact": "never",
+          "at": null
+        },
+        {
+          "exact": "no script",
+          "at": null
+        }
+      ],
+      "text": "Seen also seen"
+    },
+    {
+      "name": "whitespace collapses and an anchor's own does too",
+      "html": [
+        "<p>  The   payment\n provider's  own p95 held  </p>"
+      ],
+      "anchors": [
+        {
+          "exact": "provider's  own\np95",
+          "at": 12
+        }
+      ],
+      "text": "The payment provider's own p95 held"
+    },
+    {
+      "name": "the copy whose sides match best wins",
+      "html": [
+        "<p>cache the quote. Later, we cache the quote per cart. Then cache the quote again.</p>"
+      ],
+      "anchors": [
+        {
+          "exact": "cache the quote",
+          "prefix": "Later, we ",
+          "suffix": " per cart",
+          "at": 27
+        },
+        {
+          "exact": "cache the quote",
+          "prefix": "Then ",
+          "suffix": " again",
+          "at": 58
+        },
+        {
+          "exact": "cache the quote",
+          "at": 0
+        },
+        {
+          "exact": "cache the quote",
+          "prefix": "nothing like",
+          "suffix": "this at all",
+          "at": 27
+        }
+      ],
+      "text": "cache the quote. Later, we cache the quote per cart. Then cache the quote again."
+    },
+    {
+      "name": "words found nowhere are gone",
+      "html": [
+        "<p>retry the fraud check once</p>"
+      ],
+      "anchors": [
+        {
+          "exact": "retry the fraud check twice",
+          "at": null
+        }
+      ],
+      "text": "retry the fraud check once"
+    },
+    {
+      "name": "table cells part words",
+      "html": [
+        "<table><tr><th>Region</th><th>p95</th></tr><tr><td>eu-west</td><td>1,610 ms</td></tr>",
+        "</table>"
+      ],
+      "anchors": [
+        {
+          "exact": "eu-west 1,610 ms",
+          "at": 11
+        }
+      ],
+      "text": "Region p95 eu-west 1,610 ms"
+    }
+  ]
+}

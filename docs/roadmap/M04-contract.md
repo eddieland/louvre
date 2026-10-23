@@ -15,4 +15,7 @@ Accept: tests hold each tool to the contract: a new version keeps a thread's anc
 `passage_gone`; the feed's cursor misses no change and repeats none across pages; each refusal code is given where
 the contract says; M2's Playwright tests pass against the store.
 
-Status: not started.
+Status: done 2026-10-23.
+Learned: the store went in before M2 was accepted, with M2's UI built on it directly: the operator asked for the MVP
+end to end, so no mock-data API was built to replace. The demo (`louvre.core.demo`) seeds the store instead.
+Next: M2's acceptance is on the running app; M3's boards are the one experience left over mock data.

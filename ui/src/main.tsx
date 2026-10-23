@@ -11,8 +11,6 @@ const queryClient = new QueryClient()
 
 const router = createRouter({
     routeTree,
-    // Vite's `base`: FastAPI serves the SPA under /app/ (vite.config.ts).
-    basepath: '/app',
     context: { queryClient },
     defaultPreload: 'intent',
     // Loaders read the Query cache; the router keeps no cache of its own.

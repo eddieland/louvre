@@ -6,18 +6,17 @@ Chromium, so they run only when asked: `make screens` checks every page at every
 `make screenshots` also rewrites the screenshots and the gallery, for the diff to be reviewed with the change.
 """
 
+import json
 import os
-import threading
-import time
-from collections.abc import Callable, Iterator
+import urllib.request
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-import uvicorn
-from playwright.sync_api import Browser, Page, sync_playwright
+from playwright.sync_api import Browser, Page
 
-from louvre.web.app import create
+from tests.conftest import WRITES
 
 #: The repository's root in a checkout.
 ROOT = Path(__file__).resolve().parents[3]
@@ -53,9 +52,12 @@ class Scene:
     name: str
     #: What the gallery calls it.
     label: str
+    #: The page's path; `{checkout}`, `{notes}`, and `{weekly}` stand for the demo's artifacts' ids.
     path: str
     #: What to do on the page before it is checked, such as opening a thread.
     act: Callable[[Page], None] | None = None
+    #: Whether the reader is signed in, as Ana, or reads the demo without signing in.
+    signed_in: bool = True
 
 
 def _open_thread(page: Page) -> None:
@@ -63,8 +65,18 @@ def _open_thread(page: Page) -> None:
     page.wait_for_selector('.thread[data-id="t1"].is-active', state="visible")
 
 
-def _report_drawn(page: Page) -> None:
-    page.frame_locator("iframe").locator("svg rect").first.wait_for()
+def _artifact_shown(page: Page) -> None:
+    """Wait until the bridge has marked the artifact's passages and the margin has placed their threads."""
+    page.frame_locator("iframe.exhibit").locator("[data-louvre] span").first.wait_for()
+    page.wait_for_function("document.querySelector('iframe.exhibit').offsetHeight > 480")
+
+
+def _report_open(page: Page) -> None:
+    """The report drawn, and its first thread open."""
+    _artifact_shown(page)
+    page.frame_locator("iframe.exhibit").locator("svg rect").first.wait_for()
+    page.keyboard.press("j")
+    page.wait_for_selector(".thread.is-active", state="visible")
 
 
 #: Every screen, dark first; light at one phone and one laptop size.
@@ -80,9 +92,14 @@ SCREENS = (
 )
 #: Every page the web app serves, each in the state worth looking at.
 SCENES = (
-    Scene("landing", "Landing", "/"),
-    Scene("app", "The web UI's specimen", "/app/"),
-    Scene("artifact", "An artifact, sandboxed", "/a/checkout-latency", _report_drawn),
+    Scene("catalogue", "The catalogue, signed in", "/"),
+    Scene("reader", "The catalogue, reading the demo without signing in", "/", signed_in=False),
+    Scene("sign-in", "Signing in", "/sign-in", signed_in=False),
+    Scene("artifact", "An artifact, a thread open", "/a/{checkout}", _report_open),
+    Scene("artifact-older", "An artifact's older version", "/a/{checkout}?v=1", _artifact_shown),
+    Scene("markdown", "A Markdown artifact, in the house style", "/a/{notes}", _artifact_shown),
+    Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
+    Scene("tokens", "Tokens", "/tokens"),
     Scene("directions", "Design directions", "/directions"),
     Scene("gallery", "Direction: Gallery, a thread open", "/directions/2026-10-23-directions/gallery", _open_thread),
     Scene("studio", "Direction: Studio, a thread open", "/directions/2026-10-23-directions/studio", _open_thread),
@@ -90,6 +107,8 @@ SCENES = (
     Scene("annotated", "Blend: Annotated, a thread open", "/directions/2026-10-23-blends/annotated", _open_thread),
     Scene("open", "Blend: Open, a thread open", "/directions/2026-10-23-blends/open", _open_thread),
 )
+#: The demo's artifacts, by the name a scene's path gives each, and how its title starts.
+DEMO = {"checkout": "Checkout latency", "notes": "Release notes", "weekly": "Payments, week"}
 
 browser_only = pytest.mark.skipif(MODE not in {"1", "update"}, reason="drives a browser: run `make screens`")
 
@@ -110,34 +129,23 @@ def test_the_gallery_lists_every_screenshot() -> None:
 
 
 @pytest.fixture(scope="module")
-def base_url() -> Iterator[str]:
-    server = uvicorn.Server(uvicorn.Config(create(), host="127.0.0.1", port=0, log_level="warning"))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    deadline = time.monotonic() + DEADLINE
-    while not server.started:
-        assert time.monotonic() < deadline, "the web app did not start"
-        time.sleep(0.05)
-    port = server.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join(DEADLINE)
-
-
-@pytest.fixture(scope="module")
-def browser() -> Iterator[Browser]:
-    with sync_playwright() as playwright:
-        # A Chromium of the machine's, where Playwright's own download is not to be had.
-        executable = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE") or None
-        launched = playwright.chromium.launch(executable_path=executable)
-        yield launched
-        launched.close()
+def demo(live_app: str) -> dict[str, str]:
+    """The demo's artifacts' ids, by the names scenes' paths give them."""
+    with urllib.request.urlopen(f"{live_app}/api/artifacts") as response:  # noqa: S310  (the test's own server)
+        listed = json.load(response)["artifacts"]
+    return {name: next(a["id"] for a in listed if a["title"].startswith(t)) for name, t in DEMO.items()}
 
 
 @browser_only
 @pytest.mark.parametrize("screen", SCREENS, ids=[s.name for s in SCREENS])
 @pytest.mark.parametrize("scene", SCENES, ids=[s.name for s in SCENES])
-def test_a_page_fits_the_screen(base_url: str, browser: Browser, scene: Scene, screen: Screen) -> None:
+def test_a_page_fits_the_screen(
+    live_app: str,
+    demo: Mapping[str, str],
+    browser: Browser,
+    scene: Scene,
+    screen: Screen,
+) -> None:
     context = browser.new_context(
         viewport={"width": screen.width, "height": screen.height},
         color_scheme="dark" if screen.scheme == "dark" else "light",
@@ -145,12 +153,15 @@ def test_a_page_fits_the_screen(base_url: str, browser: Browser, scene: Scene, s
         has_touch=screen.touch,
         reduced_motion="reduce",
     )
+    if scene.signed_in:
+        signed = context.request.post(f"{live_app}/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES)
+        assert signed.status == 204
     errors: list[str] = []
     page = context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
-        page.goto(base_url + scene.path, wait_until="networkidle")
+        page.goto(live_app + scene.path.format_map(demo), wait_until="networkidle")
         page.evaluate("document.fonts.ready")
         if scene.act:
             scene.act(page)

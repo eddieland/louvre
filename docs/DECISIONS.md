@@ -70,3 +70,27 @@ the log reads as what is true now; the old text is in git history. Numbers are n
   host. The feed's `seq` and every query rely on it; tests run against a real Postgres, in CI too.
 - Rejected: SQLite on one host (ties Louvre to one machine's disk); both behind an interface (two backends to hold to
   one contract).
+
+## D008. An artifact's page is served sandboxed, with only the bridge added
+
+- `/content/...` answers with a `sandbox` Content-Security-Policy and is framed without `allow-same-origin`, so its
+  scripts run on an opaque origin and never see a session. Louvre adds one script, the bridge (`ui/src/bridge`), and
+  trusts nothing it says further than where a passage is or what was selected.
+- Anchors are read the same way on both sides: `louvre.core.text` and `ui/src/bridge/text.ts` answer
+  `tests/fixtures/anchors.json` alike; a change to one changes the other.
+- Rejected: a second origin for content (a domain to run); marks as `<mark>` elements in the artifact's markup (the
+  bridge paints with the CSS Highlight API, so the author's DOM is untouched).
+
+## D009. A write through the web needs `X-Louvre: 1`, and agents write only through `/mcp` with a token
+
+- A form or a link on another site cannot send the header, and a script cannot without a preflight Louvre never
+  grants; with `SameSite=Lax` session cookies, that is Louvre's CSRF defense. A new write route goes under `/api` or
+  `/auth`, where the middleware holds it.
+- `/mcp` takes a bearer token and never a cookie: a person's session cannot be used as an agent's.
+
+## D010. The MCP server is hand-rolled JSON-RPC, as canopy's local store's is
+
+- The tools' definitions and the answering are canopy's (`packages/canopy-artifacts`), ported, so both stores serve
+  one contract; Louvre carries it over streamable HTTP, one message a request, answered as JSON.
+- Rejected: the `mcp` SDK (its own async stack and transports, for five methods).
+- Revisit: if a client needs server-sent events or sessions.

@@ -54,8 +54,8 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
 
 - **Wide (above 960 px):** the frame and the margin side by side, at most 1180 px together: the frame flexes, the
   margin is 300 px, 40 px between them. The reading measure inside the frame is at most 680 px.
-- **Narrow (960 px and below):** the margin becomes a bottom sheet that rises with the open thread, at most 62% of the
-  screen. The frame stays.
+- **Narrow (960 px and below), a tablet in portrait too:** the margin becomes a bottom sheet that rises with the open
+  thread, at most 62% of the screen. The frame stays.
 - **Phone (600 px and below):** the frame goes; the page fills the screen under one hairline. The header is one line
   (wordmark, ticket) and the toolbar one row, with short labels. 20 px side padding.
 - Nothing scrolls sideways at any size. Every page is held to the screen matrix (REQUIREMENTS U4), and its
@@ -63,9 +63,10 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
 
 ## Threads
 
-- **Anchors.** An anchored passage shows a low `hl` band; hovered or active, a full `hl-strong` band. A resolved
-  passage shows none until its thread is hovered. The passage's thread number follows its last word, in `accent`,
-  superscript.
+- **Anchors.** An anchored passage shows an `hl` band; hovered or active, an `hl-strong` band. A resolved passage shows
+  none until its thread is hovered, then a `rule` band. The passage's thread number follows its last word, in
+  `accent`, superscript. Inside an artifact the bridge paints these with the CSS Custom Highlight API, which colors
+  text and changes none of the author's markup; it draws a full band, not the low one Louvre's own pages can.
 - **Placement.** A thread sits in the margin level with its passage. When two would overlap, the active thread keeps
   its place and the others move aside, up or down; they animate 200 ms, and not at all under reduced motion.
 - **A note.** No box. The author's name in small caps, then the text, inline. An agent's comment adds "(Agent, for
@@ -87,10 +88,24 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
   a row of small pills in roman numerals; the current one is outlined. The filter is Open (with its count) and All.
 - A notice in `accent` names threads whose passages left this version, and jumps to them.
 - The frame carries a label row above the artifact (its kind, its age) on wider screens only.
+- The header centers the wordmark over the page's provenance on wide screens, with the person's links (the theme,
+  Tokens, signing in or out) at its right, in Instrument Sans.
+- Threads on the whole artifact sit at the top of the margin; "Comment on the page" in the toolbar starts one.
+- An older version says so under the toolbar, in `accent`, with a link to the latest: comments go on the latest only.
+
+## Catalogue
+
+The list of artifacts is a reading column, at most 760 px: a title in Fraunces, newest first, each entry parted from
+the next by a hairline. Under the title, in Instrument Sans and `muted`: the namespace, where it came from in `ink`
+(its ticket), when it last changed, and how many versions it has past one. The open threads' count sits at the right
+in `accent`; none is a muted dash. The tokens page and signing in are the same column.
+
+## Louvre's style for agents
+
+`louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
+first, light when the reader's system is, every color a custom property. An artifact loads nothing from the network,
+so it names Louvre's faces and falls back to the reader's own serif and sans. A later style is a new version.
 
 ## Not decided yet
 
-- Whether a tablet in portrait (820 px) keeps the margin, narrowed, rather than the bottom sheet.
-- The pages M2 adds beyond the artifact's (the list of artifacts) and M3's boards: designed in this direction when
-  they are built, and added here.
-- Louvre's style for agents (REQUIREMENTS U6) is derived from this file's tokens and type in M2.
+- M3's boards: designed in this direction when they are built, and added here.

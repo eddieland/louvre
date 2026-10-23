@@ -14,19 +14,23 @@ operator shares an artifact with, serving the same MCP tools, so a skill written
 - **Readers of comments**, such as canopy's loop, pull the comment feed; Louvre never calls them.
 
 What Louvre must do, and where it stands on each, is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). The order it is
-built in is [docs/roadmap/](docs/roadmap/README.md). Nothing past the skeleton is built yet.
+built in is [docs/roadmap/](docs/roadmap/README.md). Deploying it, and connecting an agent, is
+[docs/DEPLOY.md](docs/DEPLOY.md). How every page looks at every screen size is [docs/screenshots/](docs/screenshots/).
 
 ## Develop
 
-Needs Python 3.12+, [uv](https://docs.astral.sh/uv/), and Node 22.12+ for the web UI in `ui/`.
+Needs Python 3.12+, [uv](https://docs.astral.sh/uv/), Node 22.12+ for the web UI in `ui/`, and a Postgres for the
+app and its tests (docs/DEPLOY.md runs one in Docker).
 
 ```sh
 uv sync          # the environment, with every dev tool
 make hooks       # optional: the formatters and linters on each commit
+export LOUVRE_TEST_DATABASE_URL=postgresql://postgres:louvre@127.0.0.1:5432/postgres
 make all         # format, lint, type check, and test
-uv run louvre -h
-make ui-build        # the web UI, which `louvre serve` serves under /app/
-uv run louvre serve  # the web app on http://127.0.0.1:8000, as the preview deployment serves it
+make ui-build    # the web UI, which `louvre serve` serves
+DATABASE_URL=$LOUVRE_TEST_DATABASE_URL LOUVRE_DEMO=1 LOUVRE_DEV_SIGN_IN=1 uv run louvre serve
 ```
+
+The last line serves the app on <http://127.0.0.1:8000> with the demo's artifacts, and sign-in by name.
 
 `make` alone lists every target. [AGENTS.md](AGENTS.md) holds the rules for humans and agents alike.

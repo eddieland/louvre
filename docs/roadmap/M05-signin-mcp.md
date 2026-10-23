@@ -13,4 +13,5 @@ Accept: canopy's `canopy-artifacts` skill, pointed at a local Louvre, publishes 
 replies; a `read` token's writes are refused; a person's comment on the web and the agent's reply sit in one thread;
 the artifact's HTML cannot read the person's session.
 
-Status: not started.
+Status: in progress: built (GitHub sign-in with an allowlist, tokens, MCP at `/mcp`, `style_get`), with every part
+held by tests; the live check with canopy's skill is the operator's.
