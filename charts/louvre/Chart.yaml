@@ -1,0 +1,11 @@
+apiVersion: v2
+name: louvre
+description: Louvre, a hosted artifact platform, with an optional bundled PostgreSQL for local clusters.
+type: application
+# The chart's own version, bumped with each change to it. appVersion is the image tag it runs unless image.tag says
+# otherwise: the Image workflow pushes `main` from the main branch and a version from each v* tag.
+version: 0.1.0
+appVersion: main
+home: https://github.com/eddieland/louvre
+sources:
+  - https://github.com/eddieland/louvre

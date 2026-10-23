@@ -1,0 +1,156 @@
+{{- if .Values.postgresql.enabled -}}
+{{- $pg := .Values.postgresql -}}
+{{- $fullname := include "louvre.postgresql.fullname" . -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "louvre.postgresql.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "louvre.postgresql.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "louvre.postgresql.labels" . | nindent 4 }}
+spec:
+  # One server: the bundled database is for local clusters and trials, not for high availability.
+  replicas: 1
+  serviceName: {{ $fullname }}
+  selector:
+    matchLabels:
+      {{- include "louvre.postgresql.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "louvre.postgresql.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml $pg.podSecurityContext | nindent 8 }}
+      containers:
+        - name: postgresql
+          image: {{ include "louvre.imageRef" (list $pg.image "") | quote }}
+          imagePullPolicy: {{ $pg.image.pullPolicy }}
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              value: {{ $pg.auth.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pg.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "louvre.database.secretName" . }}
+                  key: {{ include "louvre.database.secretKey" . }}
+          # Ready once the server takes connections over TCP: the image's first-run setup listens on its socket only.
+          startupProbe:
+            exec:
+              command: [sh, -c, 'pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: [sh, -c, 'pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: [sh, -c, 'pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml $pg.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml $pg.securityContext | nindent 12 }}
+          volumeMounts:
+            # From PostgreSQL 18 the image keeps its data under /var/lib/postgresql/<major>/, so the volume holds
+            # the directory above it, and a later major version's data can sit beside this one's.
+            - name: data
+              mountPath: /var/lib/postgresql
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- if not $pg.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+      {{- with $pg.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pg.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pg.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if $pg.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "louvre.postgresql.selectorLabels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml $pg.persistence.accessModes | nindent 10 }}
+        {{- with $pg.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $pg.persistence.size }}
+  {{- end }}
+{{- if $pg.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "louvre.postgresql.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "louvre.postgresql.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "louvre.selectorLabels" . | nindent 14 }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: test
+      ports:
+        - port: postgresql
+          protocol: TCP
+{{- end }}
+{{- end }}

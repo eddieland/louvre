@@ -1,0 +1,50 @@
+{{- /*
+`helm test`: Louvre answers on its Service, and the database the chart gives it takes the credentials it is given,
+over the same libpq variables Louvre reads. Each check runs in an image the release already uses.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "louvre.fullname" . }}-test
+  labels:
+    helm.sh/chart: {{ include "louvre.chart" . }}
+    app.kubernetes.io/name: {{ include "louvre.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: test
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook: test
+    # Kept until the next run, so `helm test --logs` and `kubectl logs` can read it.
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: healthz
+      image: {{ include "louvre.imageRef" (list .Values.image .Chart.AppVersion) | quote }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      command: [python, -c]
+      args:
+        - |
+          import json, urllib.request
+          url = "http://{{ include "louvre.fullname" . }}:{{ .Values.service.port }}/healthz"
+          with urllib.request.urlopen(url, timeout=10) as response:
+              body = json.load(response)
+          assert body["status"] == "ok", body
+          print("louvre", body["version"], "is healthy")
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+    - name: database
+      image: {{ include "louvre.imageRef" (list .Values.postgresql.image "") | quote }}
+      imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+      command: [psql, --no-psqlrc, --tuples-only, --command, "select 'database ' || current_database() || ' answers'"]
+      env:
+        {{- include "louvre.database.env" . | trim | nindent 8 }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}

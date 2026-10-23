@@ -1,0 +1,15 @@
+# The image is built from a clean tree: what the build copies in, nothing a checkout accumulates.
+.git
+.github
+.claude
+.venv
+**/__pycache__
+**/node_modules
+ui/dist
+ui/coverage
+htmlcov
+coverage.xml
+dist
+charts
+tests
+docs/screenshots

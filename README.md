@@ -29,4 +29,9 @@ make ui-build        # the web UI, which `louvre serve` serves under /app/
 uv run louvre serve  # the web app on http://127.0.0.1:8000, as the preview deployment serves it
 ```
 
+## Deploy
+
+The `Dockerfile` builds Louvre's image, and the Helm chart in [charts/louvre](charts/louvre/README.md) runs it, with a
+bundled PostgreSQL for a local cluster (`make kind-up`) or a managed one in production.
+
 `make` alone lists every target. [AGENTS.md](AGENTS.md) holds the rules for humans and agents alike.
