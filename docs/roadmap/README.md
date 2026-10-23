@@ -19,7 +19,7 @@ interaction first, over mock data, then the store under them, at the operator's 
 ## Milestones
 
 - [M0. Skeleton](M00-skeleton.md): done 2026-10-23.
-- [M1. Directions](M01-directions.md): in progress.
+- [M1. Directions](M01-directions.md): done 2026-10-23.
 - [M2. Reading and commenting, over mock data](M02-experience.md): not started.
 - [M3. Boards, over mock data](M03-boards.md): not started.
 - [M4. The contract on Postgres, under the UI](M04-contract.md): not started.

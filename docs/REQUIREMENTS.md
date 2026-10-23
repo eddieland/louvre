@@ -16,7 +16,7 @@ yet).
 Planned (M1, M2). The operator's priority (2026-10-23): reading an artifact and commenting on it should feel right
 before anything else is built, so the UI is built first, over mock data, and the store comes under it. Comments are
 margin threads, as in a shared document: select words, and a thread opens in the margin beside its passage; threads
-stack along the page and follow it as it scrolls. The look is picked from mock-ups (M1).
+stack along the page and follow it as it scrolls. The look, picked from mock-ups in M1, is Annotated (`ui/DESIGN.md`).
 
 ### U2. Dark first
 

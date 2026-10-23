@@ -12,3 +12,8 @@ toggle for light, and set for a phone as Gallery was revised to be.
 What to compare: whether the page should sit in a frame (Annotated) or be the page (Open), and whether a thread should
 read as a note in the margin (Annotated) or as a placard beside the text (Open). Either can take the other's answer to
 one of the two.
+
+## Picked
+
+Annotated, by the operator on 2026-10-23. Its rules are in `ui/DESIGN.md`; this study stays as the record of how it
+was chosen.

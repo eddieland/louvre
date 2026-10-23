@@ -9,7 +9,8 @@ Instructions for any agent working in this repository. Humans should read it too
    artifacts contract, which it cites, is normative.
 3. `docs/roadmap/README.md`: milestones in order, each one's status, and a file per milestone with its acceptance
    criteria. Read the file of the milestone your work belongs to.
-4. `docs/DECISIONS.md`: the few choices every agent must know, whatever it works on. Read it whole; add to it rarely.
+4. `ui/DESIGN.md`: how Louvre looks and behaves. Normative; read it before changing anything visible.
+5. `docs/DECISIONS.md`: the few choices every agent must know, whatever it works on. Read it whole; add to it rarely.
 
 ## How to work
 
