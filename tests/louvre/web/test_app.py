@@ -1,9 +1,13 @@
 import re
+from collections.abc import Iterator
 from importlib.metadata import version
+from pathlib import Path
+from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from louvre.web import ui
 from louvre.web.app import create
 
 
@@ -81,3 +85,47 @@ def test_an_unknown_exploration_is_not_found(client: TestClient, path: str) -> N
 
 def test_the_landing_page_links_the_directions(client: TestClient) -> None:
     assert 'href="/directions"' in client.get("/").text
+
+
+@pytest.fixture
+def built(tmp_path: Path) -> Iterator[Path]:
+    """A built UI of two files, where louvre.web.ui looks for one."""
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<!doctype html><title>Louvre</title><div id=root></div>", encoding="utf-8")
+    (tmp_path / "assets" / "index-abc123.js").write_text("console.log(1)", encoding="utf-8")
+    with mock.patch.object(ui, "_CANDIDATES", (tmp_path,)):
+        yield tmp_path
+
+
+def test_the_app_is_its_index_at_every_route(client: TestClient, built: Path) -> None:
+    for path in ("/app", "/app/", "/app/a/checkout-latency"):
+        response = client.get(path)
+
+        assert response.status_code == 200, path
+        assert "<div id=root>" in response.text
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+        assert response.headers["cache-control"] == "no-cache"
+
+
+def test_a_built_asset_is_served_and_kept(client: TestClient, built: Path) -> None:
+    response = client.get("/app/assets/index-abc123.js")
+
+    assert response.status_code == 200
+    assert response.text == "console.log(1)"
+    assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+
+def test_a_path_out_of_the_build_serves_the_index_not_the_file(client: TestClient, built: Path) -> None:
+    (built.parent / "secret.txt").write_text("not for the web", encoding="utf-8")
+
+    response = client.get("/app/..%2Fsecret.txt")
+
+    assert "not for the web" not in response.text
+
+
+def test_the_app_says_so_when_it_is_not_built(client: TestClient) -> None:
+    with mock.patch.object(ui, "_CANDIDATES", ()):
+        response = client.get("/app/")
+
+    assert response.status_code == 503
+    assert "make ui-build" in response.text

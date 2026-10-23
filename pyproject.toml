@@ -61,6 +61,14 @@ packages = ["src/louvre"]
 [tool.hatch.build.targets.wheel.force-include]
 "docs/ui-explorations" = "louvre/_data/explorations"
 
+# The built web UI goes in as louvre/_data/ui, built with npm first when it is on PATH.
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
+
+# ui/ ships as source; its dependencies and build output are not part of it.
+[tool.hatch.build.targets.sdist]
+exclude = ["ui/node_modules", "ui/dist", "ui/coverage"]
+
 # The preview deployment: Vercel installs louvre from uv.lock and serves this app. vercel.json deploys main only, and
 # vercel-ignore.sh skips a build when nothing the app serves changed since the last deploy.
 [tool.vercel]
@@ -170,6 +178,8 @@ banned-from = ["unittest.mock"]
 # A route's docstring is its description in the OpenAPI schema, and its response is its annotation, so Returns and
 # Raises sections would only repeat them there.
 "src/louvre/web/*" = ["DOC201", "DOC501"]
+# The wheel's build hook runs npm; its argv is a list of resolved paths.
+"hatch_build.py" = ["S603"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

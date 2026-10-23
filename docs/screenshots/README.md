@@ -26,6 +26,28 @@ Light:
 | --- | --- |
 | ![Landing, Phone, 390, light](landing/phone-light.png) | ![Landing, Laptop, 1440, light](landing/laptop-light.png) |
 
+## The web UI's specimen
+
+`/app/`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![The web UI's specimen, Small phone, 360, dark](app/phone-small-dark.png) | ![The web UI's specimen, Phone, 390, dark](app/phone-dark.png) | ![The web UI's specimen, Tablet, 820, dark](app/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![The web UI's specimen, Tablet landscape, 1180, dark](app/tablet-landscape-dark.png) | ![The web UI's specimen, Laptop, 1440, dark](app/laptop-dark.png) | ![The web UI's specimen, Wide, 1920, dark](app/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![The web UI's specimen, Phone, 390, light](app/phone-light.png) | ![The web UI's specimen, Laptop, 1440, light](app/laptop-light.png) |
+
 ## An artifact, sandboxed
 
 `/a/checkout-latency`

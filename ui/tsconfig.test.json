@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["vite/client", "node"]
+  },
+  // main.tsx registers the router's routes, so a component's typed links check here as they do in the app.
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-utils.ts", "src/vite-env.d.ts", "src/main.tsx"],
+  "exclude": []
+}

@@ -16,4 +16,4 @@ a FastAPI app over mock data, as canopy's demo is. The store comes after it and 
 Accept: the operator, on the running page, reads an artifact, comments on a passage, replies, and resolves a thread,
 across a new version, and says it is right; Playwright holds each of those interactions.
 
-Status: not started.
+Status: in progress. `ui/` is set up on canopy's web stack, with Annotated's tokens and fonts, served at `/app/`.

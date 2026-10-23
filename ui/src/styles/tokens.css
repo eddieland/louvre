@@ -1,0 +1,59 @@
+/*
+ * Design tokens: the only place a color is written down (ui/DESIGN.md, "Tokens").
+ *
+ * Dark first: the dark values are the defaults, and light replaces them when the reader's system is light, or when a
+ * page sets data-theme="light". Both themes set the same names. A component reads a name through its Tailwind utility
+ * (bg-wall, text-muted), never a raw color and never a dark: variant; `npm run lint` fails on either outside this file.
+ * Text tokens read at 4.5:1 (WCAG AA) on wall and paper in both themes; tokens.test.ts measures each pair. faint never
+ * is text.
+ */
+
+:root {
+    color-scheme: dark;
+
+    --wall: #13110e;
+    --paper: #1c1915;
+    --ink: #ece5d8;
+    --muted: #a69c8c;
+    --faint: #6f675b;
+    --rule: #322c24;
+    --accent: #d9776c;
+    --accent-ink: #13110e;
+    --hl: rgb(217 119 108 / 16%);
+    --hl-strong: rgb(217 119 108 / 30%);
+    --shadow: rgb(0 0 0 / 60%);
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme='dark']) {
+        color-scheme: light;
+
+        --wall: #f3eee4;
+        --paper: #fffdf8;
+        --ink: #1f1b16;
+        --muted: #6d6458;
+        --faint: #a8a091;
+        --rule: #e0d6c4;
+        --accent: #8a2f2a;
+        --accent-ink: #fffdf8;
+        --hl: rgb(138 47 42 / 13%);
+        --hl-strong: rgb(138 47 42 / 24%);
+        --shadow: rgb(31 27 22 / 28%);
+    }
+}
+
+:root[data-theme='light'] {
+    color-scheme: light;
+
+    --wall: #f3eee4;
+    --paper: #fffdf8;
+    --ink: #1f1b16;
+    --muted: #6d6458;
+    --faint: #a8a091;
+    --rule: #e0d6c4;
+    --accent: #8a2f2a;
+    --accent-ink: #fffdf8;
+    --hl: rgb(138 47 42 / 13%);
+    --hl-strong: rgb(138 47 42 / 24%);
+    --shadow: rgb(31 27 22 / 28%);
+}
