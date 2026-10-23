@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Louvre: Margins</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- editorconfig-checker-disable-next-line -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
+    <style>
+/* Structure shared by every direction: the page column, the margin rail, and the phone's bottom sheet. */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+}
+body {
+    margin: 0;
+}
+[hidden] {
+    display: none !important;
+}
+.stage {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gutter);
+    max-width: var(--stage);
+    margin: 0 auto;
+    padding: var(--stage-pad);
+}
+.sheet {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.rail {
+    position: relative;
+    flex: 0 0 var(--rail);
+    width: var(--rail);
+}
+.rail > .thread {
+    position: absolute;
+    left: 0;
+    right: 0;
+    transition: top 200ms ease, box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+.rail > .gone {
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+.thread-n {
+    display: none;
+}
+.comment p {
+    margin: 0;
+}
+.composer {
+    display: none;
+}
+.thread.is-active .composer,
+.thread[data-state="draft"] .composer {
+    display: block;
+}
+.thread[data-state="resolved"] .composer,
+.thread[data-state="draft"] .thread-actions,
+.thread[data-state="draft"] .comments:empty {
+    display: none;
+}
+.composer textarea {
+    display: block;
+    width: 100%;
+    resize: none;
+    overflow: hidden;
+    font: inherit;
+}
+.composer-actions,
+.thread-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.kbd-hint {
+    margin-right: auto;
+}
+.btn {
+    font: inherit;
+    cursor: pointer;
+}
+mark {
+    background: none;
+    color: inherit;
+}
+mark.anchor {
+    cursor: pointer;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.add {
+    position: absolute;
+    z-index: 20;
+}
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transform: translateX(-50%);
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+@media (max-width: 960px) {
+    .stage {
+        display: block;
+        padding: var(--stage-pad-narrow);
+    }
+    .rail {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 25;
+        width: auto;
+        max-height: 62vh;
+        overflow: auto;
+        padding: 16px 16px 24px;
+        transform: translateY(105%);
+        transition: transform 220ms ease;
+    }
+    body.sheet-open .rail {
+        transform: none;
+    }
+    .rail .thread {
+        position: static;
+        display: none;
+    }
+    .rail .thread.is-active {
+        display: block;
+    }
+    .rail > .gone {
+        position: static;
+    }
+    .gone-title,
+    .kbd-hint {
+        display: none;
+    }
+    .sheet {
+        overflow-x: auto;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        transition: none !important;
+    }
+}
+
+/* Margins: no chrome to speak of. One column of text, and the conversation set as marginalia beside it. */
+:root {
+    --paper: #fffff8;
+    --ink: #151515;
+    --muted: #6b6b66;
+    --faint: #a3a39b;
+    --rule: #e6e4d8;
+    --accent: #2b4c9b;
+    --accent-ink: #fffff8;
+    --hl: rgba(43, 76, 155, 0.1);
+    --text: "Newsreader", "Iowan Old Style", Palatino, Georgia, serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --gutter: 56px;
+    --rail: 280px;
+    --stage: 1100px;
+    --stage-pad: 0 40px 120px;
+    --stage-pad-narrow: 0 20px 96px;
+}
+body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--text);
+}
+.top {
+    max-width: var(--stage);
+    margin: 0 auto;
+    padding: 32px 40px 0;
+}
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+}
+.mark-word {
+    color: var(--ink);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.toolbar button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    cursor: pointer;
+}
+.toolbar button[aria-current="true"],
+.toolbar button[aria-pressed="true"] {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.toolbar .sep {
+    color: var(--faint);
+}
+.gone-jump {
+    color: var(--accent) !important;
+}
+.push {
+    margin-left: auto;
+}
+.artifact {
+    max-width: 640px;
+    padding: 48px 0 72px;
+    font-size: 20px;
+    line-height: 1.55;
+    font-variant-numeric: oldstyle-nums;
+}
+.artifact h1 {
+    margin: 0 0 28px;
+    font-size: 38px;
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.15;
+}
+.artifact h2 {
+    margin: 40px 0 6px;
+    font-size: 24px;
+    font-weight: 400;
+    font-style: italic;
+}
+.artifact table {
+    margin: 16px 0;
+    font-size: 16px;
+    font-variant-numeric: lining-nums tabular-nums;
+}
+.artifact th,
+.artifact td {
+    padding: 4px 16px 4px 0;
+    text-align: left;
+}
+.artifact thead th {
+    border-bottom: 1px solid var(--ink);
+    font-weight: 400;
+    font-style: italic;
+}
+.artifact tbody tr:last-child td {
+    border-bottom: 1px solid var(--ink);
+}
+mark.anchor {
+    text-decoration: underline;
+    text-decoration-color: var(--faint);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+}
+mark.anchor[data-n]::after {
+    content: attr(data-n);
+    margin-left: 1px;
+    vertical-align: super;
+    font-size: 0.6em;
+    font-variant-numeric: lining-nums;
+    color: var(--accent);
+    line-height: 0;
+}
+mark.anchor.is-hover,
+mark.anchor.is-active {
+    background: var(--hl);
+    text-decoration-color: var(--accent);
+}
+mark.anchor.is-resolved {
+    text-decoration: none;
+}
+.thread {
+    padding: 2px 0 2px 14px;
+    border-left: 1px solid transparent;
+    font-size: 15px;
+    line-height: 1.45;
+}
+.thread.is-hover,
+.thread.is-active {
+    border-left-color: var(--accent);
+}
+.thread[data-state="resolved"] {
+    color: var(--muted);
+}
+.thread-n:not(:empty) {
+    display: block;
+    float: left;
+    margin: 1px 0 0 -14px;
+    width: 12px;
+    font-size: 11px;
+    color: var(--accent);
+    transform: translateX(-12px);
+}
+.comment + .comment {
+    margin-top: 6px;
+}
+.comment-head {
+    display: inline;
+}
+.avatar,
+.when {
+    display: none;
+}
+.who {
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    font-size: 16px;
+}
+.agent-badge {
+    margin-left: 4px;
+    font-style: italic;
+    color: var(--muted);
+}
+.agent-badge::before {
+    content: "(";
+}
+.agent-badge::after {
+    content: ")";
+}
+.comment-head::after {
+    content: " ";
+}
+.comment p {
+    display: inline;
+}
+.resolved-note,
+.gone-note {
+    margin: 6px 0 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+}
+.gone-note {
+    margin: 0 0 4px;
+    color: var(--accent);
+}
+.gone-quote {
+    margin: 0 0 6px;
+    font-style: italic;
+    color: var(--muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--faint);
+}
+.gone-title {
+    margin: 0 0 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    text-transform: lowercase;
+}
+.composer {
+    margin-top: 8px;
+}
+.composer textarea {
+    min-height: 32px;
+    padding: 4px 0;
+    border: 0;
+    border-bottom: 1px solid var(--faint);
+    background: transparent;
+    color: var(--ink);
+    font-size: 15px;
+}
+.composer textarea:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+}
+.composer-actions,
+.thread-actions {
+    margin-top: 4px;
+    justify-content: flex-start;
+    gap: 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+}
+.thread-actions {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+.thread.is-hover .thread-actions,
+.thread.is-active .thread-actions {
+    opacity: 1;
+}
+.kbd-hint {
+    order: 3;
+    margin: 0 0 0 auto;
+    color: var(--faint);
+}
+.btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+}
+.btn:hover {
+    color: var(--ink);
+}
+.btn-primary {
+    order: -1;
+    color: var(--accent);
+}
+.add {
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+}
+.add::before {
+    content: "+ ";
+}
+.toast {
+    padding: 8px 16px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12px;
+}
+.toast .btn {
+    color: var(--accent);
+}
+@media (max-width: 960px) {
+    .top {
+        padding: 20px 20px 0;
+    }
+    .artifact {
+        padding: 32px 0 48px;
+        font-size: 19px;
+    }
+    .artifact h1 {
+        font-size: 30px;
+    }
+    .rail {
+        background: var(--paper);
+        border-top: 1px solid var(--ink);
+    }
+    .thread-n:not(:empty) {
+        display: none;
+    }
+    .thread-actions {
+        opacity: 1;
+    }
+    .add {
+        padding: 4px 10px;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+    }
+}
+    </style>
+</head>
+<body class="dir-margins">
+<header class="top">
+    <nav class="toolbar" data-toolbar>
+        <span class="mark-word">Louvre</span>
+        <span>canopy/operator / PAY-142</span>
+        <span>
+            <button type="button" data-version="1">v1</button> <span class="sep">&middot;</span>
+            <button type="button" data-version="2">v2</button> <span class="sep">&middot;</span>
+            <button type="button" data-version="3" aria-current="true">v3</button>
+        </span>
+        <span class="push">
+            <button type="button" data-filter="open" aria-pressed="true">open (<span data-count="open"></span>)</button>
+            <span class="sep">/</span>
+            <button type="button" data-filter="all" aria-pressed="false">all</button>
+        </span>
+        <button type="button" class="gone-jump" data-gone-jump>1 note on a removed passage</button>
+    </nav>
+</header>
+<main class="stage">
+    <div class="sheet">
+        <article class="artifact" data-page>
+            <h1>Checkout latency: what we found and what to change</h1>
+            <p class="lede">
+                Since the 14 October release, <mark class="anchor" data-thread="t1">p95 checkout latency rose from
+                410 ms to 1.2 s</mark>, and carts abandoned at the payment step rose by 6%. This report traces where
+                the time goes and proposes three changes, smallest first.
+            </p>
+            <h2>What we measured</h2>
+            <p>
+                We replayed a day of production traffic against staging with tracing on, and read the spans of
+                40,000 checkouts.
+            </p>
+            <table>
+                <thead>
+                    <tr><th>Region</th><th>p50</th><th>p95</th><th>p95 before</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>us-east</td><td>290 ms</td><td>940 ms</td><td>400 ms</td></tr>
+                    <tr><td>eu-west</td><td>350 ms</td><td>1,610 ms</td><td>430 ms</td></tr>
+                    <tr><td>ap-south</td><td>310 ms</td><td>1,050 ms</td><td>420 ms</td></tr>
+                </tbody>
+            </table>
+            <h2>Where the time goes</h2>
+            <p>
+                Two thirds of the added time is the tax quote. The new tax service is called once per line item
+                instead of once per cart, and each call waits on a cold connection pool.
+                <mark class="anchor" data-thread="t3">The payment provider's own p95 held at 180 ms</mark>, so the
+                provider is not the cause.
+            </p>
+            <p>
+                The rest is the fraud check, which now runs before the payment form renders instead of after the
+                customer submits it.
+            </p>
+            <h2>Proposal</h2>
+            <ol>
+                <li>Batch the tax quote into one call per cart. This alone should bring p95 under 700 ms.</li>
+                <li>
+                    Warm the tax service's connection pool at deploy, and
+                    <mark class="anchor" data-thread="t2">cache the tax quote per cart for 60 seconds</mark>.
+                </li>
+                <li>Move the fraud check back to submit time, where it ran before the release.</li>
+            </ol>
+            <h2>Risks</h2>
+            <p>
+                A cached quote can show a stale price if a promotion starts mid-session. Moving the fraud check
+                delays a decline until submit, which the old flow already did.
+            </p>
+        </article>
+    </div>
+    <aside class="rail" data-rail aria-label="Comments">
+        <div class="gone" data-gone></div>
+    </aside>
+</main>
+<button class="add" type="button" data-add hidden>comment</button>
+<div class="toast" role="status" data-toast hidden></div>
+<script>
+"use strict";
+// The margin-thread interaction, the same in every direction. Mock data only: nothing is saved.
+
+const SELF = { name: "You", initials: "YO", kind: "person" };
+
+const threads = [
+    {
+        id: "t1",
+        state: "open",
+        comments: [
+            {
+                name: "Ana Ruiz",
+                initials: "AR",
+                kind: "person",
+                when: "2h",
+                body: "Is this every region, or only eu-west?",
+            },
+            {
+                name: "canopy worker",
+                initials: "cw",
+                kind: "agent",
+                behalf: "Sam Okafor",
+                when: "1h",
+                body: "Every region. eu-west is the worst, at 1.6 s; version 3 adds a row per region to the table.",
+            },
+        ],
+    },
+    {
+        id: "t2",
+        state: "open",
+        comments: [
+            {
+                name: "Raj Patel",
+                initials: "RP",
+                kind: "person",
+                when: "25m",
+                body: "60 seconds worries me. Promotions change prices mid-session; can we key the cache on the "
+                    + "promotion's version too?",
+            },
+        ],
+    },
+    {
+        id: "t3",
+        state: "resolved",
+        resolvedBy: "Ana Ruiz",
+        comments: [
+            {
+                name: "Ana Ruiz",
+                initials: "AR",
+                kind: "person",
+                when: "1d",
+                body: "Where is this number from?",
+            },
+            {
+                name: "canopy worker",
+                initials: "cw",
+                kind: "agent",
+                behalf: "Sam Okafor",
+                when: "1d",
+                body: "The provider's status dashboard. Version 2 links it under Sources.",
+            },
+        ],
+    },
+    {
+        id: "t4",
+        state: "open",
+        gone: true,
+        version: 2,
+        quote: "retry the fraud check twice before declining",
+        comments: [
+            {
+                name: "Raj Patel",
+                initials: "RP",
+                kind: "person",
+                when: "1d",
+                body: "Two retries doubles the worst case for a real decline.",
+            },
+        ],
+    },
+];
+
+const page = document.querySelector("[data-page]");
+const rail = document.querySelector("[data-rail]");
+const gone = document.querySelector("[data-gone]");
+const addButton = document.querySelector("[data-add]");
+const toast = document.querySelector("[data-toast]");
+const narrow = window.matchMedia("(max-width: 960px)");
+const GAP = 12;
+let active = null;
+let showResolved = false;
+let drafts = 0;
+let pendingRange = null;
+let toastTimer = 0;
+
+function h(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) {
+        node.className = className;
+    }
+    if (text !== undefined) {
+        node.textContent = text;
+    }
+    return node;
+}
+
+function find(id) {
+    return threads.find((t) => t.id === id);
+}
+
+function marksOf(id) {
+    return [...page.querySelectorAll(`mark[data-thread="${id}"]`)];
+}
+
+function threadEl(id) {
+    return document.querySelector(`.thread[data-id="${id}"]`);
+}
+
+function renderComment(c) {
+    const row = h("div", c.kind === "agent" ? "comment is-agent" : "comment");
+    const head = h("div", "comment-head");
+    const avatar = h("span", "avatar", c.initials);
+    avatar.dataset.i = c.initials;
+    head.append(avatar, h("span", "who", c.name));
+    if (c.kind === "agent") {
+        head.append(h("span", "agent-badge", `Agent, for ${c.behalf}`));
+    }
+    head.append(h("span", "when", c.when));
+    row.append(head, h("p", "body", c.body));
+    return row;
+}
+
+function renderThread(t) {
+    const node = h("section", "thread");
+    node.dataset.id = t.id;
+    node.dataset.state = t.state;
+    node.append(h("span", "thread-n"));
+    if (t.gone) {
+        node.append(h("p", "gone-note", `On version ${t.version}. The passage is not in version 3.`));
+        node.append(h("blockquote", "gone-quote", t.quote));
+    }
+    const list = h("div", "comments");
+    for (const c of t.comments) {
+        list.append(renderComment(c));
+    }
+    node.append(list);
+    if (t.state === "resolved") {
+        node.append(h("p", "resolved-note", `Resolved by ${t.resolvedBy}`));
+    }
+    node.append(renderComposer(t), renderActions(t));
+    return node;
+}
+
+function rerender(t) {
+    const old = threadEl(t.id);
+    const next = renderThread(t);
+    next.className = old.className;
+    old.replaceWith(next);
+}
+
+function renderComposer(t) {
+    const form = h("form", "composer");
+    const area = h("textarea");
+    area.rows = 1;
+    area.placeholder = t.state === "draft" ? "Comment on this passage" : "Reply";
+    area.setAttribute("aria-label", area.placeholder);
+    area.addEventListener("input", () => {
+        area.style.height = "auto";
+        area.style.height = `${area.scrollHeight}px`;
+        layout();
+    });
+    area.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            form.requestSubmit();
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            cancel(t);
+        }
+    });
+    const row = h("div", "composer-actions");
+    const cancelButton = h("button", "btn btn-quiet", "Cancel");
+    cancelButton.type = "button";
+    cancelButton.addEventListener("click", (e) => {
+        e.stopPropagation();
+        cancel(t);
+    });
+    const send = h("button", "btn btn-primary", t.state === "draft" ? "Comment" : "Reply");
+    send.type = "submit";
+    row.append(h("span", "kbd-hint", "Ctrl Enter"), cancelButton, send);
+    form.append(area, row);
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const body = area.value.trim();
+        if (!body) {
+            area.focus();
+            return;
+        }
+        t.comments.push({ ...SELF, when: "now", body });
+        if (t.state === "draft") {
+            t.state = "open";
+        }
+        rerender(t);
+        syncMarks();
+        counts();
+        layout();
+    });
+    return form;
+}
+
+function renderActions(t) {
+    const bar = h("div", "thread-actions");
+    if (t.state === "draft") {
+        return bar;
+    }
+    const button = h("button", "btn btn-quiet", t.state === "resolved" ? "Reopen" : "Resolve");
+    button.type = "button";
+    button.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setState(t, t.state === "resolved" ? "open" : "resolved");
+    });
+    bar.append(button);
+    return bar;
+}
+
+function setState(t, state) {
+    t.state = state;
+    t.resolvedBy = "you";
+    rerender(t);
+    if (state === "resolved") {
+        if (active === t.id) {
+            deactivate();
+        }
+        showToast("Thread resolved", "Undo", () => setState(t, "open"));
+    }
+    syncMarks();
+    counts();
+    layout();
+}
+
+function cancel(t) {
+    if (t.state === "draft") {
+        removeDraft(t);
+        return;
+    }
+    const area = threadEl(t.id).querySelector("textarea");
+    area.value = "";
+    area.style.height = "";
+    deactivate();
+}
+
+function removeDraft(t) {
+    for (const m of marksOf(t.id)) {
+        const parent = m.parentNode;
+        while (m.firstChild) {
+            parent.insertBefore(m.firstChild, m);
+        }
+        m.remove();
+        parent.normalize();
+    }
+    threads.splice(threads.indexOf(t), 1);
+    threadEl(t.id).remove();
+    deactivate();
+}
+
+function visibleThreads() {
+    return threads.filter((t) => !t.gone && (t.state !== "resolved" || showResolved));
+}
+
+function ordered() {
+    return visibleThreads()
+        .map((t) => ({ t, mark: marksOf(t.id)[0] }))
+        .filter((x) => x.mark)
+        .sort((a, b) => a.mark.getBoundingClientRect().top - b.mark.getBoundingClientRect().top);
+}
+
+function syncMarks() {
+    const order = ordered();
+    for (const t of threads) {
+        const marks = marksOf(t.id);
+        for (const m of marks) {
+            m.classList.toggle("is-resolved", t.state === "resolved");
+            m.classList.toggle("is-active", t.id === active);
+            m.removeAttribute("data-n");
+        }
+        const n = order.findIndex((x) => x.t.id === t.id) + 1;
+        const node = threadEl(t.id);
+        if (n > 0 && marks.length) {
+            marks.at(-1).dataset.n = String(n);
+            node.querySelector(".thread-n").textContent = String(n);
+        } else if (node) {
+            node.querySelector(".thread-n").textContent = "";
+        }
+    }
+}
+
+function layout() {
+    const visible = visibleThreads();
+    for (const t of threads) {
+        if (!t.gone) {
+            threadEl(t.id).hidden = !visible.includes(t);
+        }
+    }
+    const nodes = [...rail.querySelectorAll(":scope > .thread")];
+    if (narrow.matches) {
+        for (const n of nodes) {
+            n.style.top = "";
+        }
+        rail.style.minHeight = "";
+        gone.style.top = "";
+        return;
+    }
+    const base = rail.getBoundingClientRect().top;
+    const floor = 0;
+    const items = ordered().map(({ t, mark }) => {
+        const node = threadEl(t.id);
+        return { t, node, want: mark.getBoundingClientRect().top - base, height: node.offsetHeight };
+    });
+    const ys = [];
+    const forward = (from) => {
+        for (let k = from; k < items.length; k++) {
+            const prev = k > 0 ? ys[k - 1] + items[k - 1].height + GAP : floor;
+            ys[k] = Math.max(k === from && ys[k] !== undefined ? ys[k] : items[k].want, prev);
+        }
+    };
+    const i = items.findIndex((x) => x.t.id === active);
+    if (i < 0) {
+        forward(0);
+    } else {
+        ys[i] = Math.max(items[i].want, floor);
+        forward(i + 1);
+        for (let k = i - 1; k >= 0; k--) {
+            ys[k] = Math.min(items[k].want, ys[k + 1] - items[k].height - GAP);
+        }
+        if (ys[0] < floor) {
+            forward(0);
+        }
+    }
+    items.forEach((x, k) => {
+        x.node.style.top = `${ys[k]}px`;
+    });
+    // Threads whose passage left this version sit below the rest, where they push no thread off its passage.
+    const end = items.length ? ys.at(-1) + items.at(-1).height + 4 * GAP : 0;
+    gone.style.top = `${end}px`;
+    rail.style.minHeight = `${end + gone.offsetHeight + GAP}px`;
+}
+
+function activate(id, focus = false) {
+    active = id;
+    for (const n of document.querySelectorAll(".thread")) {
+        n.classList.toggle("is-active", n.dataset.id === id);
+    }
+    document.body.classList.toggle("sheet-open", narrow.matches);
+    syncMarks();
+    layout();
+    const node = threadEl(id);
+    if (focus) {
+        node.querySelector("textarea")?.focus({ preventScroll: true });
+    }
+    if (narrow.matches) {
+        marksOf(id)[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
+    } else if (find(id)?.gone) {
+        node.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+}
+
+function deactivate() {
+    active = null;
+    for (const n of document.querySelectorAll(".thread.is-active")) {
+        n.classList.remove("is-active");
+    }
+    document.body.classList.remove("sheet-open");
+    syncMarks();
+    layout();
+}
+
+function hoverOn(id) {
+    for (const n of document.querySelectorAll(".is-hover")) {
+        n.classList.remove("is-hover");
+    }
+    if (!id) {
+        return;
+    }
+    for (const m of marksOf(id)) {
+        m.classList.add("is-hover");
+    }
+    threadEl(id)?.classList.add("is-hover");
+}
+
+function wrapRange(range, id) {
+    const root = range.commonAncestorContainer;
+    const nodes = [];
+    if (root.nodeType === Node.TEXT_NODE) {
+        nodes.push(root);
+    } else {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode: (n) => (range.intersectsNode(n) && n.nodeValue.trim()
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_REJECT),
+        });
+        while (walker.nextNode()) {
+            nodes.push(walker.currentNode);
+        }
+    }
+    for (const node of nodes) {
+        const start = node === range.startContainer ? range.startOffset : 0;
+        const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+        if (start >= end) {
+            continue;
+        }
+        let target = node;
+        if (end < target.nodeValue.length) {
+            target.splitText(end);
+        }
+        if (start > 0) {
+            target = target.splitText(start);
+        }
+        const mark = h("mark", "anchor");
+        mark.dataset.thread = id;
+        target.parentNode.insertBefore(mark, target);
+        mark.append(target);
+    }
+}
+
+function startDraft() {
+    if (!pendingRange) {
+        return;
+    }
+    const open = find(active);
+    if (open?.state === "draft") {
+        removeDraft(open);
+    }
+    const id = `d${++drafts}`;
+    wrapRange(pendingRange, id);
+    pendingRange = null;
+    getSelection().removeAllRanges();
+    addButton.hidden = true;
+    const t = { id, state: "draft", comments: [] };
+    threads.push(t);
+    rail.append(renderThread(t));
+    activate(id, true);
+}
+
+function onSelection() {
+    const sel = getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) {
+        addButton.hidden = true;
+        return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!page.contains(range.commonAncestorContainer) || !sel.toString().trim()) {
+        addButton.hidden = true;
+        return;
+    }
+    pendingRange = range.cloneRange();
+    const r = range.getBoundingClientRect();
+    addButton.hidden = false;
+    if (narrow.matches) {
+        const left = Math.max(16, Math.min(r.left + r.width / 2 - addButton.offsetWidth / 2, innerWidth - 120));
+        addButton.style.left = `${left + scrollX}px`;
+        addButton.style.top = `${r.top + scrollY - addButton.offsetHeight - 10}px`;
+    } else {
+        const railBox = rail.getBoundingClientRect();
+        addButton.style.left = `${railBox.left + scrollX}px`;
+        addButton.style.top = `${r.top + scrollY}px`;
+    }
+}
+
+function showToast(text, label, action) {
+    toast.replaceChildren(h("span", "toast-text", text));
+    if (label) {
+        const b = h("button", "btn btn-quiet", label);
+        b.type = "button";
+        b.addEventListener("click", () => {
+            toast.hidden = true;
+            action();
+        });
+        toast.append(b);
+    }
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.hidden = true;
+    }, 5000);
+}
+
+function counts() {
+    const open = threads.filter((t) => t.state === "open").length;
+    const resolved = threads.filter((t) => t.state === "resolved").length;
+    for (const n of document.querySelectorAll('[data-count="open"]')) {
+        n.textContent = String(open);
+    }
+    for (const n of document.querySelectorAll('[data-count="resolved"]')) {
+        n.textContent = String(resolved);
+    }
+}
+
+function setFilter(all) {
+    showResolved = all;
+    for (const b of document.querySelectorAll("[data-filter]")) {
+        b.setAttribute("aria-pressed", String((b.dataset.filter === "all") === all));
+    }
+    syncMarks();
+    layout();
+}
+
+function step(delta) {
+    const order = ordered();
+    if (!order.length) {
+        return;
+    }
+    const at = order.findIndex((x) => x.t.id === active);
+    const next = at < 0 ? (delta > 0 ? 0 : order.length - 1) : (at + delta + order.length) % order.length;
+    activate(order[next].t.id);
+    marksOf(order[next].t.id)[0].scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
+document.addEventListener("click", (e) => {
+    const target = e.target;
+    const mark = target.closest("mark[data-thread]");
+    if (mark && !getSelection().toString()) {
+        const t = find(mark.dataset.thread);
+        if (t.state === "resolved" && !showResolved) {
+            setFilter(true);
+        }
+        activate(t.id, t.state !== "resolved");
+        return;
+    }
+    const node = target.closest(".thread");
+    if (node) {
+        if (active !== node.dataset.id) {
+            activate(node.dataset.id);
+        }
+        return;
+    }
+    if (target.closest("[data-add], [data-toolbar], [data-toast]")) {
+        return;
+    }
+    if (find(active)?.state !== "draft") {
+        deactivate();
+    }
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.target.closest("textarea, input")) {
+        return;
+    }
+    if (e.key === "Escape" && active) {
+        cancel(find(active));
+    } else if (e.key === "c" && !addButton.hidden) {
+        e.preventDefault();
+        startDraft();
+    } else if (e.key === "j") {
+        step(1);
+    } else if (e.key === "k") {
+        step(-1);
+    }
+});
+
+page.addEventListener("mouseover", (e) => hoverOn(e.target.closest("mark[data-thread]")?.dataset.thread));
+page.addEventListener("mouseleave", () => hoverOn(null));
+rail.addEventListener("mouseover", (e) => hoverOn(e.target.closest(".thread")?.dataset.id));
+rail.addEventListener("mouseleave", () => hoverOn(null));
+addButton.addEventListener("mousedown", (e) => e.preventDefault());
+addButton.addEventListener("click", startDraft);
+document.addEventListener("selectionchange", () => requestAnimationFrame(onSelection));
+for (const b of document.querySelectorAll("[data-filter]")) {
+    b.addEventListener("click", () => setFilter(b.dataset.filter === "all"));
+}
+for (const b of document.querySelectorAll("[data-version]")) {
+    b.addEventListener("click", () => {
+        if (b.getAttribute("aria-current") !== "true") {
+            showToast(`Version ${b.dataset.version} is not drawn in this mock-up`);
+        }
+    });
+}
+for (const b of document.querySelectorAll("[data-gone-jump]")) {
+    b.addEventListener("click", () => activate("t4"));
+}
+window.addEventListener("resize", () => {
+    document.body.classList.toggle("sheet-open", narrow.matches && active !== null);
+    layout();
+});
+
+if (gone) {
+    const goneThreads = threads.filter((t) => t.gone);
+    if (goneThreads.length) {
+        gone.append(h("p", "gone-title", "Not in this version"));
+    }
+    for (const t of goneThreads) {
+        gone.append(renderThread(t));
+    }
+}
+for (const t of threads.filter((x) => !x.gone)) {
+    rail.append(renderThread(t));
+}
+syncMarks();
+counts();
+layout();
+document.fonts.ready.then(layout);
+</script>
+</body>
+</html>
