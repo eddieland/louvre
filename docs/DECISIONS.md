@@ -63,3 +63,10 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 
 - Anything louvre parses from a file or another program is validated by a pydantic model, not by hand.
 - Rejected: curses (loses scrollback); hand-written ANSI.
+
+## D007. Postgres holds Louvre's data
+
+- Settled by the operator (2026-10-23): a hosted service for many people, so a managed database, not a file on one
+  host. The feed's `seq` and every query rely on it; tests run against a real Postgres, in CI too.
+- Rejected: SQLite on one host (ties Louvre to one machine's disk); both behind an interface (two backends to hold to
+  one contract).

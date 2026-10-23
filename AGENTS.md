@@ -5,10 +5,17 @@ Instructions for any agent working in this repository. Humans should read it too
 ## Read this first, in order
 
 1. `README.md`: what we are building and for whom.
-2. `docs/DECISIONS.md`: the few choices every agent must know, whatever it works on. Read it whole; add to it rarely.
+2. `docs/REQUIREMENTS.md`: what Louvre must do, from what canopy needs of it, and where it stands on each. canopy's
+   artifacts contract, which it cites, is normative.
+3. `docs/roadmap/README.md`: milestones in order, each one's status, and a file per milestone with its acceptance
+   criteria. Read the file of the milestone your work belongs to.
+4. `docs/DECISIONS.md`: the few choices every agent must know, whatever it works on. Read it whole; add to it rarely.
 
 ## How to work
 
+- Work one milestone at a time. Do not start milestone N+1 until milestone N meets its acceptance criteria. A change
+  the operator asks for directly goes ahead without one. Keep the milestone's `Status:` line current, and its line in
+  `docs/roadmap/README.md` with it.
 - Small PRs. One concern per PR. Conventional commit messages.
 - A PR description fills `.github/pull_request_template.md` briefly: a reviewer takes it in at a glance, and the
   detail stays in the diff. Not a wall of text.
