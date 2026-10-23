@@ -135,3 +135,47 @@ Light:
 | Phone, 390 | Laptop, 1440 |
 | --- | --- |
 | ![Direction: Margins, a thread open, Phone, 390, light](margins/phone-light.png) | ![Direction: Margins, a thread open, Laptop, 1440, light](margins/laptop-light.png) |
+
+## Blend: Annotated, a thread open
+
+`/directions/2026-10-23-blends/annotated`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![Blend: Annotated, a thread open, Small phone, 360, dark](annotated/phone-small-dark.png) | ![Blend: Annotated, a thread open, Phone, 390, dark](annotated/phone-dark.png) | ![Blend: Annotated, a thread open, Tablet, 820, dark](annotated/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![Blend: Annotated, a thread open, Tablet landscape, 1180, dark](annotated/tablet-landscape-dark.png) | ![Blend: Annotated, a thread open, Laptop, 1440, dark](annotated/laptop-dark.png) | ![Blend: Annotated, a thread open, Wide, 1920, dark](annotated/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![Blend: Annotated, a thread open, Phone, 390, light](annotated/phone-light.png) | ![Blend: Annotated, a thread open, Laptop, 1440, light](annotated/laptop-light.png) |
+
+## Blend: Open, a thread open
+
+`/directions/2026-10-23-blends/open`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![Blend: Open, a thread open, Small phone, 360, dark](open/phone-small-dark.png) | ![Blend: Open, a thread open, Phone, 390, dark](open/phone-dark.png) | ![Blend: Open, a thread open, Tablet, 820, dark](open/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![Blend: Open, a thread open, Tablet landscape, 1180, dark](open/tablet-landscape-dark.png) | ![Blend: Open, a thread open, Laptop, 1440, dark](open/laptop-dark.png) | ![Blend: Open, a thread open, Wide, 1920, dark](open/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![Blend: Open, a thread open, Phone, 390, light](open/phone-light.png) | ![Blend: Open, a thread open, Laptop, 1440, light](open/laptop-light.png) |

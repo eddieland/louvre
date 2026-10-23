@@ -86,6 +86,8 @@ SCENES = (
     Scene("gallery", "Direction: Gallery, a thread open", "/directions/2026-10-23-directions/gallery", _open_thread),
     Scene("studio", "Direction: Studio, a thread open", "/directions/2026-10-23-directions/studio", _open_thread),
     Scene("margins", "Direction: Margins, a thread open", "/directions/2026-10-23-directions/margins", _open_thread),
+    Scene("annotated", "Blend: Annotated, a thread open", "/directions/2026-10-23-blends/annotated", _open_thread),
+    Scene("open", "Blend: Open, a thread open", "/directions/2026-10-23-blends/open", _open_thread),
 )
 
 browser_only = pytest.mark.skipif(MODE not in {"1", "update"}, reason="drives a browser: run `make screens`")
