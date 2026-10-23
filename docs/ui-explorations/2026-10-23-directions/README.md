@@ -2,7 +2,8 @@
 
 Three looks for Louvre's artifact page, for the operator to pick from (ROADMAP M1). Each is one static HTML file with
 no build step: open it in a browser. Each shows the same artifact and the same threads, and the margin-thread
-interaction works the same way in all three. Mock data only, so nothing is saved, and only version 3 is drawn.
+interaction works the same way in all three. Each is dark first (REQUIREMENTS U2): dark when the system is, with a
+toggle in the corner to compare light. Mock data only, so nothing is saved, and only version 3 is drawn.
 
 | File | Direction | What it tries |
 |---|---|---|
@@ -30,7 +31,6 @@ interaction works the same way in all three. Mock data only, so nothing is saved
 
 ## Not decided here
 
-- Dark themes. The chosen direction gets both, as tokens, in `ui/DESIGN.md`.
 - The artifact list, sign-in, and tokens pages: M2 designs them in the chosen direction.
 - How the margin learns where a passage is once the artifact's HTML renders in its own sandboxed frame, on its own
   origin, as it must (REQUIREMENTS L7). Here the artifact sits inline. M2 measures anchors inside the frame and posts

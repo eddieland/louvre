@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
     <title>Louvre: Gallery</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -101,6 +102,26 @@ mark.anchor {
     position: absolute;
     z-index: 20;
 }
+.theme-toggle {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 30;
+    padding: 6px 12px;
+    border: 1px solid var(--theme-line, currentColor);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: 12px/1.2 system-ui, sans-serif;
+    opacity: 0.7;
+    cursor: pointer;
+}
+.theme-toggle:hover {
+    opacity: 1;
+}
+body.sheet-open .theme-toggle {
+    display: none;
+}
 .toast {
     position: fixed;
     left: 50%;
@@ -171,6 +192,7 @@ table {
     --accent-ink: #fffdf8;
     --hl: rgba(138, 47, 42, 0.13);
     --hl-strong: rgba(138, 47, 42, 0.24);
+    --shadow: rgba(31, 27, 22, 0.28);
     --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
     --display: "Fraunces", Georgia, serif;
     --ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -260,7 +282,7 @@ body {
 .sheet {
     background: var(--paper);
     border: 1px solid var(--rule);
-    box-shadow: 0 1px 0 rgba(31, 27, 22, 0.04), 0 24px 48px -28px rgba(31, 27, 22, 0.28);
+    box-shadow: 0 1px 0 var(--shadow), 0 24px 48px -28px var(--shadow);
 }
 .label {
     display: flex;
@@ -339,7 +361,7 @@ mark.anchor.is-resolved.is-active {
 .thread.is-active {
     background: var(--paper);
     border-left-color: var(--accent);
-    box-shadow: 0 16px 32px -24px rgba(31, 27, 22, 0.4);
+    box-shadow: 0 16px 32px -24px var(--shadow);
 }
 .thread[data-state="resolved"] {
     opacity: 0.72;
@@ -480,11 +502,37 @@ mark.anchor.is-resolved.is-active {
     .rail {
         background: var(--paper);
         border-top: 1px solid var(--rule);
-        box-shadow: 0 -16px 40px -24px rgba(31, 27, 22, 0.5);
+        box-shadow: 0 -16px 40px -24px var(--shadow);
     }
     .thread.is-active {
         box-shadow: none;
     }
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --wall: #13110e;
+        --paper: #1c1915;
+        --ink: #ece5d8;
+        --muted: #a69c8c;
+        --rule: #322c24;
+        --accent: #d9776c;
+        --accent-ink: #13110e;
+        --hl: rgba(217, 119, 108, 0.16);
+        --hl-strong: rgba(217, 119, 108, 0.3);
+        --shadow: rgba(0, 0, 0, 0.6);
+    }
+}
+:root[data-theme="dark"] {
+    --wall: #13110e;
+    --paper: #1c1915;
+    --ink: #ece5d8;
+    --muted: #a69c8c;
+    --rule: #322c24;
+    --accent: #d9776c;
+    --accent-ink: #13110e;
+    --hl: rgba(217, 119, 108, 0.16);
+    --hl-strong: rgba(217, 119, 108, 0.3);
+    --shadow: rgba(0, 0, 0, 0.6);
 }
     </style>
 </head>
@@ -566,6 +614,7 @@ mark.anchor.is-resolved.is-active {
 </main>
 <button class="add" type="button" data-add hidden>Comment</button>
 <div class="toast" role="status" data-toast hidden></div>
+<button class="theme-toggle" type="button" data-theme-toggle>Light</button>
 <script>
 "use strict";
 // The margin-thread interaction, the same in every direction. Mock data only: nothing is saved.
@@ -1145,6 +1194,20 @@ for (const b of document.querySelectorAll("[data-version]")) {
 for (const b of document.querySelectorAll("[data-gone-jump]")) {
     b.addEventListener("click", () => activate("t4"));
 }
+const toggle = document.querySelector("[data-theme-toggle]");
+const dark = window.matchMedia("(prefers-color-scheme: dark)");
+function theme() {
+    return document.documentElement.dataset.theme ?? (dark.matches ? "dark" : "light");
+}
+function label() {
+    toggle.textContent = theme() === "dark" ? "Light" : "Dark";
+}
+toggle.addEventListener("click", () => {
+    document.documentElement.dataset.theme = theme() === "dark" ? "light" : "dark";
+    label();
+});
+dark.addEventListener("change", label);
+label();
 window.addEventListener("resize", () => {
     document.body.classList.toggle("sheet-open", narrow.matches && active !== null);
     layout();

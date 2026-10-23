@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
     <title>Louvre: Studio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -101,6 +102,26 @@ mark.anchor {
     position: absolute;
     z-index: 20;
 }
+.theme-toggle {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 30;
+    padding: 6px 12px;
+    border: 1px solid var(--theme-line, currentColor);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: 12px/1.2 system-ui, sans-serif;
+    opacity: 0.7;
+    cursor: pointer;
+}
+.theme-toggle:hover {
+    opacity: 1;
+}
+body.sheet-open .theme-toggle {
+    display: none;
+}
 .toast {
     position: fixed;
     left: 50%;
@@ -178,6 +199,12 @@ table {
     --hl-strong: rgba(250, 204, 21, 0.62);
     --warn: #b45309;
     --warn-tint: rgba(245, 158, 11, 0.14);
+    --line-strong: #c9ccd6;
+    --hover: #f3f4f7;
+    --field: #f7f8fa;
+    --pop: #17181c;
+    --pop-ink: #ffffff;
+    --shadow: rgba(23, 24, 28, 0.18);
     --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     --gutter: 24px;
     --rail: 320px;
@@ -321,7 +348,7 @@ body {
 .sheet {
     border-radius: 12px;
     background: var(--card);
-    box-shadow: 0 1px 2px rgba(23, 24, 28, 0.06), 0 8px 24px -12px rgba(23, 24, 28, 0.18);
+    box-shadow: 0 1px 2px var(--shadow), 0 8px 24px -12px var(--shadow);
 }
 .label {
     display: flex;
@@ -395,10 +422,10 @@ mark.anchor.is-resolved.is-active {
     background: var(--card);
     font-size: 14px;
     line-height: 1.5;
-    box-shadow: 0 1px 2px rgba(23, 24, 28, 0.05);
+    box-shadow: 0 1px 2px var(--shadow);
 }
 .thread.is-hover {
-    border-color: #c9ccd6;
+    border-color: var(--line-strong);
 }
 .thread.is-active {
     border-color: var(--accent);
@@ -437,7 +464,8 @@ mark.anchor.is-resolved.is-active {
 }
 .is-agent .avatar {
     border-radius: 6px;
-    background: var(--ink);
+    background: var(--pop);
+    color: var(--pop-ink);
 }
 .agent-badge {
     padding: 1px 6px;
@@ -492,7 +520,7 @@ mark.anchor.is-resolved.is-active {
     padding: 8px 10px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #f7f8fa;
+    background: var(--field);
     color: var(--ink);
     font-size: 14px;
 }
@@ -519,7 +547,7 @@ mark.anchor.is-resolved.is-active {
     font-weight: 500;
 }
 .btn-quiet:hover {
-    background: #f3f4f7;
+    background: var(--hover);
 }
 .btn-primary {
     border-color: var(--accent);
@@ -530,8 +558,8 @@ mark.anchor.is-resolved.is-active {
     padding: 6px 12px 6px 10px;
     border: 0;
     border-radius: 8px;
-    background: var(--ink);
-    color: #fff;
+    background: var(--pop);
+    color: var(--pop-ink);
     font-family: var(--sans);
     font-size: 13px;
     font-weight: 500;
@@ -586,6 +614,52 @@ mark.anchor.is-resolved.is-active {
 }
 .people .p3 {
     background: #10b981;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --canvas: #0d0e11;
+        --card: #18191e;
+        --ink: #e8e9ee;
+        --muted: #9a9da8;
+        --line: #2a2c33;
+        --line-strong: #3d404a;
+        --hover: #23252b;
+        --field: #121317;
+        --accent: #8b8cf8;
+        --accent-ink: #0d0e11;
+        --accent-tint: rgba(139, 140, 248, 0.16);
+        --hl: rgba(250, 204, 21, 0.2);
+        --hl-strong: rgba(250, 204, 21, 0.4);
+        --warn: #f5b544;
+        --warn-tint: rgba(245, 158, 11, 0.14);
+        --pop: #e8e9ee;
+        --pop-ink: #0d0e11;
+        --shadow: rgba(0, 0, 0, 0.45);
+        --chrome: #0a0b0d;
+        --chrome-2: #1e2026;
+    }
+}
+:root[data-theme="dark"] {
+    --canvas: #0d0e11;
+    --card: #18191e;
+    --ink: #e8e9ee;
+    --muted: #9a9da8;
+    --line: #2a2c33;
+    --line-strong: #3d404a;
+    --hover: #23252b;
+    --field: #121317;
+    --accent: #8b8cf8;
+    --accent-ink: #0d0e11;
+    --accent-tint: rgba(139, 140, 248, 0.16);
+    --hl: rgba(250, 204, 21, 0.2);
+    --hl-strong: rgba(250, 204, 21, 0.4);
+    --warn: #f5b544;
+    --warn-tint: rgba(245, 158, 11, 0.14);
+    --pop: #e8e9ee;
+    --pop-ink: #0d0e11;
+    --shadow: rgba(0, 0, 0, 0.45);
+    --chrome: #0a0b0d;
+    --chrome-2: #1e2026;
 }
     </style>
 </head>
@@ -681,6 +755,7 @@ mark.anchor.is-resolved.is-active {
 </main>
 <button class="add" type="button" data-add hidden>Comment &nbsp;C</button>
 <div class="toast" role="status" data-toast hidden></div>
+<button class="theme-toggle" type="button" data-theme-toggle>Light</button>
 <script>
 "use strict";
 // The margin-thread interaction, the same in every direction. Mock data only: nothing is saved.
@@ -1260,6 +1335,20 @@ for (const b of document.querySelectorAll("[data-version]")) {
 for (const b of document.querySelectorAll("[data-gone-jump]")) {
     b.addEventListener("click", () => activate("t4"));
 }
+const toggle = document.querySelector("[data-theme-toggle]");
+const dark = window.matchMedia("(prefers-color-scheme: dark)");
+function theme() {
+    return document.documentElement.dataset.theme ?? (dark.matches ? "dark" : "light");
+}
+function label() {
+    toggle.textContent = theme() === "dark" ? "Light" : "Dark";
+}
+toggle.addEventListener("click", () => {
+    document.documentElement.dataset.theme = theme() === "dark" ? "light" : "dark";
+    label();
+});
+dark.addEventListener("change", label);
+label();
 window.addEventListener("resize", () => {
     document.body.classList.toggle("sheet-open", narrow.matches && active !== null);
     layout();
