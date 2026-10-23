@@ -24,8 +24,10 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.5.0",
+    "fastapi>=0.143.2",
     "pydantic>=2.14.1",
     "rich>=15.0.0",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -54,6 +56,11 @@ fallback-version = "0.0.0"
 [tool.hatch.build.targets.wheel]
 packages = ["src/louvre"]
 
+# The preview deployment: Vercel installs louvre from uv.lock and serves this app. vercel.json deploys main only, and
+# vercel-ignore.sh skips a build when nothing the app serves changed since the last deploy.
+[tool.vercel]
+entrypoint = "vercel_app:app"
+
 # The version is built from git, so a new commit or tag rebuilds louvre's metadata, not only a changed pyproject.toml.
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
@@ -62,6 +69,8 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 dev = [
     "actionlint-py>=1.7.12.25",
     "editorconfig-checker>=3.11.1",
+    # FastAPI's TestClient runs on it: the web app's tests call it in process.
+    "httpx2>=2.13.1",
     "hypothesis>=6.170.0",
     # Git hooks (prek.toml) that run the formatters and linters on a commit: `make hooks` installs them.
     "prek>=0.5.7",
@@ -151,6 +160,9 @@ banned-from = ["unittest.mock"]
 ]
 # A click command's docstring is its --help text, so Returns and Raises sections would print there.
 "src/louvre/cli/*" = ["DOC201", "DOC501"]
+# A route's docstring is its description in the OpenAPI schema, and its response is its annotation, so Returns and
+# Raises sections would only repeat them there.
+"src/louvre/web/*" = ["DOC201", "DOC501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -174,7 +186,7 @@ exclude_also = ["if TYPE_CHECKING:", "assert_never\\("]
 # Strict preset (D001).
 [tool.pyrefly]
 preset = "strict"
-project-includes = ["src", "tests"]
+project-includes = ["src", "tests", "vercel_app.py"]
 # Tests are packages under the repository root (D005) and import shared helpers from `tests.conftest`.
 search-path = ["src", "."]
 
