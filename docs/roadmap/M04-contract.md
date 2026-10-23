@@ -1,4 +1,4 @@
-# M3. The contract on Postgres, under the UI
+# M4. The contract on Postgres, under the UI
 
 REQUIREMENTS L1, L2, L3. The store's behavior as a library, which M2's UI then runs on in place of its mock data.
 
