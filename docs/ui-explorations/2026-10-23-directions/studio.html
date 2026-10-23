@@ -704,8 +704,8 @@ mark.anchor.is-resolved.is-active {
             <h1>Checkout latency: what we found and what to change</h1>
             <p class="lede">
                 Since the 14 October release, <mark class="anchor" data-thread="t1">p95 checkout latency rose from
-                410 ms to 1.2 s</mark>, and carts abandoned at the payment step rose by 6%. This report traces where
-                the time goes and proposes three changes, smallest first.
+                410&nbsp;ms to 1.2&nbsp;s</mark>, and carts abandoned at the payment step rose by 6%. This report
+                traces where the time goes and proposes three changes, smallest first.
             </p>
             <h2>What we measured</h2>
             <p>
@@ -717,17 +717,17 @@ mark.anchor.is-resolved.is-active {
                     <tr><th>Region</th><th>p50</th><th>p95</th><th>p95 before</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>us-east</td><td>290 ms</td><td>940 ms</td><td>400 ms</td></tr>
-                    <tr><td>eu-west</td><td>350 ms</td><td>1,610 ms</td><td>430 ms</td></tr>
-                    <tr><td>ap-south</td><td>310 ms</td><td>1,050 ms</td><td>420 ms</td></tr>
+                    <tr><td>us-east</td><td>290&nbsp;ms</td><td>940&nbsp;ms</td><td>400&nbsp;ms</td></tr>
+                    <tr><td>eu-west</td><td>350&nbsp;ms</td><td>1,610&nbsp;ms</td><td>430&nbsp;ms</td></tr>
+                    <tr><td>ap-south</td><td>310&nbsp;ms</td><td>1,050&nbsp;ms</td><td>420&nbsp;ms</td></tr>
                 </tbody>
             </table>
             <h2>Where the time goes</h2>
             <p>
                 Two thirds of the added time is the tax quote. The new tax service is called once per line item
                 instead of once per cart, and each call waits on a cold connection pool.
-                <mark class="anchor" data-thread="t3">The payment provider's own p95 held at 180 ms</mark>, so the
-                provider is not the cause.
+                <mark class="anchor" data-thread="t3">The payment provider's own p95 held at 180&nbsp;ms</mark>, so
+                the provider is not the cause.
             </p>
             <p>
                 The rest is the fraud check, which now runs before the payment form renders instead of after the
@@ -735,7 +735,7 @@ mark.anchor.is-resolved.is-active {
             </p>
             <h2>Proposal</h2>
             <ol>
-                <li>Batch the tax quote into one call per cart. This alone should bring p95 under 700 ms.</li>
+                <li>Batch the tax quote into one call per cart. This alone should bring p95 under 700&nbsp;ms.</li>
                 <li>
                     Warm the tax service's connection pool at deploy, and
                     <mark class="anchor" data-thread="t2">cache the tax quote per cart for 60 seconds</mark>.

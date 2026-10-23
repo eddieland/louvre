@@ -1,4 +1,4 @@
-# M5. Deployed for the organization
+# M6. Deployed for the organization
 
 REQUIREMENTS C1 and the open question of where Louvre runs. Louvre on the host the operator chooses, with a managed
 Postgres (D007) and its backups.
