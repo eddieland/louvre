@@ -77,6 +77,8 @@ dev = [
     # FastAPI's TestClient runs on it: the web app's tests call it in process.
     "httpx2>=2.13.1",
     "hypothesis>=6.170.0",
+    # Drives Chromium for the screen matrix: every page at every size, and the checked-in screenshots (`make screens`).
+    "playwright>=1.64.1",
     # Git hooks (prek.toml) that run the formatters and linters on a commit: `make hooks` installs them.
     "prek>=0.5.7",
     "pyrefly>=1.4.0",
