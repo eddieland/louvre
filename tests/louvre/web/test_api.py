@@ -163,7 +163,9 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
 
     assert [t["anchor_status"] for t in threads].count("passage_gone") == 1
     assert "passage_gone" not in [t["anchor_status"] for t in first]
-    assert any(c["author"]["kind"] == "agent" for t in threads for c in t["comments"])
+    agents = [c["author"] for t in threads for c in t["comments"] if c["author"]["kind"] == "agent"]
+    assert agents
+    assert {a["on_behalf_of_name"] for a in agents} == {"Sam Okafor"}
 
 
 def test_only_its_owner_deletes_an_artifact(web: MakeWeb, published: str) -> None:

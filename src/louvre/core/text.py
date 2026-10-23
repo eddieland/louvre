@@ -2,10 +2,10 @@
 
 A version's text is what a reader sees of it, each run of whitespace one space and its ends trimmed, so a passage
 reflowed is still found. It is the text the page shows, read from its markup with the stdlib's parser, never the
-markup: a tag is no text, and the contents of `script`, `style`, `template`, and `title` are not shown. Louvre renders
-Markdown (louvre.core.render), so a Markdown version's text is its rendered page's, as an HTML version's is. The
-artifact page's bridge (ui/src/bridge/text.ts) reads a page by the same rules; tests/fixtures/anchors.json holds both
-to the same answers.
+markup: a tag is no text, and the contents of `script`, `style`, `template`, `title`, and `noscript` (a page in Louvre
+runs its scripts) are not shown. Louvre renders Markdown (louvre.core.render), so a Markdown version's text is its
+rendered page's, as an HTML version's is. The artifact page's bridge (ui/src/bridge/text.ts) reads a page by the same
+rules; tests/fixtures/anchors.json holds both to the same answers.
 
 An anchor is a W3C Web Annotation `TextQuoteSelector` over that text: `exact`, the passage's words, and up to
 `CONTEXT` characters of `prefix` and `suffix` either side, which tell two copies of it apart. It is found again by its
@@ -24,7 +24,7 @@ CONTEXT = 32
 #: The content types a version may have.
 type ContentType = Literal["text/html", "text/markdown"]
 #: Elements whose contents a page does not show.
-_HIDDEN = frozenset({"script", "style", "template", "title"})
+_HIDDEN = frozenset({"noscript", "script", "style", "template", "title"})
 #: Elements that sit inside a line of text, so their tags part no words. Any other tag starts or ends a block, or is
 #: an element such as `br` or `img` that stands between words, so it parts the words either side.
 _INLINE = frozenset(

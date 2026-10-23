@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "cd .. && uv run louvre serve --port 8765",
-    "build": "vite build",
+    "build": "vite build && vite build -c vite.bridge.config.ts",
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "typecheck": "tsc -b",

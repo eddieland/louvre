@@ -88,7 +88,7 @@ CREATE TABLE comments (
   via text NOT NULL CHECK (via IN ('web', 'mcp'))
 );
 
--- Every change to a comment or a thread, in commit order: writes take one lock first, so seq never commits out of order.
+-- Every change to a comment or a thread, in commit order: writes take one lock first, so seq commits in order.
 CREATE TABLE changes (
   seq bigserial PRIMARY KEY,
   kind text NOT NULL CHECK (

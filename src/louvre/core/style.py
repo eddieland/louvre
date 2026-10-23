@@ -138,7 +138,7 @@ body.louvre {
     font-family: var(--l-sans);
 }
 .louvre .l-kpi b { display: block; font-size: 1.5em; font-variant-numeric: tabular-nums; }
-.louvre .l-kpi span { color: var(--l-muted); font-size: 0.78em; }
+.louvre .l-kpi span { display: block; color: var(--l-muted); font-size: 0.78em; line-height: 1.35; }
 """
 
 #: How to use it, for an agent: what `style_get` returns beside the stylesheet.

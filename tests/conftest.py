@@ -8,13 +8,17 @@ where they fail: CI must never pass by skipping them.
 
 import dataclasses
 import os
+import threading
+import time
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 
 import psycopg
 import pytest
+import uvicorn
 from click.testing import CliRunner
 from fastapi.testclient import TestClient
+from playwright.sync_api import Browser, sync_playwright
 from psycopg import conninfo, sql
 
 from louvre.core import accounts, db
@@ -27,6 +31,8 @@ from louvre.web.settings import Settings
 TEST_DATABASE = "LOUVRE_TEST_DATABASE_URL"
 #: Where Louvre's pages are, in the tests' stores and apps.
 BASE_URL = "https://louvre.test"
+#: How long the live app may take to start or stop, in seconds.
+LIVE_DEADLINE = 15.0
 #: The header every write to the web app carries.
 WRITES = {"X-Louvre": "1"}
 #: Every table the store writes, emptied before each test.
@@ -64,12 +70,15 @@ def database_url(request: pytest.FixtureRequest) -> Iterator[str]:
 def conn(database_url: str) -> Iterator[db.Connection]:
     """A connection to the test database, its tables emptied first."""
     with db.connect(database_url) as connection:
-        connection.execute(
-            sql.SQL("TRUNCATE {} RESTART IDENTITY CASCADE").format(
-                sql.SQL(", ").join(sql.Identifier(t) for t in TABLES),
-            ),
-        )
+        empty(connection)
         yield connection
+
+
+def empty(connection: db.Connection) -> None:
+    """Empty every table the store writes."""
+    connection.execute(
+        sql.SQL("TRUNCATE {} RESTART IDENTITY CASCADE").format(sql.SQL(", ").join(sql.Identifier(t) for t in TABLES)),
+    )
 
 
 def person(conn: db.Connection, login: str, name: str | None = None) -> Account:
@@ -137,3 +146,33 @@ def sign_in(client: TestClient, login: str, name: str | None = None) -> None:
     """Sign in as `login` by name, as the web UI does."""
     response = client.post("/auth/dev", json={"login": login, "name": name}, headers=WRITES)
     assert response.status_code == 204, response.text
+
+
+@pytest.fixture(scope="module")
+def live_app(database_url: str) -> Iterator[str]:
+    """The web app on an emptied test database, with the demo and sign-in by name, served on a free port."""
+    with db.connect(database_url) as connection:
+        empty(connection)
+    settings = dataclasses.replace(web_settings(database_url), demo=True, base_url="")
+    server = uvicorn.Server(uvicorn.Config(create(settings), host="127.0.0.1", port=0, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + LIVE_DEADLINE
+    while not server.started:
+        assert time.monotonic() < deadline, "the web app did not start"
+        time.sleep(0.05)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(LIVE_DEADLINE)
+
+
+@pytest.fixture(scope="module")
+def browser() -> Iterator[Browser]:
+    """Chromium, driven by Playwright."""
+    with sync_playwright() as playwright:
+        # A Chromium of the machine's, where Playwright's own download is not to be had.
+        executable = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE") or None
+        launched = playwright.chromium.launch(executable_path=executable)
+        yield launched
+        launched.close()

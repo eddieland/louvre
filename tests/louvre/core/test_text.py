@@ -11,7 +11,9 @@ CASES = json.loads((Path(__file__).parents[2] / "fixtures" / "anchors.json").rea
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_the_shared_cases(case: dict[str, object]) -> None:
-    text = visible_text(str(case["html"]))
+    html = case["html"]
+    assert isinstance(html, list)
+    text = visible_text("".join(str(line) for line in html))
 
     assert text == case["text"]
     anchors = case["anchors"]

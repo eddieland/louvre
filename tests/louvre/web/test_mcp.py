@@ -73,6 +73,7 @@ def test_an_agents_comment_says_so_and_whose_agent_it_is(web: MakeWeb, conn: Con
         "display_name": "canopy worker",
         "kind": "agent",
         "on_behalf_of": "dev:sam",
+        "on_behalf_of_name": "Sam Okafor",
     }
     assert thread["comments"][0]["via"] == "mcp"
 

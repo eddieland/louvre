@@ -96,9 +96,24 @@ def artifact(store: Reader, artifact_id: str) -> dict[str, object]:
 
 
 @router.get("/artifacts/{artifact_id}/threads")
-def threads(store: Reader, artifact_id: str, version: Annotated[int | None, Query(ge=1)] = None) -> dict[str, object]:
-    """An artifact's threads, each anchor looked for in a version."""
-    return store.threads(artifact_id, version=version)
+def threads(
+    store: Reader,
+    conn: Conn,
+    artifact_id: str,
+    version: Annotated[int | None, Query(ge=1)] = None,
+) -> dict[str, object]:
+    """An artifact's threads, each anchor looked for in a version, an agent's comments with whom it writes for."""
+    found = store.threads(artifact_id, version=version)
+    comments = [c for t in _dicts(found["threads"]) for c in _dicts(t["comments"])]
+    behalf = {
+        str(a["on_behalf_of"]) for c in comments if (a := c["author"]) and isinstance(a, dict) and a.get("on_behalf_of")
+    }
+    named = accounts.names(conn, behalf)
+    for comment in comments:
+        author = comment["author"]
+        if isinstance(author, dict):
+            author["on_behalf_of_name"] = named.get(str(author.get("on_behalf_of")))
+    return found
 
 
 @router.post("/artifacts/{artifact_id}/threads", status_code=201)
@@ -166,6 +181,10 @@ def revoke(conn: Conn, person: Person, token_id: str) -> dict[str, object]:
 def house_style() -> dict[str, str]:
     """Louvre's house style for artifacts, as the `style_get` tool gives it."""
     return {"version": style.VERSION, "css": style.CSS, "rules": style.RULES}
+
+
+def _dicts(value: object) -> list[dict[str, object]]:
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
 
 def _token_json(token: accounts.Token) -> dict[str, object]:

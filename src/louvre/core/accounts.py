@@ -8,7 +8,7 @@ for every call made with it: an agent's comment is `kind: agent`, on its person'
 import hashlib
 import re
 import secrets
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -70,6 +70,19 @@ def upsert_account(conn: Connection, account: Account) -> Account:
         (account.id, account.login, account.display_name),
     )
     return account
+
+
+def names(conn: Connection, account_ids: Iterable[str]) -> dict[str, str]:
+    """Find people's names by their account ids.
+
+    Returns:
+        Each id found, with its person's name.
+    """
+    rows = conn.execute(
+        "SELECT id, display_name FROM accounts WHERE id = ANY(%s)",
+        (sorted(set(account_ids)),),
+    ).fetchall()
+    return {str(row["id"]): str(row["display_name"]) for row in rows}
 
 
 def start_session(conn: Connection, account_id: str) -> str:
