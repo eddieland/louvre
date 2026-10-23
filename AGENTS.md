@@ -53,9 +53,10 @@ Instructions for any agent working in this repository. Humans should read it too
   (`workflow_dispatch`): the manual run shares the pull request's concurrency group and cancels its run.
 - Stdlib first. Add a third-party dependency only when stdlib makes the code materially worse, and say why in its PR.
   Adopted so far: `click` for every command line, never argparse (D003), `pydantic` for validating config and anything
-  parsed from another program's output, `rich` for terminal output (D006), `hypothesis` for property tests of input
-  validators (dev only), `pytest-xdist` to run the tests in parallel (dev only), and `syrupy` for snapshot tests (dev
-  only).
+  parsed from another program's output, `rich` for terminal output (D006), `fastapi` and `uvicorn` for the web app
+  (only in `louvre.web` and `louvre serve`), `httpx2` for its test client (dev only), `hypothesis` for property tests
+  of input validators (dev only), `pytest-xdist` to run the tests in parallel (dev only), and `syrupy` for snapshot
+  tests (dev only).
 
 ## Formatting
 

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>Checkout latency: what we found and what to change</title>
+    <!-- A sample of what an agent publishes: one self-contained file, with its own styles, chart, and script. -->
+    <style>
+        :root {
+            --bg: #0f1218;
+            --card: #171b23;
+            --line: #272d38;
+            --ink: #e7e9ee;
+            --muted: #98a0ae;
+            --before: #5b6475;
+            --after: #f2994a;
+            --good: #4cc38a;
+            --bad: #f2994a;
+            --tax: #8b8cf8;
+            --fraud: #f2994a;
+            --rest: #3a4150;
+        }
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #fbfbfc;
+                --card: #ffffff;
+                --line: #e4e6eb;
+                --ink: #15171c;
+                --muted: #5d6472;
+                --before: #b7bdc8;
+                --after: #e07b24;
+                --good: #1f9d63;
+                --bad: #d26a14;
+                --tax: #5557d6;
+                --fraud: #e07b24;
+                --rest: #d5d9e0;
+            }
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+        main {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+        .kicker {
+            margin: 0 0 8px;
+            color: var(--muted);
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        h1 {
+            margin: 0 0 16px;
+            font-size: 34px;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+        h2 {
+            margin: 48px 0 12px;
+            font-size: 21px;
+            letter-spacing: -0.01em;
+        }
+        .lede {
+            font-size: 19px;
+            color: var(--ink);
+        }
+        p {
+            color: var(--muted);
+        }
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 28px 0;
+        }
+        .kpi {
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--card);
+        }
+        .kpi .label {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .kpi .value {
+            display: block;
+            margin-top: 4px;
+            font-size: 26px;
+            font-weight: 650;
+            font-variant-numeric: tabular-nums;
+        }
+        .kpi .delta {
+            color: var(--bad);
+            font-size: 13px;
+            font-weight: 600;
+        }
+        figure {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--card);
+        }
+        figcaption {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .toggle {
+            display: inline-flex;
+            padding: 2px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+        .toggle button {
+            padding: 3px 10px;
+            border: 0;
+            border-radius: 6px;
+            background: none;
+            color: var(--muted);
+            font: inherit;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .toggle button[aria-pressed="true"] {
+            background: var(--line);
+            color: var(--ink);
+        }
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .swatch {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 6px;
+            border-radius: 3px;
+        }
+        svg text {
+            fill: var(--muted);
+            font-size: 12px;
+        }
+        svg .value {
+            fill: var(--ink);
+            font-weight: 600;
+        }
+        .bar {
+            transition: width 300ms ease;
+        }
+        .split {
+            display: flex;
+            height: 28px;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .split div {
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .callout {
+            margin: 24px 0;
+            padding: 14px 16px;
+            border-left: 3px solid var(--good);
+            border-radius: 0 10px 10px 0;
+            background: var(--card);
+            color: var(--ink);
+        }
+        ol.steps {
+            display: grid;
+            gap: 12px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            counter-reset: step;
+        }
+        ol.steps li {
+            position: relative;
+            padding: 14px 16px 14px 52px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--card);
+            counter-increment: step;
+        }
+        ol.steps li::before {
+            content: counter(step);
+            position: absolute;
+            top: 14px;
+            left: 16px;
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--tax);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        ol.steps b {
+            display: block;
+        }
+        ol.steps span {
+            color: var(--muted);
+            font-size: 14px;
+        }
+        @media (max-width: 560px) {
+            .kpis {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <p class="kicker">Report &middot; PAY-142</p>
+    <h1>Checkout latency: what we found and what to change</h1>
+    <p class="lede">
+        Since the 14 October release, p95 checkout latency rose from 410 ms to 1.2 s, and carts abandoned at the payment
+        step rose by 6%. Two changes in the release explain nearly all of it, and both are cheap to undo.
+    </p>
+
+    <div class="kpis">
+        <div class="kpi"><span class="label">p95 checkout</span><span class="value">1.2 s</span>
+            <span class="delta">+190% vs 410 ms</span></div>
+        <div class="kpi"><span class="label">Abandoned at payment</span><span class="value">14.1%</span>
+            <span class="delta">+6.0 pts</span></div>
+        <div class="kpi"><span class="label">Checkouts traced</span><span class="value">40,000</span>
+            <span class="label">one day, replayed</span></div>
+    </div>
+
+    <h2>By region</h2>
+    <figure>
+        <figcaption>
+            Checkout latency, before and after the release
+            <span class="toggle" role="group" aria-label="Percentile">
+                <button type="button" data-metric="p50" aria-pressed="false">p50</button>
+                <button type="button" data-metric="p95" aria-pressed="true">p95</button>
+            </span>
+        </figcaption>
+        <svg id="chart" viewBox="0 0 680 190" width="100%" role="img" aria-label="Latency by region"></svg>
+        <div class="legend">
+            <span><span class="swatch" style="background: var(--before)"></span>Before</span>
+            <span><span class="swatch" style="background: var(--after)"></span>After</span>
+        </div>
+    </figure>
+
+    <h2>Where the time goes</h2>
+    <p>The added time at p95, split by what it was spent waiting on.</p>
+    <figure>
+        <div class="split" role="img" aria-label="Tax quote 66%, fraud check 27%, other 7%">
+            <div style="width: 66%; background: var(--tax)">Tax quote 66%</div>
+            <div style="width: 27%; background: var(--fraud)">Fraud 27%</div>
+            <div style="width: 7%; background: var(--rest)"></div>
+        </div>
+    </figure>
+    <p>
+        The new tax service is called once per line item instead of once per cart, and each call waits on a cold
+        connection pool. The fraud check now runs before the payment form renders, instead of after the customer
+        submits it.
+    </p>
+    <div class="callout">The payment provider's own p95 held at 180 ms throughout: the provider is not the cause.</div>
+
+    <h2>Proposal</h2>
+    <ol class="steps">
+        <li><b>Batch the tax quote into one call per cart</b>
+            <span>Alone, brings p95 under 700 ms. A day's work.</span></li>
+        <li><b>Warm the pool at deploy, and cache the quote per cart for 60 s</b>
+            <span>Removes the cold start; the cache needs the promotion's version in its key.</span></li>
+        <li><b>Move the fraud check back to submit time</b>
+            <span>Where it ran before the release; declines arrive at submit, as they used to.</span></li>
+    </ol>
+</main>
+<script>
+    const data = [
+        { region: "us-east", p50: [210, 290], p95: [400, 940] },
+        { region: "eu-west", p50: [230, 350], p95: [430, 1610] },
+        { region: "ap-south", p50: [220, 310], p95: [420, 1050] },
+    ];
+    const svg = document.getElementById("chart");
+    const NS = "http://www.w3.org/2000/svg";
+    const left = 80;
+    const width = 520;
+
+    function el(name, attrs, text) {
+        const node = document.createElementNS(NS, name);
+        for (const [k, v] of Object.entries(attrs)) {
+            node.setAttribute(k, String(v));
+        }
+        if (text !== undefined) {
+            node.textContent = text;
+        }
+        return node;
+    }
+
+    function draw(metric) {
+        svg.replaceChildren();
+        const max = Math.max(...data.flatMap((d) => d[metric]));
+        data.forEach((d, i) => {
+            const y = 14 + i * 60;
+            svg.append(el("text", { x: 0, y: y + 22 }, d.region));
+            d[metric].forEach((ms, j) => {
+                const w = Math.max(2, (ms / max) * width);
+                const fill = j === 0 ? "var(--before)" : "var(--after)";
+                svg.append(el("rect", { class: "bar", x: left, y: y + j * 20, width: w, height: 16, rx: 4, fill }));
+                svg.append(el("text", { class: "value", x: left + w + 8, y: y + j * 20 + 12 }, `${ms} ms`));
+            });
+        });
+    }
+
+    for (const button of document.querySelectorAll("[data-metric]")) {
+        button.addEventListener("click", () => {
+            for (const b of document.querySelectorAll("[data-metric]")) {
+                b.setAttribute("aria-pressed", String(b === button));
+            }
+            draw(button.dataset.metric);
+        });
+    }
+    draw("p95");
+</script>
+</body>
+</html>
