@@ -18,6 +18,19 @@ before anything else is built, so the UI is built first, over mock data, and the
 margin threads, as in a shared document: select words, and a thread opens in the margin beside its passage; threads
 stack along the page and follow it as it scrolls. The look is picked from mock-ups (M1).
 
+### U2. Dark first
+
+Planned (M1, M2). The operator works in dark mode (2026-10-23): every Louvre page is designed dark first, with light as
+the second theme, both from the same tokens. An artifact keeps its author's look: Louvre does not restyle it, and the
+viewer's color scheme reaches its frame, so an artifact that supports both follows the reader.
+
+### U3. Rich artifacts render as their authors made them
+
+Planned (M2). The operator expects agents to publish designed pages (2026-10-23), such as a polished HTML report: its
+own styles, fonts, inline SVG, images, charts, and scripts for interaction. Louvre renders it whole, scripts running,
+inside the sandbox L7 requires, and its threads anchor on its visible words as any artifact's do. The preview
+deployment serves one such report (#4).
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP
@@ -76,8 +89,12 @@ Louvre may offer webhooks to others later; canopy does not use them.
 
 To settle before the milestone that needs it:
 
-- Where Louvre runs, with a managed Postgres (D007) (M5).
+- Where Louvre runs, with a managed Postgres (D007): a preview runs on Vercel from the start (#4), and whether
+  production stays there is open (M5).
 - How people sign in: the organization's identity provider, or GitHub (M4).
 - Who may read an artifact: everyone in the organization, or a namespace's members (M4).
+- Whether an artifact may load from the network (a CDN's script, a web font, a remote image), or must carry everything
+  inline or in files published with it. The contract has one `content` string per version, so files beside it would
+  grow canopy's contract too (U3, M2).
 - From canopy's open list: whether Louvre's design system is public on npm or internal; what Louvre keeps of an
   artifact whose ticket canopy forgets; and whether Louvre is the name.
