@@ -16,4 +16,6 @@ a FastAPI app over mock data, as canopy's demo is. The store comes after it and 
 Accept: the operator, on the running page, reads an artifact, comments on a passage, replies, and resolves a thread,
 across a new version, and says it is right; Playwright holds each of those interactions.
 
-Status: in progress. `ui/` is set up on canopy's web stack, with Annotated's tokens and fonts, served at `/app/`.
+Status: in progress: built over the store (M4) rather than mock data, at the operator's word to build the MVP end to
+end (2026-10-23); waiting on the operator's word on the running page. Playwright holds the interactions
+(`tests/louvre/web/test_flows.py`). Not built: filtering the list by origin (the API takes a namespace).

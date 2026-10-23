@@ -54,6 +54,8 @@ Instructions for any agent working in this repository. Humans should read it too
   - Optionally `make hooks`, once per clone: prek's git hooks (`prek.toml`) then run the same formatters and linters
     on each commit's files. They do not replace the step above. A Claude Code cloud session installs them when it
     starts (`.claude/settings.json`).
+  - Tests that need Postgres read `LOUVRE_TEST_DATABASE_URL` (docs/DEPLOY.md runs one); without it they skip,
+    except in CI, where they fail.
   - Tests: `uv run pytest -q <test modules>` for the package you changed, which sits parallel to it under `tests/`
     (add `-n auto` for a directory). Add the whole-louvre tests your change can trip: `tests/louvre/test_layers.py`
     for a new import or module, `test_frozen.py` for a dataclass.
@@ -68,7 +70,8 @@ Instructions for any agent working in this repository. Humans should read it too
 - Stdlib first. Add a third-party dependency only when stdlib makes the code materially worse, and say why in its PR.
   Adopted so far: `click` for every command line, never argparse (D003), `pydantic` for validating config and anything
   parsed from another program's output, `rich` for terminal output (D006), `fastapi` and `uvicorn` for the web app
-  (only in `louvre.web` and `louvre serve`), `httpx2` for its test client (dev only), `hypothesis` for property tests
+  (only in `louvre.web` and `louvre serve`), `psycopg` for Postgres (D007), `markdown-it-py` to render a
+  Markdown artifact with its raw HTML off, `httpx2` for its test client (dev only), `hypothesis` for property tests
   of input validators (dev only), `pytest-xdist` to run the tests in parallel (dev only), and `syrupy` for snapshot
   tests (dev only).
 

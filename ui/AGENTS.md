@@ -8,7 +8,9 @@ specific here. Read `DESIGN.md` in this directory before changing anything visib
 Pinned exactly in `package.json`, as canopy's UI pins the same packages. Check the current docs for these versions
 before using an API; do not code from memory, and do not upgrade in passing.
 
-- Vite 8 single-page app, served by FastAPI under `/app/` (`louvre.web.ui`). No server rendering.
+- Vite 8 single-page app, served by FastAPI at the root (`louvre.web.app`). No server rendering. The bridge,
+  `src/bridge/`, is built apart into `dist/bridge/bridge.js` (`vite.bridge.config.ts`), and the server adds it to every
+  artifact's page.
 - React 19.3 with the React Compiler (`@vitejs/plugin-react` `compiler: true`).
 - TypeScript strict, with `noUncheckedIndexedAccess`.
 - Tailwind v4, configured in CSS (`src/index.css`, `src/styles/tokens.css`). There is no `tailwind.config.js`.
@@ -27,7 +29,7 @@ From `ui/`, or `make ui-check`, `make ui-build`, `make ui-fmt` from the root:
 
 | Command | Does |
 |---|---|
-| `npm run dev` | Vite on 127.0.0.1:5173, proxying `/api` to `npm run dev:api` (`louvre serve` on :8765) |
+| `npm run dev` | Vite on 127.0.0.1:5173, proxying `/api`, `/auth`, `/content`, and `/mcp` to `npm run dev:api` |
 | `npm run check` | format check, lint, typecheck, unit tests, build: what CI runs |
 | `npm test -- <files>` | the Vitest files named |
 | `npm run fmt` | format with oxfmt |
