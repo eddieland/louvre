@@ -13,6 +13,8 @@ from importlib.resources import files
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
+from louvre.web import explorations
+
 #: Where the pages and the sample artifact live, beside this module.
 PAGES = files("louvre.web") / "pages"
 #: The sample artifacts the demo serves, by id: the file each one's HTML is read from.
@@ -58,6 +60,27 @@ def create() -> FastAPI:
         body = (PAGES / _sample(artifact_id)).read_text(encoding="utf-8")
         return HTMLResponse(body, headers={"Content-Security-Policy": ARTIFACT_POLICY, **_NO_SNIFF})
 
+    @app.get("/directions", response_class=HTMLResponse)
+    def directions() -> HTMLResponse:
+        """The UI explorations, to open and compare."""
+        items = "\n".join(
+            f'        <a class="card" href="/directions/{html.escape(p.group)}/{html.escape(p.name)}">'
+            f"<b>{html.escape(p.title)}</b><span>{html.escape(p.group)}</span></a>"
+            for p in explorations.all_pages()
+        )
+        return _page("directions.html", trusted={"items": items or "        <p>No explorations here.</p>"})
+
+    @app.get("/directions/{group}/{name}", response_class=HTMLResponse)
+    def direction(group: str, name: str) -> HTMLResponse:
+        """One exploration's page, as it is in the repository."""
+        page = explorations.find(group, name)
+        if page is None:
+            raise HTTPException(status_code=404, detail="No such exploration.")
+        return HTMLResponse(
+            page.path.read_text(encoding="utf-8"),
+            headers={"Content-Security-Policy": PAGE_POLICY, **_NO_SNIFF},
+        )
+
     @app.get("/healthz")
     def health() -> dict[str, str]:
         """Liveness, with the version deployed."""
@@ -73,8 +96,11 @@ def _sample(artifact_id: str) -> str:
         raise HTTPException(status_code=404, detail="No such artifact.") from None
 
 
-def _page(name: str, **values: str) -> HTMLResponse:
+def _page(name: str, *, trusted: dict[str, str] | None = None, **values: str) -> HTMLResponse:
+    # `values` are escaped; `trusted` is HTML this module built from escaped pieces.
     body = (PAGES / name).read_text(encoding="utf-8")
     for key, value in values.items():
         body = body.replace("{{" + key + "}}", html.escape(value))
+    for key, value in (trusted or {}).items():
+        body = body.replace("{{" + key + "}}", value)
     return HTMLResponse(body, headers={"Content-Security-Policy": PAGE_POLICY, **_NO_SNIFF})
