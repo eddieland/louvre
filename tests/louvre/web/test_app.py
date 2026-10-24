@@ -139,15 +139,17 @@ def test_a_page_without_a_built_bridge_is_served_as_it_is() -> None:
     assert re.fullmatch(r"<p>Hi</p>\n<script>x</script>\n", with_bridge("<p>Hi</p>", "x"))
 
 
-def test_the_house_styles_fonts_are_served_to_any_origin_and_kept(client: TestClient) -> None:
-    for name, font in style.FONTS.items():
-        response = client.get(style.FONTS_PATH + name)
+def test_every_version_of_the_house_styles_fonts_is_served_to_any_origin_and_kept(client: TestClient) -> None:
+    assert style.VERSION in style.FONTS_BY_VERSION
+    for style_version, fonts in style.FONTS_BY_VERSION.items():
+        for name, font in fonts.items():
+            response = client.get(f"/style/{style_version}/fonts/{name}")
 
-        assert response.status_code == 200
-        assert response.content == font
-        assert response.headers["content-type"] == "font/woff2"
-        assert response.headers["access-control-allow-origin"] == "*"
-        assert "immutable" in response.headers["cache-control"]
+            assert response.status_code == 200
+            assert response.content == font
+            assert response.headers["content-type"] == "font/woff2"
+            assert response.headers["access-control-allow-origin"] == "*"
+            assert "immutable" in response.headers["cache-control"]
 
 
 @pytest.mark.parametrize(
@@ -168,24 +170,26 @@ def test_an_artifact_loads_fonts_only_from_data_urls_and_louvre() -> None:
     assert [d for d in policy.split("; ") if d.startswith("font-src")] == ["font-src data: 'self'"]
 
 
-def test_an_artifact_runs_only_its_own_scripts_and_the_map_kit_louvre_serves() -> None:
+def test_an_artifact_runs_only_its_own_scripts_and_the_map_kits_louvre_serves() -> None:
     directives = dict(d.split(" ", 1) for d in artifact_policy("https://louvre.test").split("; ")[1:])
 
-    assert directives["script-src"] == "'unsafe-inline' https://louvre.test/kit/louvre-map-1/"
-    assert directives["connect-src"] == "https://louvre.test/kit/louvre-map-1/"
+    assert directives["script-src"] == "'unsafe-inline' https://louvre.test/kit/"
+    assert directives["connect-src"] == "https://louvre.test/kit/"
     assert directives["worker-src"] == "blob:"
 
 
-def test_the_map_kits_files_are_served_to_any_origin_and_kept(client: TestClient) -> None:
-    for path, (media_type, data) in maps.FILES.items():
-        response = client.get(maps.PATH + path)
+def test_every_version_of_the_map_kits_files_is_served_to_any_origin_and_kept(client: TestClient) -> None:
+    assert maps.VERSION in maps.KITS
+    for kit_version, kit in maps.KITS.items():
+        for path, (media_type, data) in kit.items():
+            response = client.get(f"{maps.ROOT}{kit_version}/{path}")
 
-        assert response.status_code == 200
-        assert response.content == data
-        assert response.headers["content-type"].split(";")[0] == media_type
-        assert response.headers["access-control-allow-origin"] == "*"
-        assert response.headers["content-security-policy"] == FILE_POLICY
-        assert "immutable" in response.headers["cache-control"]
+            assert response.status_code == 200
+            assert response.content == data
+            assert response.headers["content-type"].split(";")[0] == media_type
+            assert response.headers["access-control-allow-origin"] == "*"
+            assert response.headers["content-security-policy"] == FILE_POLICY
+            assert "immutable" in response.headers["cache-control"]
     assert b"window.LouvreMap" in maps.FILES["map.js"][1]
     assert b".maplibregl-map" in maps.FILES["map.js"][1]
 

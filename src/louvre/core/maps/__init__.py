@@ -7,20 +7,26 @@ page loads one script, `map.js`: MapLibre, its stylesheet, and the kit together.
 the kit's path and nothing else beyond its own files (D008), so a map in Louvre makes no request outside it.
 
 The kit's files are public, the same for every caller: a sandboxed page's requests carry no session. The version is in
-the path, so a later kit is a new path, and never redraws a published map.
+the path, so a later kit is a new path, and never redraws a published map. Each version is a directory beside this
+module, and Louvre serves every one of them, for as long as a page may load it; browsers keep each file for a year, so
+a version once published never changes.
 """
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from importlib.resources import files
 
-#: The kit's name and version, as a page names it.
+#: Where Louvre serves every version of the kit, each under its name.
+ROOT = "/kit/"
+#: The kit's name and version, as a page names it: the version a new page loads.
 VERSION = "louvre-map-1"
-#: Where Louvre serves the kit: a page loads `map.js` from here.
-PATH = f"/kit/{VERSION}/"
+#: Where Louvre serves the current kit: a page loads `map.js` from here.
+PATH = f"{ROOT}{VERSION}/"
 
-_FILES = files(__name__) / VERSION
+_ROOT = files(__name__)
+#: Every version of the kit, the current one among them: each directory beside this module named for one.
+VERSIONS: Sequence[str] = sorted(d.name for d in _ROOT.iterdir() if d.is_dir() and d.name.startswith("louvre-map-"))
 #: Where `kit.js` takes MapLibre's stylesheet, as a JavaScript string.
 _SLOT = '/* maplibre-gl.css */ ""'
 #: Each kind of file the kit serves, by its suffix, and its media type.
@@ -36,49 +42,54 @@ _GLYPHS = re.compile(r"glyphs/(?P<font>[^/]+)/(?P<start>\d+)-(?P<end>\d+)\.pbf")
 _FIRST_RANGE = "0-255.pbf"
 
 
-def served(path: str) -> tuple[str, bytes] | None:
-    """Find the file the kit serves at `path`, under `PATH`.
+def served(version: str, path: str) -> tuple[str, bytes] | None:
+    """Find the file a version of the kit serves at `path`, under its directory in `ROOT`.
 
     Returns:
-        Its media type and bytes, or None if the kit has none there. A range of glyphs the kit does not carry, of a
-        font it does, such as Chinese, is served empty, so a label leaves those characters out rather than failing.
+        Its media type and bytes, or None if that version has none there, or there is no such version. A range of
+        glyphs the kit does not carry, of a font it does, such as Chinese, is served empty, so a label leaves those
+        characters out rather than failing.
     """
-    found = FILES.get(path)
+    kit = KITS.get(version, {})
+    found = kit.get(path)
     glyphs = _GLYPHS.fullmatch(path)
-    if found is None and glyphs and f"glyphs/{glyphs['font']}/{_FIRST_RANGE}" in FILES:
+    if found is None and glyphs and f"glyphs/{glyphs['font']}/{_FIRST_RANGE}" in kit:
         start, end = int(glyphs["start"]), int(glyphs["end"])
         if start % 256 == 0 and end == start + 255:
             return _TYPES[".pbf"], b""
     return found
 
 
-def _script() -> bytes:
-    """Put MapLibre, its stylesheet, and the kit in one script.
+def _script(version: str) -> bytes:
+    """Put a version's MapLibre, its stylesheet, and its kit in one script.
 
     Returns:
         The script.
     """
-    maplibre = (_FILES / "maplibre-gl.js").read_text(encoding="utf-8")
-    css = (_FILES / "maplibre-gl.css").read_text(encoding="utf-8")
-    kit = (_FILES / "kit.js").read_text(encoding="utf-8").replace(_SLOT, json.dumps(css), 1)
+    folder = _ROOT / version
+    maplibre = (folder / "maplibre-gl.js").read_text(encoding="utf-8")
+    css = (folder / "maplibre-gl.css").read_text(encoding="utf-8")
+    kit = (folder / "kit.js").read_text(encoding="utf-8").replace(_SLOT, json.dumps(css), 1)
     return f"{maplibre}\n{kit}".encode()
 
 
-def _read() -> dict[str, tuple[str, bytes]]:
-    """Read every file the kit serves.
+def _read(version: str) -> dict[str, tuple[str, bytes]]:
+    """Read every file a version of the kit serves.
 
     Returns:
-        Each file by its path under the kit's, with its media type and bytes.
+        Each file by its path under the version's, with its media type and bytes.
     """
-    found: dict[str, tuple[str, bytes]] = {"map.js": (_TYPES[".js"], _script())}
+    found: dict[str, tuple[str, bytes]] = {"map.js": (_TYPES[".js"], _script(version))}
     for folder in ("basemap", "glyphs"):
-        for item in (_FILES / folder).iterdir():
+        for item in (_ROOT / version / folder).iterdir():
             for leaf in item.iterdir() if item.is_dir() else [item]:
                 path = f"{folder}/{item.name}/{leaf.name}" if item.is_dir() else f"{folder}/{item.name}"
                 found[path] = (_TYPES[leaf.name[leaf.name.rindex(".") :]], leaf.read_bytes())
-    found["maplibre-gl-LICENSE.txt"] = (_TYPES[".txt"], (_FILES / "maplibre-gl-LICENSE.txt").read_bytes())
+    found["maplibre-gl-LICENSE.txt"] = (_TYPES[".txt"], (_ROOT / version / "maplibre-gl-LICENSE.txt").read_bytes())
     return found
 
 
-#: Every file the kit serves, by its path under `PATH`: its media type and its bytes.
-FILES: Mapping[str, tuple[str, bytes]] = _read()
+#: Every version's files, by version and path under the version's: each one's media type and bytes.
+KITS: Mapping[str, Mapping[str, tuple[str, bytes]]] = {version: _read(version) for version in VERSIONS}
+#: The current kit's files, by path under `PATH`.
+FILES = KITS[VERSION]

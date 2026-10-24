@@ -110,7 +110,7 @@ _FIXED_COLOR = re.compile(r"#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|lab)\(", re.
 #: SVG attributes that take a color.
 _COLOR_ATTRIBUTES = frozenset({"fill", "stroke", "color", "stop-color", "flood-color", "lighting-color"})
 #: Where Louvre serves a map kit, of any version, and the script a page loads of the one it serves.
-_KITS = "/kit/"
+_KITS = maps.ROOT
 _KIT_SCRIPT = f"{maps.PATH}map.js"
 #: A map a script draws with the kit.
 _DRAW = re.compile(r"\bLouvreMap\s*\.\s*draw\s*\(")
