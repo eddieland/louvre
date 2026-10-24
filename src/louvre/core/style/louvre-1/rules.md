@@ -102,7 +102,9 @@ and the page works dark and light.
 
 ## Charts
 
-Draw a chart as inline SVG, in a figure, with the chart's class:
+Let Louvre draw a line or bar chart: call `style_chart` with its kind, its title and description, its labels, up to
+four series, and a target to compare with if there is one. It returns the `<figure>` to put in the page, drawn to the
+rules below. Draw any other chart yourself, as inline SVG, in a figure, with the chart's class:
 
 ```html
 <figure>

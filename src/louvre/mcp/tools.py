@@ -12,11 +12,11 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
 from louvre.core import style
-from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Store
-from louvre.core.style import check
+from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Code, Refused, Store
+from louvre.core.style import chart, check
 from louvre.core.text import CONTEXT, Anchor, ContentType
 
 #: Origin pairs, by key, set when an artifact is made. Plain aliases, not `type` statements: pydantic leaves out the
@@ -156,6 +156,40 @@ class StyleCheck(_Request):
     ]
 
 
+class SeriesRequest(_Request):
+    """One series of a chart's values."""
+
+    name: Annotated[StrictStr, Field(description="What the series is, as its legend names it, such as This week.")]
+    values: Annotated[list[FiniteFloat], Field(description="One value to each label, in the labels' order.")]
+
+
+class TargetRequest(_Request):
+    """A value to compare with, drawn as a dashed line."""
+
+    name: Annotated[StrictStr, Field(description="What it is, as its legend names it, such as Target, 450 ms.")]
+    value: FiniteFloat
+
+
+class StyleChart(_Request):
+    """Draw a chart in the house style."""
+
+    kind: Annotated[chart.Kind, Field(description="line, for values over time; bar, for values side by side.")]
+    title: Annotated[StrictStr, Field(description="What it shows, with its unit: the figure's caption.")]
+    description: Annotated[
+        StrictStr,
+        Field(description="What it says, in words, for a reader who cannot see it: the finding, not 'a chart'."),
+    ]
+    labels: Annotated[
+        list[StrictStr],
+        Field(description=f"Each point's or bar's label, in order, such as a day: short, at most {chart.MOST_LABELS}."),
+    ]
+    series: Annotated[
+        list[SeriesRequest],
+        Field(description=f"1 to {chart.MOST_SERIES} series; the first is the one the chart is about."),
+    ]
+    target: Annotated[TargetRequest | None, Field(description="A value to compare with, if there is one.")] = None
+
+
 class Resolve(_Request):
     """Resolve a thread, or reopen it."""
 
@@ -244,6 +278,15 @@ TOOLS = (
         StyleCheck,
         lambda _store, r: _checked(r.content),
     ),
+    tool(
+        "style_chart",
+        "Draw a line or bar chart in the house style, from its data: a <figure> to paste into a page in the style, its "
+        "caption the title, an inline SVG drawn to the guide's rules (round values on its axis, bars from zero, the "
+        "style's series colors, so it works dark and light), and a legend. Say the chart's finding in the page's text "
+        "too.",
+        StyleChart,
+        lambda _store, r: _charted(r),
+    ),
 )
 
 
@@ -253,3 +296,18 @@ def _checked(page: str) -> dict[str, object]:
         "ok": not any(f.severity == check.Severity.ERROR for f in findings),
         "findings": [f.json() for f in findings],
     }
+
+
+def _charted(request: StyleChart) -> dict[str, object]:
+    drawn = chart.Chart(
+        kind=request.kind,
+        title=request.title,
+        description=request.description,
+        labels=request.labels,
+        series=[chart.Series(s.name, s.values) for s in request.series],
+        target=None if request.target is None else chart.Target(request.target.name, request.target.value),
+    )
+    try:
+        return {"figure": chart.figure(drawn)}
+    except ValueError as e:
+        raise Refused(Code.INVALID, str(e)) from None
