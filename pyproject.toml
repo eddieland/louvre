@@ -25,6 +25,8 @@ requires-python = ">=3.12"
 dependencies = [
     "click>=8.5.0",
     "fastapi>=0.143.2",
+    "markdown-it-py>=4.2.0",
+    "psycopg[binary]>=3.3.6",
     "pydantic>=2.14.1",
     "rich>=15.0.0",
     "uvicorn>=0.54.0",

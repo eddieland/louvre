@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payments, week 43</title>
+<style>
+{css}
+</style>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Weekly metrics &middot; Payments</p>
+<h1>Payments, week 43</h1>
+<p class="l-lede">Checkout recovered after the tax fix shipped on Tuesday. Abandonment is back to where it was in
+September.</p>
+<div class="l-kpis">
+<div class="l-kpi"><span>p95 checkout</span><b>430&nbsp;ms</b></div>
+<div class="l-kpi"><span>Abandoned at payment</span><b>8.3%</b></div>
+<div class="l-kpi"><span>Authorizations</span><b>212,400</b></div>
+</div>
+<figure>
+<figcaption>p95 checkout by day, in milliseconds</figcaption>
+<svg viewBox="0 0 640 160" role="img" aria-label="p95 checkout fell from 1,180 ms on Monday to 430 ms by Sunday">
+<polyline fill="none" stroke="var(--l-accent)" stroke-width="3"
+    points="20,20 115,24 210,96 305,118 400,124 495,128 590,130"/>
+<line x1="20" y1="140" x2="620" y2="140" stroke="var(--l-rule)"/>
+</svg>
+</figure>
+<h2>What changed</h2>
+<p>The tax quote now makes one call per cart. The fraud check moved back to submit time on Wednesday.</p>
+<div class="l-callout">Declines at submit rose from 1.1% to 1.4%, as expected once the check runs there again.</div>
+<h2>By region</h2>
+<table>
+<thead><tr><th>Region</th><th>p95</th><th>Abandoned</th></tr></thead>
+<tbody>
+<tr><td>us-east</td><td>410&nbsp;ms</td><td>7.9%</td></tr>
+<tr><td>eu-west</td><td>470&nbsp;ms</td><td>8.8%</td></tr>
+<tr><td>ap-south</td><td>440&nbsp;ms</td><td>8.4%</td></tr>
+</tbody>
+</table>
+</main>
+</body>
+</html>

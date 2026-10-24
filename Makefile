@@ -72,7 +72,7 @@ ui-build: ui/node_modules ## Build ui/dist, which `louvre serve` serves under /a
 # Not part of check: they drive Chromium, over a built ui/ (`make ui-build`). CI runs `screens` as its own job.
 # Playwright's Chromium comes from `uv run playwright install chromium`, or set PLAYWRIGHT_CHROMIUM_EXECUTABLE to one
 # already on the machine.
-SCREENS_TESTS := tests/louvre/web/test_screens.py
+SCREENS_TESTS := tests/louvre/web/test_screens.py tests/louvre/web/test_flows.py
 
 screens: ui-build ## Check every page at every screen size: no sideways scroll, no page errors (REQUIREMENTS U4)
 	LOUVRE_SCREENS=1 $(PYTEST) $(SCREENS_TESTS)

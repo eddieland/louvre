@@ -23,7 +23,7 @@ function preloadFonts(): Plugin {
             )
             return fonts.map((file) => ({
                 tag: 'link',
-                attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: `/app/${file}`, crossorigin: '' },
+                attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: `/${file}`, crossorigin: '' },
                 injectTo: 'head',
             }))
         },
@@ -32,8 +32,8 @@ function preloadFonts(): Plugin {
 
 /** The SPA's build and dev server: file-based routes, the React Compiler, Tailwind, and `/api` proxied in dev. */
 export default defineConfig({
-    // Served by FastAPI under /app/ (louvre.web.ui) until the SPA takes over the preview's own pages.
-    base: '/app/',
+    // Served by FastAPI at the root (louvre.web.app), every path it does not route being the SPA's.
+    base: '/',
     plugins: [
         // Before react(): it generates src/routeTree.gen.ts from src/routes/.
         tanstackRouter({ target: 'react', autoCodeSplitting: true }),
@@ -48,7 +48,7 @@ export default defineConfig({
         host: '127.0.0.1',
         port: 5173,
         strictPort: true,
-        proxy: { '/api': { target: api, changeOrigin: true } },
+        proxy: Object.fromEntries(['/api', '/auth', '/content', '/mcp'].map((p) => [p, { target: api }])),
     },
     build: {
         outDir: 'dist',
