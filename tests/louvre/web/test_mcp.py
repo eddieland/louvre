@@ -32,7 +32,12 @@ def test_an_agent_publishes_and_a_person_reads_it_on_the_web(web: MakeWeb, conn:
     agent, ana = web(), web()
     secret = mint(conn)
 
-    hello = rpc(agent, secret, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {}})
+    hello = rpc(
+        agent,
+        secret,
+        "initialize",
+        {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "test", "version": "1"}},
+    )
     called = rpc(
         agent,
         secret,
