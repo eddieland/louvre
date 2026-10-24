@@ -111,8 +111,10 @@ but the canvas, to the screen's edges, under one hairline.
   size in `muted`, its open threads in `accent`. Labels and outlines keep one size on the screen at any zoom, and a
   label never runs past its frame's width: what does not fit ends in an ellipsis.
 - **Moving.** Drag to pan, by pointer or by touch; pinch, the wheel, or the toolbar's zoom control (`−`, the zoom in
-  percent, `+`, Fit) to zoom, about the cursor or the pinch's middle. The board opens fitted to the screen, and fits
-  again on a resize until the reader moves it. Keys: `+` and `-` zoom, `0` fits, the arrows pan.
+  percent, `+`, Fit) to zoom, about the cursor or the pinch's middle, from 5% to 100%: a frame's page at its own size,
+  as a reader opens the frame to read it closer. The board opens fitted to the screen, and fits again on a resize until
+  the reader moves it. Keys: `+` and `-` zoom, `0` fits, the arrows pan. The browser's own zoom is off on a board's
+  page: only the canvas zooms, as a phone has not the memory to draw all its pages larger.
 - **Opening a frame.** A frame is read by opening it, never on the canvas: the canvas takes every pointer, and a
   frame's page is inert there. A tap or a click opens it on the artifact's page, at the frame's width when that is
   narrower than the page's, with its threads in the margin as on any artifact's page, and the way back to the board

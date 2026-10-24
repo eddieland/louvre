@@ -69,6 +69,9 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
     const pointers = useRef(new Map<number, Point>())
     const pressedAt = useRef<Point | null>(null)
     const dragged = useRef(false)
+    // The moves made since the board was last drawn: a phone sends pointer moves faster than its screen redraws, so
+    // they are drawn together, once a frame.
+    const pending = useRef<((current: View) => View) | null>(null)
 
     const world = bounds(frames, LABEL_ROOM)
 
@@ -76,13 +79,24 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         const viewport = viewportRef.current
         if (viewport) {
             fitted.current = true
+            pending.current = null
             setView(fit(world, viewport.clientWidth, viewport.clientHeight, PADDING))
         }
     }
 
     const change = (next: (current: View) => View) => {
         fitted.current = false
-        setView((was) => (was ? next(was) : was))
+        const before = pending.current
+        pending.current = before ? (current) => next(before(current)) : next
+        if (!before) {
+            requestAnimationFrame(() => {
+                const moves = pending.current
+                pending.current = null
+                if (moves) {
+                    setView((was) => (was ? moves(was) : was))
+                }
+            })
+        }
     }
 
     const middle = (): Point => {

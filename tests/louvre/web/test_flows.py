@@ -326,6 +326,29 @@ def test_on_a_phone_a_board_zoomed_out_paints_little_past_its_frames(browser: Br
         context.close()
 
 
+def test_on_a_phone_a_pinch_off_the_canvas_does_not_zoom_the_page(browser: Browser, live_app: str) -> None:
+    """A pinch on the header or the toolbar leaves the page at its size: the browser's zoom draws every frame larger."""
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        touch = context.new_cdp_session(page)
+        for bar in ("header", ".toolbar"):
+            box = page.locator(bar).first.bounding_box()
+            assert box is not None
+            y = int(box["y"] + box["height"] / 2)
+            fingers(touch, [[(170, y), (220, y)], *([(170 - n * 20, y), (220 + n * 20, y)] for n in range(1, 8))])
+            assert page.evaluate("visualViewport.scale") == 1, f"a pinch on the {bar} zoomed the page"
+    finally:
+        context.close()
+
+
 def test_the_design_study_is_a_board_to_read_without_a_database_or_signing_in(browser: Browser, live_app: str) -> None:
     context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark", base_url=live_app)
     try:
