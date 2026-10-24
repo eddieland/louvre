@@ -6,6 +6,8 @@ import pytest
 
 from louvre.core import accounts
 from louvre.core.db import Connection
+from louvre.core.decisions import Decisions, Option
+from louvre.core.text import Anchor
 from louvre.web import ui
 from louvre.web.app import ARTIFACT_POLICY
 from tests.conftest import WRITES, MakeAgent, MakeWeb, sign_in
@@ -291,3 +293,56 @@ def test_an_unknown_api_route_is_json_not_the_ui(web: MakeWeb) -> None:
 
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
+
+
+def test_a_person_answers_an_agents_decision_on_the_web(web: MakeWeb, agent: MakeAgent, published: str) -> None:
+    asked = Decisions(agent()).ask(
+        published,
+        "Retry twice, or once?",
+        (Option("Twice", anchor=Anchor.of("retry the fraud check twice")), Option("Once")),
+        asked=["ana"],
+    )
+    decision = asked["decision_id"]
+    client = web()
+    sign_in(client, "ana", "Ana Ruiz")
+
+    [shown] = client.get(f"/api/artifacts/{published}/decisions").json()["decisions"]
+    before = client.get("/api/decisions").json()
+    unheaded = client.post(f"/api/decisions/{decision}/answer", json={"choices": ["o2"]})
+    answered = client.post(
+        f"/api/decisions/{decision}/answer",
+        json={"choices": ["o2"], "note": "Once."},
+        headers=WRITES,
+    )
+    after = client.get("/api/decisions", params={"state": "open"}).json()
+    [listed] = client.get("/api/artifacts").json()["artifacts"]
+    refused = client.post(f"/api/decisions/{decision}/close", json={"outcome": "o2"}, headers=WRITES)
+
+    assert shown["question"] == "Retry twice, or once?"
+    assert shown["author"]["on_behalf_of_name"] == "Sam Okafor"
+    assert (shown["awaits_me"], before["awaiting"]) == (True, 1)
+    assert unheaded.status_code == 403
+    assert answered.status_code == 200
+    assert after["awaiting"] == 0
+    assert after["decisions"][0]["mine"] == {"choices": ["o2"], "note": "Once."}
+    assert (listed["open_decisions"], listed["awaiting"]) == (1, 0)
+    assert (refused.status_code, refused.json()["code"]) == (403, "out_of_scope")
+
+
+def test_the_person_an_agent_asked_for_closes_its_decision_on_the_web(
+    web: MakeWeb,
+    agent: MakeAgent,
+    published: str,
+) -> None:
+    decision = Decisions(agent()).ask(published, "Ship it?", (Option("Yes"), Option("No")))["decision_id"]
+    client = web()
+    sign_in(client, "sam", "Sam Okafor")
+
+    closed = client.post(f"/api/decisions/{decision}/close", json={"outcome": "o1", "note": "Shipped."}, headers=WRITES)
+    late = client.post(f"/api/decisions/{decision}/answer", json={"choices": ["o2"]}, headers=WRITES)
+    bad = client.post(f"/api/decisions/{decision}/answer", json={"choices": []}, headers=WRITES)
+
+    assert closed.json() == {"state": "closed", "seq": closed.json()["seq"]}
+    assert (late.status_code, late.json()["code"]) == (409, "closed")
+    assert (bad.status_code, bad.json()["code"]) == (422, "invalid")
+    assert client.get("/api/decisions", params={"state": "closed"}).json()["decisions"][0]["outcome"] == "o1"

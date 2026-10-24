@@ -4,14 +4,25 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncEx
 
 import type { FromBridge, Mark, Place, Selected } from '@/bridge/protocol'
 import type { Anchor } from '@/bridge/text'
+import { DecisionCard } from '@/components/decision'
 import { Frame } from '@/components/frame'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { ThreadNote } from '@/components/thread-note'
 import type { Draft } from '@/components/thread-note'
 import { SignInLink } from '@/components/sign-in'
-import { ApiError, artifactQuery, boardQuery, request, sessionQuery, threadsQuery, useThreadWrites } from '@/lib/api'
-import type { Account, Detail, Thread } from '@/lib/api'
+import {
+    ApiError,
+    artifactDecisionsQuery,
+    artifactQuery,
+    boardQuery,
+    request,
+    sessionQuery,
+    threadsQuery,
+    useThreadWrites,
+} from '@/lib/api'
+import type { Account, Decision, Detail, Thread } from '@/lib/api'
+import { passageId, rank } from '@/lib/decisions'
 import { ago, count, provenance, roman } from '@/lib/format'
 import { clearSelection } from '@/lib/frame'
 import { GAP, place } from '@/lib/layout'
@@ -43,16 +54,19 @@ interface Search {
     board?: string
     /** The frame on that board, whose width the page is shown at. */
     frame?: string
+    /** A decision to open the page at, shown whole and scrolled to. */
+    decision?: string
 }
 
 /** An artifact's page: a version in its frame, its threads in the margin (ui/DESIGN.md). */
 export const Route = createFileRoute('/a/$artifactId')({
     validateSearch: (search: Record<string, unknown>): Search => {
         const v = Number(search['v'])
-        const { board, frame } = search
+        const { board, frame, decision } = search
         return {
             ...(Number.isInteger(v) && v > 0 ? { v } : {}),
             ...(typeof board === 'string' && typeof frame === 'string' ? { board, frame } : {}),
+            ...(typeof decision === 'string' ? { decision } : {}),
         }
     },
     component: ArtifactPage,
@@ -102,6 +116,12 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const threadsResult = useQuery(threadsQuery(artifact.id, version))
     const threads = threadsResult.data?.threads ?? []
     const writes = useThreadWrites(artifact.id)
+    // Open decisions first, those awaiting the reader before the rest, each group newest first.
+    const decisions = (useQuery(artifactDecisionsQuery(artifact.id)).data?.decisions ?? []).toSorted(
+        (a, b) => rank(a) - rank(b),
+    )
+    const [toggled, setToggled] = useState<Record<string, boolean>>({})
+    const shownWhole = (d: Decision) => toggled[d.id] ?? (d.state === 'open' || d.id === search.decision)
     const theme = useTheme()
     const narrow = useMedia(NARROW)
 
@@ -137,6 +157,14 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     )
     if (draft?.anchor) {
         marks.push({ id: 'draft', anchor: draft.anchor, state: 'draft', n: null })
+    }
+    // Each option's passage, lit only while its option is hovered or shown.
+    for (const d of decisions) {
+        for (const o of d.options) {
+            if (o.anchor) {
+                marks.push({ id: passageId(d, o), anchor: o.anchor, state: 'passage', n: null })
+            }
+        }
     }
 
     const activate = (id: string | null) => {
@@ -279,6 +307,16 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     useEffect(() => {
         document.title = `${artifact.title} · Louvre`
     }, [artifact.title])
+
+    // Opened at a decision, from the list of decisions or an agent's link: scroll to it once it has loaded.
+    const scrolledTo = useRef<string | null>(null)
+    const wanted = decisions.some((d) => d.id === search.decision) ? search.decision : undefined
+    useEffect(() => {
+        if (wanted && scrolledTo.current !== wanted) {
+            scrolledTo.current = wanted
+            document.querySelector(`#decision-${CSS.escape(wanted)}`)?.scrollIntoView({ block: 'start' })
+        }
+    }, [wanted])
 
     useEffect(() => {
         document.body.classList.toggle('sheet-open', narrow && active !== null)
@@ -495,6 +533,24 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                     .
                 </p>
             )}
+            {decisions.length > 0 ? (
+                <section className="decisions" aria-label="Decisions">
+                    {decisions.map((d) => (
+                        <DecisionCard
+                            key={d.id}
+                            decision={d}
+                            account={account}
+                            open={shownWhole(d)}
+                            onToggle={() => setToggled({ ...toggled, [d.id]: !shownWhole(d) })}
+                            onLight={(o) => setHover(o ? passageId(d, o) : null)}
+                            onShow={(o) => {
+                                setHover(passageId(d, o))
+                                scrollToPassage(passageId(d, o))
+                            }}
+                        />
+                    ))}
+                </section>
+            ) : null}
             <main className="stage" data-framed={boardFrame ? '' : undefined}>
                 <div
                     className="sheet"

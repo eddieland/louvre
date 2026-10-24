@@ -1,4 +1,4 @@
-"""The MCP server answers the contract's tools, and style_get, as canopy's local store does, to the SDK's client."""
+"""The MCP server answers the contract's tools as canopy's local store does, and Louvre's own, to the SDK's client."""
 
 import json
 from collections.abc import Iterator
@@ -11,10 +11,12 @@ from anyio.from_thread import BlockingPortal, start_blocking_portal
 from mcp.shared.exceptions import MCPError
 from mcp.types import CallToolResult, TextContent, TextResourceContents
 
-from louvre.core import style
+from louvre.core import accounts, style
+from louvre.core.db import Connection
+from louvre.core.decisions import Decisions
 from louvre.core.store import MAX_BODY, MAX_FEED, MAX_ORIGIN, Store
 from louvre.mcp import server
-from tests.conftest import MakeAgent
+from tests.conftest import MakeAgent, person
 
 #: A report: the passage people comment on sits in markup.
 REPORT = """<html><head><title>Cache report</title></head><body>
@@ -40,6 +42,11 @@ TOOLS = [
     "thread_resolve",
     "style_get",
     "style_check",
+    "decision_create",
+    "decision_list",
+    "decision_read",
+    "decision_close",
+    "decision_feed",
 ]
 
 
@@ -194,6 +201,10 @@ def test_a_read_only_token_refuses_every_write(client: Client, agent: MakeAgent)
         ("comment_create", {"artifact_id": "a_missing", "body": "x"}),
         ("comment_reply", {"thread_id": "t_missing", "body": "x"}),
         ("thread_resolve", {"thread_id": "t_missing", "resolved": True}),
+        ("decision_read", {"decision_id": "d_missing"}),
+        ("decision_close", {"decision_id": "d_missing"}),
+        ("decision_list", {"artifact_id": "a_missing"}),
+        ("decision_create", {"artifact_id": "a_missing", "question": "q", "options": [{"label": "a"}, {"label": "b"}]}),
         ("artifact_publish", {"title": "t", "content_type": "text/html", "content": "x", "artifact_id": "a_missing"}),
     ],
 )
@@ -229,6 +240,9 @@ def test_what_is_over_its_bound_is_too_long(client: Client) -> None:
         ("comment_feed", {"since": 2**64}),
         ("thread_resolve", {"thread_id": "t_1", "resolved": "yes"}),
         ("comment_reply", {"thread_id": "t_1", "body": "  \n"}),
+        ("decision_create", {"artifact_id": "a_1", "question": "q", "options": [{"label": "a", "colour": "red"}]}),
+        ("decision_feed", {"limit": 0}),
+        ("decision_list", {"state": "decided"}),
     ],
 )
 def test_arguments_the_tool_cannot_use_are_invalid(client: Client, name: str, arguments: dict[str, object]) -> None:
@@ -328,3 +342,58 @@ def test_it_serves_its_tools_and_says_what_it_is_for(client: Client) -> None:
     assert client.session.instructions == server.INSTRUCTIONS
     with pytest.raises(MCPError):
         client.tool("artifact_delete")
+
+
+def test_an_agent_asks_a_decision_and_reads_back_what_people_chose(client: Client, conn: Connection) -> None:
+    artifact = client.publish()["artifact_id"]
+    asked = client.call(
+        "decision_create",
+        artifact_id=artifact,
+        question="Shard the cache, or not yet?",
+        options=[
+            {"label": "Shard it", "detail": "A week's work.", "anchor": {"exact": "We should shard it."}},
+            {"label": "Not yet"},
+        ],
+        asked=["ana"],
+    )
+    ana = Decisions(Store(conn, accounts.person_scope(person(conn, "ana", "Ana Ruiz"))))
+    ana.answer(asked["decision_id"], ["o1"], "Before the sale.")
+
+    read = client.call("decision_read", decision_id=asked["decision_id"])
+    listed = client.call("decision_list", artifact_id=artifact, state="open")
+    events = [json.loads(line) for line in client.result("decision_feed").splitlines()]
+    closed = client.call("decision_close", decision_id=asked["decision_id"], outcome="o1", note="Sharding next sprint.")
+
+    assert [(o["id"], o["label"], o["count"]) for o in read["options"]] == [("o1", "Shard it", 1), ("o2", "Not yet", 0)]
+    assert read["options"][0]["anchor"] == {"exact": "We should shard it.", "prefix": "", "suffix": ""}
+    assert read["answers"] == [
+        {
+            "account_id": "dev:ana",
+            "name": "Ana Ruiz",
+            "choices": ["o1"],
+            "note": "Before the sale.",
+            "answered_at": read["answers"][0]["answered_at"],
+        },
+    ]
+    assert read["asked"] == [{"login": "ana", "name": "Ana Ruiz", "answered": True}]
+    assert [d["id"] for d in listed["decisions"]] == [asked["decision_id"]]
+    assert [(e["kind"], e.get("choices")) for e in events] == [
+        ("decision_asked", []),
+        ("decision_answered", ["o1"]),
+        ("end", None),
+    ]
+    assert closed["state"] == "closed"
+    assert client.refused("decision_close", decision_id=asked["decision_id"]) == "closed"
+
+
+def test_a_decision_is_never_answered_with_a_token(client: Client, agent: MakeAgent) -> None:
+    artifact = client.publish()["artifact_id"]
+    options = [{"label": "Yes"}, {"label": "No"}]
+    tools = client.portal.call(client.session.list_tools).tools
+
+    assert "decision_answer" not in [t.name for t in tools]
+    assert client.refused("decision_create", artifact_id=artifact, question="Ship?", options=options[:1]) == "invalid"
+    made = client.call("decision_create", artifact_id=artifact, question="Ship?", options=options)
+    with connected(agent(scopes=("read",))) as reader:
+        assert reader.refused("decision_create", artifact_id=artifact, question="Ship?", options=options) == "read_only"
+        assert reader.refused("decision_close", decision_id=made["decision_id"]) == "read_only"
