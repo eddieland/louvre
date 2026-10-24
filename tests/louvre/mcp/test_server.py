@@ -9,7 +9,7 @@ import mcp
 import pytest
 from anyio.from_thread import BlockingPortal, start_blocking_portal
 from mcp.shared.exceptions import MCPError
-from mcp.types import CallToolResult, TextContent
+from mcp.types import CallToolResult, TextContent, TextResourceContents
 
 from louvre.core import style
 from louvre.core.store import MAX_BODY, MAX_FEED, MAX_ORIGIN, Store
@@ -235,7 +235,49 @@ def test_arguments_the_tool_cannot_use_are_invalid(client: Client, name: str, ar
 
 
 def test_style_get_hands_over_the_house_style(client: Client) -> None:
-    assert client.call("style_get") == {"version": style.VERSION, "css": style.CSS, "rules": style.RULES}
+    assert client.call("style_get") == {
+        "version": style.VERSION,
+        "css": style.CSS,
+        "rules": style.RULES,
+        "starter": style.STARTER,
+    }
+
+
+def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
+    listed = client.portal.call(client.session.list_resources).resources
+    read = {r.uri: client.portal.call(client.session.read_resource, r.uri).contents for r in listed}
+
+    assert [(r.uri, r.mime_type) for r in listed] == [
+        ("louvre://style/louvre-1/style.css", "text/css"),
+        ("louvre://style/louvre-1/rules.md", "text/markdown"),
+        ("louvre://style/louvre-1/starter.html", "text/html"),
+    ]
+    assert [[c.text for c in contents if isinstance(c, TextResourceContents)] for contents in read.values()] == [
+        [style.CSS],
+        [style.RULES],
+        [style.STARTER],
+    ]
+    with pytest.raises(MCPError):
+        client.portal.call(client.session.read_resource, "louvre://style/louvre-0/style.css")
+
+
+def test_the_style_prompt_asks_for_a_page_about_what_it_is_given(client: Client) -> None:
+    [listed] = client.portal.call(client.session.list_prompts).prompts
+    given = client.portal.call(client.session.get_prompt, "style", {"about": "checkout latency"})
+    bare = client.portal.call(client.session.get_prompt, "style", None)
+    [message] = given.messages
+    assert isinstance(message.content, TextContent)
+    [plain] = bare.messages
+    assert isinstance(plain.content, TextContent)
+
+    assert listed.name == "style"
+    assert message.role == "user"
+    assert message.content.text.startswith("Write a page about checkout latency as an HTML artifact")
+    assert style.RULES in message.content.text
+    assert style.STARTER in message.content.text
+    assert plain.content.text.startswith("Write the page I ask for as an HTML artifact")
+    with pytest.raises(MCPError):
+        client.portal.call(client.session.get_prompt, "publish", None)
 
 
 def test_it_serves_its_tools_and_says_what_it_is_for(client: Client) -> None:

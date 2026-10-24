@@ -1,7 +1,8 @@
 """Louvre's MCP server, on the MCP SDK's low-level server (D010): the SDK speaks the protocol, Louvre the tools.
 
 The tools are canopy's definitions (louvre.mcp.tools), listed with their schemas as they are, and answered by the
-store each call opens. A refusal, or arguments a tool's schema refuses, is a tool error, `isError`, whose text is one
+store each call opens. Louvre's house style is resources and a prompt beside them (louvre.mcp.style), the same for
+every token. A refusal, or arguments a tool's schema refuses, is a tool error, `isError`, whose text is one
 JSON object, `{"code": ..., "message": ...}`. Over HTTP it runs stateless and answers in JSON: each request stands
 alone, so any instance of the app answers any request, and no stream is left open.
 """
@@ -24,6 +25,7 @@ from pydantic import ValidationError
 from starlette.types import Receive, Scope, Send
 
 from louvre.core.store import Code, Refused, Store
+from louvre.mcp import style
 from louvre.mcp.tools import TOOLS, Tool
 
 #: The server's name, as `initialize` gives it.
@@ -32,7 +34,8 @@ NAME = "louvre"
 INSTRUCTIONS = (
     "Louvre hosts artifacts, pages people read and comment on: publish one with artifact_publish, read its threads "
     "with thread_list, and answer with comment_reply. Your token reaches one namespace. For an HTML page that looks "
-    "like Louvre's own, call style_get."
+    "like Louvre's own, call style_get: its stylesheet, rules, and a starter page are resources too, and the style "
+    "prompt writes a page in it."
 )
 
 #: Opens the store a call reaches, from the request's context: the token's scope, in a connection of its own.
@@ -66,12 +69,40 @@ def server(open_store: OpenStore) -> Server[Any]:
         # The store is synchronous: it runs in a worker thread, as a synchronous route would.
         return await anyio.to_thread.run_sync(_call, found, params.arguments or {}, ctx, open_store)
 
+    async def list_resources(
+        _ctx: ServerRequestContext[Any, Any],
+        _params: types.PaginatedRequestParams | None,
+    ) -> types.ListResourcesResult:
+        return types.ListResourcesResult(resources=style.resources())
+
+    async def read_resource(
+        _ctx: ServerRequestContext[Any, Any],
+        params: types.ReadResourceRequestParams,
+    ) -> types.ReadResourceResult:
+        return style.read(params.uri)
+
+    async def list_prompts(
+        _ctx: ServerRequestContext[Any, Any],
+        _params: types.PaginatedRequestParams | None,
+    ) -> types.ListPromptsResult:
+        return types.ListPromptsResult(prompts=style.prompts())
+
+    async def get_prompt(
+        _ctx: ServerRequestContext[Any, Any],
+        params: types.GetPromptRequestParams,
+    ) -> types.GetPromptResult:
+        return style.prompt(params.name, params.arguments)
+
     return Server(
         NAME,
         version=metadata.version(NAME),
         instructions=INSTRUCTIONS,
         on_list_tools=list_tools,
         on_call_tool=call_tool,
+        on_list_resources=list_resources,
+        on_read_resource=read_resource,
+        on_list_prompts=list_prompts,
+        on_get_prompt=get_prompt,
     )
 
 
