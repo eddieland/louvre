@@ -102,8 +102,9 @@ def sign_out(request: Request, found: Annotated[Database, Depends(database)]) ->
     """End the session."""
     secret = request.cookies.get(SESSION_COOKIE)
     if secret and found.configured:
-        with found.opened() as conn:
-            accounts.end_session(conn, secret)
+        with found.opened() as held:
+            if held.conn is not None:
+                accounts.end_session(held.conn, secret)
     response = Response(status_code=204)
     response.delete_cookie(SESSION_COOKIE, path="/")
     return response

@@ -1,16 +1,17 @@
 """The demo: a few artifacts in the `demo` namespace, with threads on them, to show Louvre with nothing published yet.
 
 Its people are accounts of their own, `demo:LOGIN`, whom nobody signs in as, and its agent writes for one of them, as
-a token's would. It is published once: seeding a database whose demo namespace has an artifact in it does nothing, and
-two processes seeding at once take a lock, so one publishes it and the other finds it there.
+a token's would. It is published once: seeding tables whose demo namespace has an artifact in it does nothing, and two
+processes seeding one database at once take a lock, so one publishes it and the other finds it there. A deployment
+with no database seeds it into memory (louvre.core.memory), where it is all there is to read.
 """
 
 from importlib.resources import files
 
 from louvre.core import style
-from louvre.core.accounts import Account, person_scope, upsert_account
-from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.accounts import Account, person_scope
 from louvre.core.store import Author, Permission, Scope, Store, Via
+from louvre.core.tables import Tables
 from louvre.core.text import Anchor
 
 #: The namespace the demo publishes in.
@@ -21,31 +22,26 @@ PEOPLE = {
     "sam": Account("demo:sam", "sam", "Sam Okafor"),
     "raj": Account("demo:raj", "raj", "Raj Patel"),
 }
-#: The lock seeding takes: neither the migrations' nor the store's writes', which seeding itself takes.
-SEED_LOCK = MIGRATE_LOCK + 2
 #: Where the demo's pages are kept.
 _FILES = files("louvre.core.demo")
 
 
-def seed(conn: Connection, *, base_url: str = "") -> bool:
-    """Publish the demo, unless it is published already.
+def seed(tables: Tables, *, base_url: str = "") -> bool:
+    """Publish the demo in `tables`, unless it is published there already.
 
     Returns:
         Whether it was published now.
     """
-    conn.execute("SELECT pg_advisory_lock(%s)", (SEED_LOCK,))
-    try:
+    with tables.seeding():
         for account in PEOPLE.values():
-            upsert_account(conn, account)
-        agent = Store(conn, _agent_scope(), base_url=base_url)
+            tables.upsert_account(account.id, account.login, account.display_name)
+        agent = Store(tables, _agent_scope(), base_url=base_url)
         if agent.overview(namespace=NAMESPACE)["artifacts"]:
             return False
-        people = {login: Store(conn, person_scope(account)) for login, account in PEOPLE.items()}
+        people = {login: Store(tables, person_scope(account)) for login, account in PEOPLE.items()}
         _checkout(agent, people)
         _release_notes(agent, people)
         _weekly(agent, people)
-    finally:
-        conn.execute("SELECT pg_advisory_unlock(%s)", (SEED_LOCK,))
     return True
 
 

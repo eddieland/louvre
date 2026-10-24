@@ -61,21 +61,24 @@ class TokenBody(_Body):
 def session(request: Request, found: Annotated[Database, Depends(database)]) -> dict[str, object]:
     """Who is signed in, how one can sign in, and whether the deployment has its database.
 
-    The one route that answers without a database, so the UI can say what is missing.
+    Without one, nobody signs in, by any way: the demo is served from memory, read-only, and the UI says so.
     """
     settings = found.settings
     account = None
     secret = request.cookies.get(SESSION_COOKIE)
     if found.configured and secret:
-        with found.opened() as conn:
-            account = accounts.session_account(conn, secret)
+        with found.opened() as held:
+            account = None if held.conn is None else accounts.session_account(held.conn, secret)
     return {
         "account": None
         if account is None
         else {"id": account.id, "login": account.login, "name": account.display_name},
         "configured": found.configured,
-        "demo": settings.demo,
-        "sign_in": {"github": settings.github, "dev": settings.dev_sign_in},
+        "demo": found.demo,
+        "sign_in": {
+            "github": settings.github and found.configured,
+            "dev": settings.dev_sign_in and found.configured,
+        },
     }
 
 
@@ -98,7 +101,6 @@ def artifact(store: Reader, artifact_id: str) -> dict[str, object]:
 @router.get("/artifacts/{artifact_id}/threads")
 def threads(
     store: Reader,
-    conn: Conn,
     artifact_id: str,
     version: Annotated[int | None, Query(ge=1)] = None,
 ) -> dict[str, object]:
@@ -108,7 +110,7 @@ def threads(
     behalf = {
         str(a["on_behalf_of"]) for c in comments if (a := c["author"]) and isinstance(a, dict) and a.get("on_behalf_of")
     }
-    named = accounts.names(conn, behalf)
+    named = store.names(behalf)
     for comment in comments:
         author = comment["author"]
         if isinstance(author, dict):

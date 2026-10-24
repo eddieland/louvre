@@ -64,12 +64,15 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - Anything louvre parses from a file or another program is validated by a pydantic model, not by hand.
 - Rejected: curses (loses scrollback); hand-written ANSI.
 
-## D007. Postgres holds Louvre's data
+## D007. Postgres holds Louvre's data; without a database, the demo is served from memory
 
 - Settled by the operator (2026-10-23): a hosted service for many people, so a managed database, not a file on one
   host. The feed's `seq` and every query rely on it; tests run against a real Postgres, in CI too.
-- Rejected: SQLite on one host (ties Louvre to one machine's disk); both behind an interface (two backends to hold to
-  one contract).
+- The contract is one `Store` over `Tables` (`louvre.core.tables`), the rows alone: `louvre.core.postgres` holds
+  Louvre's data, and `louvre.core.memory` holds the demo for a deployment with no database yet (the operator,
+  2026-10-24), read-only for everyone, since nobody signs in without one. The memory tables are never a place for
+  real data; the store's tests run on both, so the contract stays one.
+- Rejected: SQLite on one host (ties Louvre to one machine's disk), or as a second backend for real data.
 
 ## D008. An artifact's page is served sandboxed, with only the bridge added
 

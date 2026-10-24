@@ -16,8 +16,11 @@ from psycopg.rows import DictRow, dict_row
 
 #: The environment variables that name the database, the first set wins.
 URL_VARIABLES = ("DATABASE_URL", "POSTGRES_URL")
-#: The advisory lock migrations take, and the one every write to the store takes (louvre.core.store).
+#: The advisory locks: the one migrations take, the one every write to the store takes, and the one seeding the demo
+#: takes (louvre.core.postgres), three so that a write never waits on a migration, nor seeding on either.
 MIGRATE_LOCK = 0x10_0B_E1
+WRITE_LOCK = MIGRATE_LOCK + 1
+SEED_LOCK = MIGRATE_LOCK + 2
 #: A connection whose rows are dicts by column name.
 type Connection = psycopg.Connection[DictRow]
 

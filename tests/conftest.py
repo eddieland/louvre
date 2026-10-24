@@ -3,7 +3,8 @@
 The store's tests run against a real Postgres, named by `LOUVRE_TEST_DATABASE_URL` (a database the tests may create
 others beside, such as `postgresql://louvre@127.0.0.1:5432/postgres`). Each pytest worker gets a database of its own,
 migrated once, and every test starts from empty tables. Without the variable, those tests are skipped, except in CI,
-where they fail: CI must never pass by skipping them.
+where they fail: CI must never pass by skipping them. The store's contract is held on the in-memory tables too: a
+test that takes `tables` runs once on each.
 """
 
 import dataclasses
@@ -21,9 +22,12 @@ from fastapi.testclient import TestClient
 from playwright.sync_api import Browser, sync_playwright
 from psycopg import conninfo, sql
 
-from louvre.core import accounts, db
-from louvre.core.accounts import Account, upsert_account
-from louvre.core.store import Store
+from louvre.core import db
+from louvre.core.accounts import Account
+from louvre.core.memory import MemoryTables
+from louvre.core.postgres import PostgresTables
+from louvre.core.store import Author, Permission, Scope, Store, Via
+from louvre.core.tables import Tables
 from louvre.web.app import create
 from louvre.web.settings import Settings
 
@@ -81,29 +85,65 @@ def empty(connection: db.Connection) -> None:
     )
 
 
-def person(conn: db.Connection, login: str, name: str | None = None) -> Account:
+@pytest.fixture
+def postgres(conn: db.Connection) -> PostgresTables:
+    """The store's tables in the test database, emptied first."""
+    return PostgresTables(conn)
+
+
+@pytest.fixture(params=["postgres", "memory"])
+def tables(request: pytest.FixtureRequest) -> Tables:
+    """The store's tables, in Postgres and then in memory: a test that takes them holds both to the contract."""
+    if request.param == "postgres":
+        found = request.getfixturevalue("postgres")
+        assert isinstance(found, PostgresTables)
+        return found
+    return MemoryTables()
+
+
+def person(tables: Tables, login: str, name: str | None = None) -> Account:
     """Record a person who signed in with the dev sign-in, as `dev:LOGIN`.
 
     Returns:
         Their account.
     """
-    return upsert_account(conn, Account(f"dev:{login}", login, name or login.title()))
+    account = Account(f"dev:{login}", login, name or login.title())
+    tables.upsert_account(account.id, account.login, account.display_name)
+    return account
 
 
-#: Makes a store as an agent with a token of `scopes` in `namespace`, minted by Sam.
+def agent_of(
+    tables: Tables,
+    namespace: str = "canopy/sam",
+    scopes: tuple[str, ...] = ("read", "publish", "comment"),
+) -> Store:
+    """Make a store as an agent of Sam's, the scope a token of `scopes` in `namespace` gives (accounts.token_scope).
+
+    Returns:
+        The store.
+    """
+    sam = person(tables, "sam", "Sam Okafor")
+    scope = Scope(
+        author=Author(f"agent:{sam.id}:canopy worker", "canopy worker", "agent", sam.id),
+        via=Via.MCP,
+        namespaces=frozenset({namespace}),
+        home=namespace,
+        permissions=frozenset(Permission(s) for s in scopes),
+        account_id=sam.id,
+    )
+    return Store(tables, scope, base_url=BASE_URL)
+
+
+#: Makes a store as an agent of Sam's with `scopes` in `namespace`, on the tables under test.
 type MakeAgent = Callable[..., Store]
 
 
 @pytest.fixture
-def agent(conn: db.Connection) -> MakeAgent:
-    """Make a store as an agent of Sam's, with a token of `scopes` in `namespace`."""
+def agent(tables: Tables) -> MakeAgent:
+    """Make a store as an agent of Sam's, with `scopes` in `namespace`, on the tables under test."""
 
     def make(namespace: str = "canopy/sam", scopes: tuple[str, ...] = ("read", "publish", "comment")) -> Store:
-        sam = person(conn, "sam", "Sam Okafor")
-        _, secret = accounts.mint(conn, sam, "canopy worker", namespace, set(scopes))
-        scope = accounts.token_scope(conn, secret)
-        assert scope is not None
-        return Store(conn, scope, base_url=BASE_URL)
+        return agent_of(tables, namespace, scopes)
 
     return make
 

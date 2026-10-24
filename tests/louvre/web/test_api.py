@@ -3,21 +3,25 @@
 from unittest import mock
 
 import pytest
+from fastapi.testclient import TestClient
 
 from louvre.core import accounts
 from louvre.core.db import Connection
+from louvre.core.postgres import PostgresTables
 from louvre.web import ui
-from louvre.web.app import ARTIFACT_POLICY
-from tests.conftest import WRITES, MakeAgent, MakeWeb, sign_in
+from louvre.web.app import ARTIFACT_POLICY, create
+from tests.conftest import BASE_URL, WRITES, MakeWeb, agent_of, sign_in, web_settings
 
 #: A report, and the passage a thread is on.
 REPORT = "<h1>Report</h1><p>We will retry the fraud check twice before declining.</p>"
+#: A token nobody minted, as an agent would send one.
+A_TOKEN = {"Authorization": "Bearer lvt_nope"}
 
 
 @pytest.fixture
-def published(agent: MakeAgent) -> str:
+def published(postgres: PostgresTables) -> str:
     """An artifact Sam's agent published in canopy/sam."""
-    return str(agent().publish(title="Report", content_type="text/html", content=REPORT)["artifact_id"])
+    return str(agent_of(postgres).publish(title="Report", content_type="text/html", content=REPORT)["artifact_id"])
 
 
 def test_the_session_says_who_is_signed_in_and_how_to_sign_in(web: MakeWeb) -> None:
@@ -34,13 +38,32 @@ def test_the_session_says_who_is_signed_in_and_how_to_sign_in(web: MakeWeb) -> N
     assert client.get("/api/session").json()["account"] == {"id": "dev:ana", "login": "ana", "name": "Ana Ruiz"}
 
 
-def test_without_a_database_the_session_says_so_and_the_rest_is_unavailable(web: MakeWeb) -> None:
-    client = web(database_url=None)
+def test_without_a_database_the_demo_is_read_from_memory_and_nobody_signs_in() -> None:
+    with TestClient(create(web_settings(None)), base_url=BASE_URL) as client:
+        session = client.get("/api/session").json()
+        listed = client.get("/api/artifacts").json()["artifacts"]
+        [checkout] = [a for a in listed if a["title"].startswith("Checkout latency")]
+        threads = client.get(f"/api/artifacts/{checkout['id']}/threads").json()["threads"]
+        page = client.get(f"/content/{checkout['id']}/2")
+        signing_in = client.post("/auth/dev", json={"login": "ana"}, headers=WRITES)
+        calling = client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}, headers=A_TOKEN)
+        tokens = client.get("/api/tokens")
 
-    assert client.get("/api/session").json()["configured"] is False
-    response = client.get("/api/artifacts")
-    assert response.status_code == 503
-    assert response.json()["code"] == "not_configured"
+    assert session == {
+        "account": None,
+        "configured": False,
+        "demo": True,
+        "sign_in": {"github": False, "dev": False},
+    }
+    assert [a["namespace"] for a in listed] == ["demo"] * 3
+    assert {c["author"]["on_behalf_of_name"] for t in threads for c in t["comments"] if c["via"] == "mcp"} == {
+        "Sam Okafor",
+    }
+    assert page.status_code == 200
+    assert page.headers["content-security-policy"] == ARTIFACT_POLICY
+    assert (signing_in.status_code, signing_in.json()["code"]) == (503, "not_configured")
+    assert (calling.status_code, calling.json()["code"]) == (503, "not_configured")
+    assert (tokens.status_code, tokens.json()["code"]) == (503, "not_configured")
 
 
 def test_reading_needs_a_sign_in_when_the_demo_is_off(web: MakeWeb, published: str) -> None:
@@ -237,8 +260,12 @@ def test_a_versions_page_is_sandboxed_with_the_bridge_at_its_end(web: MakeWeb, p
     assert client.get(f"/content/{published}/2").status_code == 404
 
 
-def test_a_markdown_version_is_shown_in_the_house_style(web: MakeWeb, agent: MakeAgent) -> None:
-    made = agent().publish(title="Notes", content_type="text/markdown", content="# Notes\n\n<b>not markup</b>")
+def test_a_markdown_version_is_shown_in_the_house_style(web: MakeWeb, postgres: PostgresTables) -> None:
+    made = agent_of(postgres).publish(
+        title="Notes",
+        content_type="text/markdown",
+        content="# Notes\n\n<b>not markup</b>",
+    )
     client = web()
     sign_in(client, "ana")
 

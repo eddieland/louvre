@@ -5,15 +5,14 @@ may do. A signed-in person reads every namespace and comments on the web; a toke
 with the permissions its person gave it. The scope is set by who called, never by a tool's arguments.
 
 Every change to a comment or a thread takes the next `seq` of one sequence across the store, inside the write that
-makes it. Every write takes one advisory lock first, so writes commit one at a time and in `seq` order, and a reader
-never sees a `seq` before every lower one is visible: nothing appears below a cursor a reader has passed. A read sees
-one snapshot (repeatable read).
+makes it. The rows are the tables' (`louvre.core.tables`): in Postgres, or in memory for the demo. Writes commit one
+at a time and in `seq` order, so a reader never sees a `seq` before every lower one is visible: nothing appears below
+a cursor a reader has passed. A read sees one snapshot.
 """
 
 import hashlib
-import json
 import secrets
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -22,7 +21,7 @@ from enum import StrEnum
 from typing import Literal
 
 from louvre.core import render
-from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.tables import Row, Tables
 from louvre.core.text import CONTEXT, Anchor, ContentType, locate
 
 #: The most characters of an artifact's title, a version's content, and a comment's body.
@@ -38,8 +37,6 @@ MAX_ORIGIN_VALUE = 256
 #: How many artifacts a page of a list holds, and the most changes a page of the feed may.
 LIST_PAGE = 50
 MAX_FEED = 200
-#: The lock every write takes, so that `seq` commits in order. Not the migrations' lock, so a write never waits on one.
-WRITE_LOCK = MIGRATE_LOCK + 1
 #: The highest `seq` Postgres holds, in a bigint.
 _MAX_SEQ = 2**63 - 1
 #: The most digits of a cursor a list gives: a row's number, which Postgres holds in 64 bits.
@@ -121,16 +118,12 @@ class Scope:
     origin: Mapping[str, str] = field(default_factory=dict[str, str])
 
 
-#: A row, as the database returns it.
-type Row = dict[str, object]
-
-
 class Store:
-    """The store, through one connection, every call held to one scope."""
+    """The store, over one set of tables, every call held to one scope."""
 
-    def __init__(self, conn: Connection, scope: Scope, *, base_url: str = "") -> None:
-        """Serve `conn`'s database, held to `scope`; `base_url` is where Louvre's pages are, for a version's url."""
-        self._conn = conn
+    def __init__(self, tables: Tables, scope: Scope, *, base_url: str = "") -> None:
+        """Serve `tables`, held to `scope`; `base_url` is where Louvre's pages are, for a version's url."""
+        self._tables = tables
         self.scope = scope
         self._base_url = base_url.rstrip("/")
 
@@ -169,22 +162,11 @@ class Store:
         with self._write():
             if artifact_id is None:
                 artifact_id, version = _id("a"), 1
-                self._conn.execute(
-                    "INSERT INTO artifacts (id, namespace, title, origin, latest_version, owner_id, created_at,"
-                    " updated_at) VALUES (%s, %s, %s, %s, 1, %s, %s, %s)",
-                    (artifact_id, self.scope.home, title, json.dumps(pairs), self.scope.account_id, now, now),
-                )
+                self._tables.insert_artifact(artifact_id, self.scope.home, title, pairs, self.scope.account_id, now)
             else:
                 version = int(str(self._artifact(artifact_id)["latest_version"])) + 1
-                self._conn.execute(
-                    "UPDATE artifacts SET latest_version = %s, title = %s, updated_at = %s WHERE id = %s",
-                    (version, title, now, artifact_id),
-                )
-            self._conn.execute(
-                "INSERT INTO versions (artifact_id, n, content_type, sha256, content, text, created_at)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (artifact_id, version, content_type, digest, content, text, now),
-            )
+                self._tables.set_latest_version(artifact_id, version, title, now)
+            self._tables.insert_version(artifact_id, version, content_type, digest, content, text, now)
         return {"artifact_id": artifact_id, "version": version, "url": self.url(artifact_id, version)}
 
     def read(self, artifact_id: str, version: int | None = None) -> dict[str, object]:
@@ -253,11 +235,7 @@ class Store:
         """
         with self._read():
             artifact = self._artifact(artifact_id)
-            rows = self._conn.execute(
-                "SELECT artifact_id, n, content_type, sha256, created_at FROM versions WHERE artifact_id = %s"
-                " ORDER BY n",
-                (artifact_id,),
-            ).fetchall()
+            rows = self._tables.versions(artifact_id)
         return {
             "artifact": _artifact_json(artifact),
             "versions": [_version_json(row) for row in rows],
@@ -298,16 +276,8 @@ class Store:
         with self._read():
             artifact = self._artifact(artifact_id)
             text = str(self._version(artifact, version)["text"])
-            threads = self._conn.execute(
-                "SELECT * FROM threads WHERE artifact_id = %s AND (%s::text IS NULL OR state = %s) ORDER BY n",
-                (artifact_id, state, state),
-            ).fetchall()
-            comments = self._conn.execute(
-                "SELECT c.*, w.display_name, w.kind, w.on_behalf_of FROM comments c"
-                " JOIN threads t ON t.id = c.thread_id JOIN authors w ON w.id = c.author_id"
-                " WHERE t.artifact_id = %s ORDER BY c.n",
-                (artifact_id,),
-            ).fetchall()
+            threads = self._tables.threads(artifact_id, state)
+            comments = self._tables.comments(artifact_id)
         listed: list[dict[str, object]] = []
         for thread in threads:
             anchor = _anchor(thread)
@@ -341,22 +311,15 @@ class Store:
         if not 1 <= limit <= MAX_FEED or not 0 <= since <= _MAX_SEQ:
             raise Refused(Code.INVALID, f"since is a seq from 0, and limit from 1 to {MAX_FEED}")
         with self._read():
-            row = self._conn.execute("SELECT coalesce(max(seq), 0) AS newest FROM changes").fetchone()
-            newest = int(str(row["newest"])) if row else 0
-            rows = self._conn.execute(
-                "SELECT ch.seq, ch.kind, ch.at, ch.via AS change_via, a.id AS artifact_id, a.origin,"
-                " t.id AS thread_id, t.exact, t.prefix, t.suffix, t.anchored_version, t.state,"
-                " c.id AS comment_id, c.body, c.created_at, c.edited_at, c.deleted_at,"
-                " w.id AS author_id, w.display_name, w.kind AS author_kind, w.on_behalf_of"
-                " FROM changes ch JOIN threads t ON t.id = ch.thread_id JOIN artifacts a ON a.id = t.artifact_id"
-                " JOIN authors w ON w.id = ch.author_id LEFT JOIN comments c ON c.id = ch.comment_id"
-                " WHERE ch.seq > %(since)s AND ch.seq <= %(newest)s AND a.deleted_at IS NULL"
-                " AND (%(all)s OR a.namespace = ANY(%(namespaces)s)) AND a.origin @> %(filter)s::jsonb"
-                " ORDER BY ch.seq LIMIT %(limit)s",
-                {"since": since, "newest": newest, "filter": json.dumps(dict(origin or {})), "limit": limit}
-                | self._reach(),
-            ).fetchall()
-            latest = self._latest_texts({str(row["artifact_id"]) for row in rows})
+            newest = self._tables.newest_seq()
+            rows = self._tables.changes(
+                since=since,
+                through=newest,
+                namespaces=self.scope.namespaces,
+                origin=origin or {},
+                limit=limit,
+            )
+            latest = self._tables.latest_texts({str(row["artifact_id"]) for row in rows})
         through = int(str(rows[-1]["seq"])) if len(rows) == limit else max(newest, since)
         changes = [{**_change_json(row), "anchor_status": _status(latest, row)} for row in rows]
         return [*changes, {"kind": "end", "through": through}]
@@ -399,19 +362,7 @@ class Store:
             if anchor is not None and locate(str(latest["text"]), anchor) is None:
                 raise Refused(Code.ANCHOR_NOT_FOUND, f"the passage is not in version {latest['n']} of {artifact_id}")
             thread_id = _id("t")
-            self._conn.execute(
-                "INSERT INTO threads (id, artifact_id, exact, prefix, suffix, anchored_version, state, created_at)"
-                " VALUES (%s, %s, %s, %s, %s, %s, 'open', %s)",
-                (
-                    thread_id,
-                    artifact_id,
-                    None if anchor is None else anchor.exact,
-                    None if anchor is None else anchor.prefix,
-                    None if anchor is None else anchor.suffix,
-                    latest["n"],
-                    _now(),
-                ),
-            )
+            self._tables.insert_thread(thread_id, artifact_id, anchor, int(str(latest["n"])), _now())
             comment_id, seq = self._comment(thread_id, body)
         return {"thread_id": thread_id, "comment_id": comment_id, "seq": seq}
 
@@ -428,7 +379,7 @@ class Store:
         state = "resolved" if resolved else "open"
         with self._write():
             if self._thread(thread_id)["state"] != state:
-                self._conn.execute("UPDATE threads SET state = %s WHERE id = %s", (state, thread_id))
+                self._tables.set_thread_state(thread_id, state)
                 self._change("thread_resolved" if resolved else "thread_reopened", thread_id, None)
         return {"state": state}
 
@@ -446,10 +397,7 @@ class Store:
         _check_body(body)
         with self._write():
             found = self._own(comment_id)
-            self._conn.execute(
-                "UPDATE comments SET body = %s, edited_at = %s WHERE id = %s",
-                (body, _now(), comment_id),
-            )
+            self._tables.edit_comment(comment_id, body, _now())
             seq = self._change("comment_edited", str(found["thread_id"]), comment_id)
         return {"seq": seq}
 
@@ -466,7 +414,7 @@ class Store:
         self._may(Permission.COMMENT)
         with self._write():
             found = self._own(comment_id)
-            self._conn.execute("UPDATE comments SET body = '', deleted_at = %s WHERE id = %s", (_now(), comment_id))
+            self._tables.delete_comment(comment_id, _now())
             seq = self._change("comment_deleted", str(found["thread_id"]), comment_id)
         return {"seq": seq}
 
@@ -485,8 +433,20 @@ class Store:
             artifact = self._artifact(artifact_id)
             if artifact["owner_id"] != self.scope.account_id:
                 raise Refused(Code.OUT_OF_SCOPE, f"{artifact_id} is not yours to delete")
-            self._conn.execute("UPDATE artifacts SET deleted_at = %s WHERE id = %s", (_now(), artifact_id))
+            self._tables.delete_artifact(artifact_id, _now())
         return {"artifact_id": artifact_id}
+
+    def names(self, account_ids: Iterable[str]) -> dict[str, str]:
+        """Find the names of the people agents write for, for comments' `on_behalf_of`.
+
+        Returns:
+            Each id found, with its person's name.
+
+        Raises:
+            Refused: `out_of_scope` when the scope may not read.
+        """
+        with self._read():
+            return self._tables.account_names(account_ids)
 
     def url(self, artifact_id: str, version: int) -> str:
         """Name the page a version is shown on.
@@ -501,39 +461,28 @@ class Store:
         """Read in one snapshot.
 
         Yields:
-            Inside the transaction.
+            Inside the tables' read.
 
         Raises:
             Refused: `out_of_scope` when the scope may not read.
         """
         self._may(Permission.READ, Code.OUT_OF_SCOPE)
-        with self._conn.transaction():
-            self._conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        with self._tables.read():
             yield
 
     @contextmanager
     def _write(self) -> Iterator[None]:
-        """Write one at a time: the lock first, so `seq` commits in order. Each statement then reads committed rows.
+        """Write one at a time, so `seq` commits in order; every check comes before the first row is written.
 
         Yields:
-            Inside the transaction, which commits when the block ends and rolls back when it raises.
+            Inside the tables' write, which commits when the block ends.
         """
-        with self._conn.transaction():
-            self._conn.execute("SELECT pg_advisory_xact_lock(%s)", (WRITE_LOCK,))
+        with self._tables.write():
             yield
 
     def _may(self, permission: Permission, code: Code = Code.READ_ONLY) -> None:
         if permission not in self.scope.permissions:
             raise Refused(code, f"this scope may not {permission.value}")
-
-    def _reach(self) -> dict[str, object]:
-        """Bind the namespaces the scope reaches, for `(%(all)s OR a.namespace = ANY(%(namespaces)s))`.
-
-        Returns:
-            The query's parameters.
-        """
-        namespaces = self.scope.namespaces
-        return {"all": namespaces is None, "namespaces": sorted(namespaces or ())}
 
     def _listed(
         self,
@@ -548,30 +497,14 @@ class Store:
                 raise Refused(Code.INVALID, f"{cursor!r} is not a cursor this store gave")
             before = int(cursor)
         with self._read():
-            rows = self._conn.execute(
-                "SELECT a.*, (SELECT count(*) FROM threads t WHERE t.artifact_id = a.id AND t.state = 'open')"
-                " AS open_threads FROM artifacts a WHERE a.deleted_at IS NULL"
-                " AND (%(all)s OR a.namespace = ANY(%(namespaces)s))"
-                " AND (%(namespace)s::text IS NULL OR a.namespace = %(namespace)s)"
-                " AND (%(before)s::bigint IS NULL OR a.n < %(before)s) AND a.origin @> %(filter)s::jsonb"
-                " ORDER BY a.n DESC LIMIT %(limit)s",
-                {
-                    "namespace": namespace,
-                    "before": before,
-                    "filter": json.dumps(dict(origin or {})),
-                    "limit": LIST_PAGE + 1,
-                }
-                | self._reach(),
-            ).fetchall()
+            rows = self._tables.list_artifacts(
+                namespaces=self.scope.namespaces,
+                namespace=namespace,
+                before=before,
+                origin=origin or {},
+                limit=LIST_PAGE + 1,
+            )
         return rows[:LIST_PAGE], len(rows) > LIST_PAGE
-
-    def _latest_texts(self, artifact_ids: AbstractSet[str]) -> dict[str, str]:
-        rows = self._conn.execute(
-            "SELECT a.id, v.text FROM artifacts a JOIN versions v ON v.artifact_id = a.id AND v.n = a.latest_version"
-            " WHERE a.id = ANY(%s)",
-            (sorted(artifact_ids),),
-        ).fetchall()
-        return {str(row["id"]): str(row["text"]) for row in rows}
 
     def _artifact(self, artifact_id: str) -> Row:
         """Find an artifact the scope reaches.
@@ -582,10 +515,7 @@ class Store:
         Raises:
             Refused: `not_found` for no such artifact, or one deleted; `out_of_scope` for one outside the scope.
         """
-        row = self._conn.execute(
-            "SELECT * FROM artifacts WHERE id = %s AND deleted_at IS NULL",
-            (artifact_id,),
-        ).fetchone()
+        row = self._tables.artifact(artifact_id)
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no artifact {artifact_id!r}")
         self._reaches(str(row["namespace"]), artifact_id)
@@ -604,10 +534,8 @@ class Store:
         Raises:
             Refused: `not_found` for a version it does not have.
         """
-        row = self._conn.execute(
-            "SELECT * FROM versions WHERE artifact_id = %s AND n = %s",
-            (artifact["id"], artifact["latest_version"] if n is None else n),
-        ).fetchone()
+        latest = int(str(artifact["latest_version"]))
+        row = self._tables.version(str(artifact["id"]), latest if n is None else n)
         if row is None:
             raise Refused(Code.NOT_FOUND, f"{artifact['id']} has no version {n}")
         return row
@@ -621,11 +549,7 @@ class Store:
         Raises:
             Refused: `not_found` for no such thread, `out_of_scope` for one outside the scope.
         """
-        row = self._conn.execute(
-            "SELECT t.*, a.namespace FROM threads t JOIN artifacts a ON a.id = t.artifact_id"
-            " WHERE t.id = %s AND a.deleted_at IS NULL",
-            (thread_id,),
-        ).fetchone()
+        row = self._tables.thread(thread_id)
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no thread {thread_id!r}")
         self._reaches(str(row["namespace"]), thread_id)
@@ -640,12 +564,7 @@ class Store:
         Raises:
             Refused: `not_found` for no such comment, or one deleted; `out_of_scope` for another's.
         """
-        row = self._conn.execute(
-            "SELECT c.*, a.namespace FROM comments c JOIN threads t ON t.id = c.thread_id"
-            " JOIN artifacts a ON a.id = t.artifact_id WHERE c.id = %s AND c.deleted_at IS NULL"
-            " AND a.deleted_at IS NULL",
-            (comment_id,),
-        ).fetchone()
+        row = self._tables.comment(comment_id)
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no comment {comment_id!r}")
         self._reaches(str(row["namespace"]), comment_id)
@@ -660,11 +579,7 @@ class Store:
             The comment's id and its `seq`.
         """
         comment_id = _id("c")
-        self._conn.execute(
-            "INSERT INTO comments (id, thread_id, seq, author_id, body, created_at, via)"
-            " VALUES (%s, %s, 0, %s, %s, %s, %s)",
-            (comment_id, thread_id, self._author(), body, _now(), self.scope.via.value),
-        )
+        self._tables.insert_comment(comment_id, thread_id, self._author(), body, _now(), self.scope.via.value)
         return comment_id, self._change("comment_created", thread_id, comment_id)
 
     def _change(self, kind: str, thread_id: str, comment_id: str | None) -> int:
@@ -673,14 +588,9 @@ class Store:
         Returns:
             Its `seq`.
         """
-        row = self._conn.execute(
-            "INSERT INTO changes (kind, thread_id, comment_id, author_id, via, at) VALUES (%s, %s, %s, %s, %s, %s)"
-            " RETURNING seq",
-            (kind, thread_id, comment_id, self._author(), self.scope.via.value, _now()),
-        ).fetchone()
-        seq = int(str(row["seq"])) if row else 0
+        seq = self._tables.insert_change(kind, thread_id, comment_id, self._author(), self.scope.via.value, _now())
         if comment_id is not None:
-            self._conn.execute("UPDATE comments SET seq = %s WHERE id = %s", (seq, comment_id))
+            self._tables.set_comment_seq(comment_id, seq)
         return seq
 
     def _author(self) -> str:
@@ -690,12 +600,7 @@ class Store:
             Its id.
         """
         author = self.scope.author
-        self._conn.execute(
-            "INSERT INTO authors (id, display_name, kind, on_behalf_of) VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO"
-            " UPDATE SET display_name = excluded.display_name, kind = excluded.kind,"
-            " on_behalf_of = excluded.on_behalf_of",
-            (author.id, author.display_name, author.kind, author.on_behalf_of),
-        )
+        self._tables.upsert_author(author.id, author.display_name, author.kind, author.on_behalf_of)
         return author.id
 
 

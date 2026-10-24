@@ -6,12 +6,13 @@ from fastapi.testclient import TestClient
 
 from louvre.core import accounts
 from louvre.core.db import Connection
+from louvre.core.postgres import PostgresTables
 from tests.conftest import MakeWeb, person, sign_in
 
 
 def mint(conn: Connection, scopes: set[str] | None = None) -> str:
     """Mint a token of Sam's in canopy/sam, and return its secret."""
-    sam = person(conn, "sam", "Sam Okafor")
+    sam = person(PostgresTables(conn), "sam", "Sam Okafor")
     _, secret = accounts.mint(conn, sam, "canopy worker", "canopy/sam", scopes or {"read", "publish", "comment"})
     return secret
 
@@ -81,7 +82,11 @@ def test_an_agents_comment_says_so_and_whose_agent_it_is(web: MakeWeb, conn: Con
 def test_a_call_without_a_working_token_is_unauthorized(web: MakeWeb, conn: Connection) -> None:
     client = web()
     secret = mint(conn)
-    accounts.revoke(conn, person(conn, "sam"), accounts.tokens(conn, person(conn, "sam"))[0].id)
+    accounts.revoke(
+        conn,
+        person(PostgresTables(conn), "sam"),
+        accounts.tokens(conn, person(PostgresTables(conn), "sam"))[0].id,
+    )
     body = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
 
     tried: list[dict[str, str]] = [{}, {"Authorization": "Bearer lvt_nope"}, {"Authorization": f"Bearer {secret}"}]

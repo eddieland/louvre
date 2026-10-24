@@ -4,12 +4,13 @@ import pytest
 
 from louvre.core import accounts
 from louvre.core.db import Connection
+from louvre.core.postgres import PostgresTables
 from louvre.core.store import Permission
 from tests.conftest import person
 
 
 def test_a_session_signs_its_person_in_until_it_ends(conn: Connection) -> None:
-    ana = person(conn, "ana")
+    ana = person(PostgresTables(conn), "ana")
     secret = accounts.start_session(conn, ana.id)
 
     assert accounts.session_account(conn, secret) == ana
@@ -18,7 +19,7 @@ def test_a_session_signs_its_person_in_until_it_ends(conn: Connection) -> None:
 
 
 def test_an_expired_session_signs_no_one_in(conn: Connection) -> None:
-    ana = person(conn, "ana")
+    ana = person(PostgresTables(conn), "ana")
     secret = accounts.start_session(conn, ana.id)
     conn.execute("UPDATE sessions SET expires_at = %s", (datetime.now(UTC) - timedelta(minutes=1),))
 
@@ -26,7 +27,7 @@ def test_an_expired_session_signs_no_one_in(conn: Connection) -> None:
 
 
 def test_only_hashes_of_secrets_are_kept(conn: Connection) -> None:
-    ana = person(conn, "ana")
+    ana = person(PostgresTables(conn), "ana")
     session = accounts.start_session(conn, ana.id)
     _, token = accounts.mint(conn, ana, "agent", "canopy/ana", {"read"})
 
@@ -40,7 +41,7 @@ def test_only_hashes_of_secrets_are_kept(conn: Connection) -> None:
 
 
 def test_a_token_gives_its_agent_a_scope_until_revoked(conn: Connection) -> None:
-    ana = person(conn, "ana", "Ana Ruiz")
+    ana = person(PostgresTables(conn), "ana", "Ana Ruiz")
     minted, secret = accounts.mint(conn, ana, "canopy worker", "canopy/ana", {"read", "comment"})
 
     scope = accounts.token_scope(conn, secret)
@@ -60,7 +61,7 @@ def test_a_token_gives_its_agent_a_scope_until_revoked(conn: Connection) -> None
 
 
 def test_only_its_person_revokes_a_token(conn: Connection) -> None:
-    ana, raj = person(conn, "ana"), person(conn, "raj")
+    ana, raj = person(PostgresTables(conn), "ana"), person(PostgresTables(conn), "raj")
     minted, secret = accounts.mint(conn, ana, "agent", "canopy/ana", {"read"})
 
     assert not accounts.revoke(conn, raj, minted.id)
@@ -84,7 +85,7 @@ def test_a_token_needs_a_name_a_namespace_and_scopes(
     scopes: set[str],
 ) -> None:
     with pytest.raises(accounts.InvalidError):
-        accounts.mint(conn, person(conn, "ana"), name, namespace, scopes)
+        accounts.mint(conn, person(PostgresTables(conn), "ana"), name, namespace, scopes)
 
 
 def test_an_unknown_secret_gives_nothing(conn: Connection) -> None:

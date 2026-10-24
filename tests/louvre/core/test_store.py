@@ -3,8 +3,8 @@ from collections.abc import Callable
 import pytest
 
 from louvre.core import accounts
-from louvre.core.db import Connection
 from louvre.core.store import Code, Refused, Store, Via
+from louvre.core.tables import Tables
 from louvre.core.text import Anchor
 from tests.conftest import MakeAgent, person
 
@@ -14,9 +14,9 @@ V2 = "<h1>Checkout</h1><p>We will retry the fraud check once.</p><p>p95 rose to 
 
 
 @pytest.fixture
-def ana(conn: Connection) -> Store:
+def ana(tables: Tables) -> Store:
     """A store as Ana, signed in on the web."""
-    return Store(conn, accounts.person_scope(person(conn, "ana", "Ana Ruiz")))
+    return Store(tables, accounts.person_scope(person(tables, "ana", "Ana Ruiz")))
 
 
 def refused(code: Code, call: Callable[[], object]) -> None:
@@ -176,10 +176,10 @@ def test_a_deleted_comment_is_empty_in_every_change(agent: MakeAgent, ana: Store
     refused(Code.NOT_FOUND, lambda: ana.edit(str(made["comment_id"]), "Back?"))
 
 
-def test_only_the_author_edits_or_deletes_a_comment(agent: MakeAgent, ana: Store, conn: Connection) -> None:
+def test_only_the_author_edits_or_deletes_a_comment(agent: MakeAgent, ana: Store, tables: Tables) -> None:
     artifact = str(agent().publish(title="R", content_type="text/html", content=V1)["artifact_id"])
     made = ana.comment(artifact, None, "Mine.")
-    raj = Store(conn, accounts.person_scope(person(conn, "raj")))
+    raj = Store(tables, accounts.person_scope(person(tables, "raj")))
 
     refused(Code.OUT_OF_SCOPE, lambda: raj.edit(str(made["comment_id"]), "Not mine."))
     refused(Code.OUT_OF_SCOPE, lambda: raj.delete(str(made["comment_id"])))
@@ -212,11 +212,11 @@ def test_a_person_comments_but_does_not_publish(ana: Store) -> None:
     refused(Code.READ_ONLY, lambda: ana.publish(title="R", content_type="text/html", content=V1))
 
 
-def test_only_its_owner_deletes_an_artifact_and_then_it_is_gone(agent: MakeAgent, conn: Connection) -> None:
+def test_only_its_owner_deletes_an_artifact_and_then_it_is_gone(agent: MakeAgent, tables: Tables) -> None:
     worker = agent()
     artifact = str(worker.publish(title="R", content_type="text/html", content=V1)["artifact_id"])
-    sam = Store(conn, accounts.person_scope(person(conn, "sam", "Sam Okafor")))
-    ana = Store(conn, accounts.person_scope(person(conn, "ana")))
+    sam = Store(tables, accounts.person_scope(person(tables, "sam", "Sam Okafor")))
+    ana = Store(tables, accounts.person_scope(person(tables, "ana")))
 
     refused(Code.READ_ONLY, lambda: worker.delete_artifact(artifact))
     refused(Code.OUT_OF_SCOPE, lambda: ana.delete_artifact(artifact))

@@ -37,10 +37,11 @@ def demo() -> None:
     """Publish the demo's artifacts, unless they are published already."""
     from louvre.core import db  # noqa: PLC0415  (as above)
     from louvre.core import demo as demo_  # noqa: PLC0415
+    from louvre.core.postgres import PostgresTables  # noqa: PLC0415
 
     with db.connect(_database_url()) as conn:
         db.migrate(conn)
-        published = demo_.seed(conn)
+        published = demo_.seed(PostgresTables(conn))
     click.echo(f"published the demo in {demo_.NAMESPACE}" if published else "the demo is published already")
 
 

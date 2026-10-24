@@ -26,7 +26,7 @@ from louvre.core import accounts
 from louvre.core.store import Code, Refused, Store
 from louvre.mcp import server
 from louvre.web import api, auth, explorations, ui
-from louvre.web.caller import Database, Reader, database
+from louvre.web.caller import NOT_CONFIGURED, Database, Reader, database
 from louvre.web.settings import Settings
 
 #: Where Louvre's own server-made pages live, beside this module.
@@ -170,12 +170,15 @@ def _mcp(request: Request, found: Database, body: bytes) -> Response:
     secret = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
     if not secret:
         return _unauthorized("a token is required: Authorization: Bearer lvt_...")
-    with found.opened() as conn:
-        scope = accounts.token_scope(conn, secret)
+    with found.opened() as held:
+        if held.conn is None:
+            # A token is a row of the database: without one, no agent is known.
+            return JSONResponse({"code": "not_configured", "message": NOT_CONFIGURED}, status_code=503)
+        scope = accounts.token_scope(held.conn, secret)
         if scope is None:
             return _unauthorized("the token is unknown or revoked")
         base_url = found.settings.base_url or str(request.base_url).rstrip("/")
-        answered = server.answer(body, Store(conn, scope, base_url=base_url))
+        answered = server.answer(body, Store(held.tables, scope, base_url=base_url))
     if answered is None:
         return Response(status_code=202)
     return JSONResponse(answered)

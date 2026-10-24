@@ -114,9 +114,9 @@ export interface Account {
 export interface Session {
     /** The signed-in person, or null. */
     account: Account | null
-    /** Whether the deployment has its database. */
+    /** Whether the deployment has its database; without one it serves the demo from memory, and nobody signs in. */
     configured: boolean
-    /** Whether the demo is on, readable without signing in. */
+    /** Whether the demo is on, readable without signing in: always, without a database. */
     demo: boolean
     /** The ways to sign in. */
     sign_in: { github: boolean; dev: boolean }

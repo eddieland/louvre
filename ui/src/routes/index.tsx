@@ -5,7 +5,7 @@ import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
 import { ApiError, listArtifacts, sessionQuery } from '@/lib/api'
-import type { Listed } from '@/lib/api'
+import type { Listed, Session } from '@/lib/api'
 import { ago, count, provenance } from '@/lib/format'
 
 /** The catalogue: every artifact the reader reaches, newest first (ui/DESIGN.md, "Catalogue"). */
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/')({
 function Catalogue() {
     const { sign_in: why } = Route.useSearch()
     const session = useQuery(sessionQuery)
-    const reachable = session.data?.configured === true && (session.data.account !== null || session.data.demo)
+    const reachable = session.data !== undefined && (session.data.account !== null || session.data.demo)
     const list = useInfiniteQuery({
         queryKey: ['artifacts'],
         queryFn: ({ pageParam }) => listArtifacts(pageParam),
@@ -37,17 +37,6 @@ function Catalogue() {
     function body() {
         if (session.isPending) {
             return null
-        }
-        if (session.data?.configured === false) {
-            return (
-                <Notice title="Louvre needs its database">
-                    <p>
-                        This deployment has no Postgres database yet. Set DATABASE_URL (or connect a Postgres store in
-                        Vercel, which sets POSTGRES_URL), then reload: Louvre makes its tables itself.
-                    </p>
-                    <p>docs/DEPLOY.md has every step.</p>
-                </Notice>
-            )
         }
         if (!reachable) {
             return (
@@ -82,15 +71,7 @@ function Catalogue() {
         }
         return (
             <section className="catalogue" aria-labelledby="catalogue-title">
-                {session.data?.account === null ? (
-                    <p className="mb-6 font-ui text-sm text-muted">
-                        You are reading the demo.{' '}
-                        <Link to="/sign-in" className="link">
-                            Sign in
-                        </Link>{' '}
-                        to comment.
-                    </p>
-                ) : null}
+                {demoLine(session.data)}
                 <h1 id="catalogue-title" className="title">
                     Artifacts
                 </h1>
@@ -112,6 +93,30 @@ function Catalogue() {
             </section>
         )
     }
+}
+
+/** The line over the catalogue for a reader of the demo: who may comment, or why nobody can. */
+function demoLine(session: Session) {
+    if (!session.configured) {
+        return (
+            <p className="mb-6 font-ui text-sm text-muted">
+                You are reading the demo, from memory: this deployment has no database yet, so nobody signs in and
+                nothing is kept. docs/DEPLOY.md says how to give it one.
+            </p>
+        )
+    }
+    if (session.account === null) {
+        return (
+            <p className="mb-6 font-ui text-sm text-muted">
+                You are reading the demo.{' '}
+                <Link to="/sign-in" className="link">
+                    Sign in
+                </Link>{' '}
+                to comment.
+            </p>
+        )
+    }
+    return null
 }
 
 function Entry({ artifact }: { artifact: Listed }) {

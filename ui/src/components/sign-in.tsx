@@ -64,12 +64,19 @@ export function SignIn({ why }: { why?: string | undefined }) {
                     {byName.error ? <p className="font-ui text-sm text-accent">{byName.error.message}</p> : null}
                 </form>
             ) : null}
-            {!session.sign_in.github && !session.sign_in.dev ? (
+            {session.configured ? (
+                session.sign_in.github || session.sign_in.dev ? null : (
+                    <p className="text-muted">
+                        No way to sign in is set up yet: the operator sets LOUVRE_GITHUB_CLIENT_ID and
+                        LOUVRE_GITHUB_CLIENT_SECRET (docs/DEPLOY.md).
+                    </p>
+                )
+            ) : (
                 <p className="text-muted">
-                    No way to sign in is set up yet: the operator sets LOUVRE_GITHUB_CLIENT_ID and
-                    LOUVRE_GITHUB_CLIENT_SECRET (docs/DEPLOY.md).
+                    Signing in needs the database, and this deployment has none yet: it serves the demo from memory. The
+                    operator sets DATABASE_URL, or connects a Postgres store in Vercel (docs/DEPLOY.md).
                 </p>
-            ) : null}
+            )}
         </div>
     )
 }

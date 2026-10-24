@@ -7,4 +7,5 @@ Accept: canopy's M62 live check, against this deployment: a worker publishes an 
 comments on a passage, the comment reaches the ticket's conversation, and a worker publishes a new version that
 answers it, replies, and resolves the thread.
 
-Status: not started. The preview deployment runs the whole app; docs/DEPLOY.md says what it needs.
+Status: not started. The preview deployment runs the whole app, serving the demo from memory until it has a database;
+docs/DEPLOY.md says what it needs.

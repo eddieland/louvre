@@ -4,6 +4,14 @@ Louvre is one Python web app (`vercel_app.py` imports `louvre.web.app`) and one 
 as the preview does, or anywhere that runs `louvre serve` behind HTTPS. It makes its tables itself, on the first
 request after a deploy.
 
+## Without a database: the demo
+
+A deployment with no database serves the demo, read-only, from the memory of each process that runs it: the three
+artifacts and their threads, seeded on the first request. Everyone reads it, and nobody signs in or comments, since
+people, sessions, and tokens are rows of the database, and `/mcp` answers 503. Nothing set is all it takes, and
+`LOUVRE_BASE_URL` is the one variable worth setting even so. Give it a database when it should hold real artifacts:
+the demo mode ends on the next deploy, and the demo is published into the database only where `LOUVRE_DEMO` says so.
+
 ## On Vercel
 
 1. **A database.** In the project's Storage tab, connect a Postgres store from the Marketplace (Neon, say). It sets
@@ -23,8 +31,8 @@ request after a deploy.
 
 4. Open the deployment, sign in with GitHub, and mint a token for an agent on the Tokens page.
 
-A preview with no database still serves its pages, and says what is missing. `LOUVRE_DEV_SIGN_IN=1` lets anyone sign
-in as anyone by typing a name: it is for a local run and the tests, never a deployment people use.
+`LOUVRE_DEV_SIGN_IN=1` lets anyone sign in as anyone by typing a name: it is for a local run and the tests, never a
+deployment people use.
 
 ## Anywhere else
 
@@ -65,5 +73,9 @@ make ui-build
 LOUVRE_DEMO=1 LOUVRE_DEV_SIGN_IN=1 uv run louvre serve
 ```
 
+Without `DATABASE_URL`, `uv run louvre serve` serves the demo from memory, as a deployment without a database does:
+enough to look at the pages, not to sign in or comment.
+
 The tests that need Postgres read `LOUVRE_TEST_DATABASE_URL` (a database they may create others beside, as the one
-above), and are skipped without it, except in CI.
+above), and are skipped without it, except in CI. The store's contract is tested on Postgres and on the in-memory
+tables alike.
