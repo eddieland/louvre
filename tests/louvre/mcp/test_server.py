@@ -354,6 +354,7 @@ def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
         ("louvre://style/louvre-1/starters/report.html", "text/html"),
         ("louvre://style/louvre-1/starters/decision.html", "text/html"),
         ("louvre://style/louvre-1/starters/plan.html", "text/html"),
+        ("louvre://style/louvre-1/starters/map.html", "text/html"),
     ]
     assert [[c.text for c in contents if isinstance(c, TextResourceContents)] for contents in read.values()] == [
         [style.CSS],

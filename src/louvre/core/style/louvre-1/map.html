@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where it is, as a finding</title>
+<style>
+/* style.css */
+</style>
+<script src="/kit/louvre-map-1/map.js"></script>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Map &middot; Who it is for</p>
+<h1>Where it is, as a finding</h1>
+<p class="l-lede">The finding, in a sentence or two, naming the places: a reader who cannot see the map still has
+it.</p>
+<p class="l-meta">From what data, over what dates &middot; Who or what wrote it, and when</p>
+<figure class="l-plot">
+<figcaption><span class="l-say">What the map shows, as a finding in a sentence</span>
+<span class="l-measure">What is marked, and as of when</span></figcaption>
+<div class="l-map" id="map" role="img" aria-label="What the map shows, naming each place marked"></div>
+<p class="l-key"><span class="l-focus">What the accent marks</span><span>What the muted marks are</span></p>
+<ol class="l-notes">
+<li>What the first mark is, and why it matters, in a sentence a reader can quote.</li>
+<li>What the second mark is, in a sentence a reader can quote.</li>
+</ol>
+<p class="l-source">Where the places come from, so a reader can check them. Basemap: Natural Earth; streets
+© OpenStreetMap contributors.</p>
+</figure>
+<h2>Each place, in a table</h2>
+<div class="l-scroll">
+<table>
+<thead><tr><th>Place</th><th>What matters there</th><th class="l-num">A number (unit)</th></tr></thead>
+<tbody>
+<tr><td>Lisbon</td><td>The place the map is about</td><td class="l-num">1,240</td></tr>
+<tr><td>Frankfurt</td><td>A place to compare it with</td><td class="l-num">610</td></tr>
+<tr><td>Warsaw</td><td>Another place to compare it with</td><td class="l-num">380</td></tr>
+</tbody>
+</table>
+</div>
+<footer>
+<p>Sources, and how the page was made: the tool, the query, the agent.</p>
+</footer>
+</main>
+<script>
+// Each place is a GeoJSON feature: a point, a line, or an area. The one the map is about has "focus": true, in the
+// accent; "mark" numbers it as its note. Data may instead be a file published beside the page: data: "places.json".
+LouvreMap.draw("map", {
+    data: {
+        type: "FeatureCollection",
+        features: [
+            {
+                type: "Feature",
+                properties: { name: "Lisbon", focus: true, mark: 1 },
+                geometry: { type: "Point", coordinates: [-9.14, 38.72] },
+            },
+            {
+                type: "Feature",
+                properties: { name: "Frankfurt", mark: 2 },
+                geometry: { type: "Point", coordinates: [8.68, 50.11] },
+            },
+            {
+                type: "Feature",
+                properties: { name: "Warsaw" },
+                geometry: { type: "Point", coordinates: [21.01, 52.23] },
+            },
+        ],
+    },
+});
+</script>
+</body>
+</html>

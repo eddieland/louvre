@@ -27,7 +27,7 @@ def test_the_demo_is_published_once(conn: Connection) -> None:
 
     listed = reader(conn).overview()["artifacts"]
     assert isinstance(listed, list)
-    assert len(listed) == 8
+    assert len(listed) == 9
 
 
 def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
@@ -45,7 +45,7 @@ def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
         "Direction: Margins",
         "Direction: Studio",
     ]
-    assert len(titles) == 8
+    assert len(titles) == 9
 
 
 def test_the_design_study_is_a_board_of_each_direction_at_a_laptops_size_and_a_phones(conn: Connection) -> None:
@@ -91,7 +91,12 @@ def test_the_studys_pages_load_nothing_from_the_network(conn: Connection) -> Non
 
 @pytest.mark.parametrize(
     "origin",
-    [{"canopy.report": "weekly"}, {"canopy.ticket": "PAY-151"}, {"canopy.ticket": "PAY-160"}],
+    [
+        {"canopy.report": "weekly"},
+        {"canopy.ticket": "PAY-151"},
+        {"canopy.ticket": "PAY-160"},
+        {"canopy.ticket": "PAY-163"},
+    ],
 )
 def test_its_house_style_pages_use_only_the_styles_classes_and_pass_its_check(
     conn: Connection,

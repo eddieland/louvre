@@ -76,9 +76,14 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - `/content/...` answers with a `sandbox` Content-Security-Policy and is framed without `allow-same-origin`, so its
   scripts run on an opaque origin and never see a session. Louvre adds one script, the bridge (`ui/src/bridge`), and
   trusts nothing it says further than where a passage is or what was selected.
-- The policy lets a page load nothing but fonts from Louvre itself, and Louvre serves only the house style's, at
-  `/style/<version>/fonts/`, with `Access-Control-Allow-Origin: *`, as an opaque origin's font load needs (settled by
-  the operator, 2026-10-24). Anything else a page shows it carries inline.
+- The policy lets a page load from the network only what Louvre serves every page alike, at a version, with
+  `Access-Control-Allow-Origin: *`, as an opaque origin's loads need: the house style's fonts, at
+  `/style/<version>/fonts/` (settled by the operator, 2026-10-24), and the map kit, at `/kit/<version>/`, whose one
+  script may run, whose worker runs from a blob, and whose basemap, street tiles, and glyphs it reads
+  (`louvre.core.maps`). Beside them, its own version's files (D012). Anything else a page shows it carries inline.
+- The street tiles are the one thing Louvre's server fetches from another site for a page: OpenStreetMap's, from
+  OpenFreeMap (picked by the operator, 2026-10-24, over hosting tiles ourselves), passed on at the kit's path, so a
+  page still reaches nothing but Louvre. `LOUVRE_STREETS` names another source, or none.
 - Anchors are read the same way on both sides: `louvre.core.text` and `ui/src/bridge/text.ts` answer
   `tests/fixtures/anchors.json` alike; a change to one changes the other.
 - Rejected: a second origin for content (a domain to run); marks as `<mark>` elements in the artifact's markup (the

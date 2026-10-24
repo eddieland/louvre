@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Self
 
 from louvre.core import db
+from louvre.core.maps import streets
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,8 @@ class Settings:
     demo: bool
     #: Whether the session cookie is sent over HTTPS only.
     secure_cookies: bool
+    #: The TileJSON of the street tiles Louvre passes on to a map (louvre.core.maps.streets); empty for none.
+    streets: str = streets.OPENFREEMAP
 
     @classmethod
     def from_environ(cls, environ: Mapping[str, str] | None = None) -> Self:
@@ -53,6 +56,7 @@ class Settings:
             demo=_flag(env, "LOUVRE_DEMO"),
             # Vercel serves only HTTPS; a local run is plain HTTP.
             secure_cookies=bool(env.get("VERCEL")) or _flag(env, "LOUVRE_SECURE_COOKIES"),
+            streets=env.get("LOUVRE_STREETS", streets.OPENFREEMAP).strip(),
         )
 
     @property

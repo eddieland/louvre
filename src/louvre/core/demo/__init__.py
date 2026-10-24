@@ -89,6 +89,7 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
             ({"canopy.report": "weekly"}, _weekly),
             ({"canopy.ticket": "PAY-151"}, _quote_cache),
             ({"canopy.ticket": "PAY-160"}, _vault_migration),
+            ({"canopy.ticket": "PAY-163"}, _declines_map),
         )
         missing = [
             part for marker, part in parts if not agent.overview(origin=marker, namespace=NAMESPACE)["artifacts"]
@@ -307,6 +308,21 @@ def _vault_migration(agent: Store, people: dict[str, Store]) -> None:
         artifact,
         Anchor.of("Does finance need a reconciliation report for each step, or only at the end?"),
         "For each step: we close the month on the 3rd, and the backfill will straddle it.",
+    )
+
+
+def _declines_map(agent: Store, people: dict[str, Store]) -> None:
+    """A map in the house style, drawn by the map kit: two markets marked, and a thread on one."""
+    made = agent.publish(
+        title="Declines at submit are over 2% only in São Paulo and Mexico City",
+        content_type="text/html",
+        content=_styled("declines-map.html.tmpl"),
+        origin={"canopy.ticket": "PAY-163", "canopy.repo": "payments"},
+    )
+    people["raj"].comment(
+        str(made["artifact_id"]),
+        Anchor.of("we send 3-D Secure up front on charges over R$\N{NO-BREAK SPACE}200"),
+        "Up front adds a step for every customer over R$ 200. Could we only do it for the issuers that ask?",
     )
 
 

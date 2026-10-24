@@ -5,7 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from louvre.core import style
-from louvre.core.style.check import Rule, Severity, check
+from louvre.core.style.check import MAX_COORDINATES, Rule, Severity, check
 
 #: A page in the house style that follows the guide, with `{}` where a case puts its markup.
 PAGE = f"""<!doctype html>
@@ -71,6 +71,7 @@ def test_a_starter_page_as_it_is_has_its_words_left_in(kind: style.Kind) -> None
         ("<style>.wide { min-width: 720px; }</style>", Rule.WIDTH, Severity.WARNING),
         ('<p style="color: rgb(20, 20, 20)">Dark text on a dark page</p>', Rule.COLOR, Severity.WARNING),
         ('<svg role="img" aria-label="A bar"><rect fill="#123456"/></svg>', Rule.COLOR, Severity.WARNING),
+        ('<script src="/kit/louvre-map-0/map.js"></script>', Rule.MAP, Severity.ERROR),
     ],
 )
 def test_it_finds_what_goes_against_the_guide(markup: str, rule: Rule, severity: Severity) -> None:
@@ -135,3 +136,40 @@ def test_a_page_names_its_files_by_their_paths_and_every_file_is_named() -> None
     }
     assert found(loaded_from_files) == {(Rule.NETWORK, Severity.ERROR)}
     assert found('<script>fetch("data/regions.csv")</script>') == set()
+
+
+#: A map as the guide has it: the kit, the map's key, and its basemap's credit, with `{}` where its drawing goes.
+MAP = (
+    '<script src="/kit/louvre-map-1/map.js"></script><div class="l-map" id="map" role="img" aria-label="Sites"></div>'
+    '<p class="l-key"><span class="l-focus">Over target</span><span>Under it</span></p>'
+    '<p class="l-source">Basemap: Natural Earth; streets © OpenStreetMap contributors.</p>{}'
+)
+#: A map's drawing, from a file beside the page.
+DRAW = '<script>LouvreMap.draw("map", {data: "places.json"})</script>'
+
+
+def test_a_map_loads_the_kit_credits_its_basemap_and_has_a_key() -> None:
+    def rules(markup: str) -> list[tuple[Rule, Severity, str]]:
+        return [
+            (f.rule, f.severity, f.message.split(":")[0]) for f in check(PAGE.replace("{}", markup), {"places.json"})
+        ]
+
+    assert rules(MAP.format(DRAW)) == []
+    assert rules(MAP.replace('<script src="/kit/louvre-map-1/map.js"></script>', "").format(DRAW)) == [
+        (Rule.MAP, Severity.ERROR, "The page draws a map without the map kit"),
+    ]
+    assert rules(MAP.replace("; streets © OpenStreetMap contributors", "").format(DRAW)) == [
+        (Rule.MAP, Severity.ERROR, "The page draws a map without crediting its basemap"),
+    ]
+    assert rules(MAP.replace("l-key", "l-legend").format(DRAW)) == [(Rule.MAP, Severity.WARNING, "A map without a key")]
+
+
+def test_a_page_draws_one_map_of_what_a_phone_draws_well() -> None:
+    shape = "[" + ",".join(["[1.5, -2]"] * (MAX_COORDINATES + 1)) + "]"
+    big = f'<script>LouvreMap.draw("map", {{data: {{type: "LineString", coordinates: {shape}}}}})</script>'
+
+    assert found(MAP.format(DRAW * 2)) == {(Rule.MAP, Severity.WARNING)}
+    assert check(PAGE.replace("{}", MAP.format(DRAW * 2)), {"places.json"})[0].message.startswith("The page draws 2")
+    assert [f.message.split(" coordinates")[0] for f in check(PAGE.replace("{}", MAP.format(big)))] == [
+        "The page's maps have 20,001",
+    ]

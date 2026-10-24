@@ -199,9 +199,21 @@ gridline a `rule` hairline. Each series is labeled where it is, in Source Serif 
 moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
 quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
+**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-1`) in the same look, in a figure like a chart's.
+The basemap is quiet: water is `bg`, land a mix of `card` and `rule`, borders a hairline, and cities in Noto Sans
+italic, a step lighter than `muted`, the larger ones zoomed out and more zoomed in. The page's places are over it: what
+the map is about in `accent`, filled; the rest hollow in `muted`. Each is labeled in Noto Sans, toward the map's middle
+first so a place at its edge is labeled inside it, and numbered in `accent` as a chart's notes are. A key under the map
+(`l-key`) says what the accent marks. The controls are cards with `rule` hairlines, the attribution and scale bar in
+`muted`; a phone pans with two fingers, so one scrolls the page. The box is 22rem tall, 18rem on a phone.
+Past a city's scale Natural Earth fades out, its coast a kilometre out there, and OpenStreetMap's streets fade in:
+water in `bg`, buildings a step darker than the ground, roads a step above `rule` widening as the map zooms in, rail
+and paths dashed, street names in Noto Sans italic. A page's own `context` is drawn as the roads are. Both are always
+quieter than the data, whose lines widen with them.
+
 ## Not decided yet
 
 - A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).
 - A decision across a board's frames, each frame an option (REQUIREMENTS, Open).
 - How two versions compare on a page, and on a phone (REQUIREMENTS U8).
-- A map's page in the kit, and how a thread on a place shows on the map and in the margin (REQUIREMENTS U9, U10).
+- How a thread on a place shows on the map and in the margin (REQUIREMENTS U10).

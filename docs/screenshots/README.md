@@ -290,6 +290,28 @@ Light:
 | --- | --- |
 | ![A plan in the house style, Phone, 390, light](house-style-plan/phone-light.png) | ![A plan in the house style, Laptop, 1440, light](house-style-plan/laptop-light.png) |
 
+## A map in the house style, drawn by the map kit
+
+`/a/{map}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![A map in the house style, drawn by the map kit, Small phone, 360, dark](house-style-map/phone-small-dark.png) | ![A map in the house style, drawn by the map kit, Phone, 390, dark](house-style-map/phone-dark.png) | ![A map in the house style, drawn by the map kit, Tablet, 820, dark](house-style-map/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![A map in the house style, drawn by the map kit, Tablet landscape, 1180, dark](house-style-map/tablet-landscape-dark.png) | ![A map in the house style, drawn by the map kit, Laptop, 1440, dark](house-style-map/laptop-dark.png) | ![A map in the house style, drawn by the map kit, Wide, 1920, dark](house-style-map/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![A map in the house style, drawn by the map kit, Phone, 390, light](house-style-map/phone-light.png) | ![A map in the house style, drawn by the map kit, Laptop, 1440, light](house-style-map/laptop-light.png) |
+
 ## A board, fitted to the screen
 
 `/b/design-study`

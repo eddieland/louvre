@@ -10,7 +10,7 @@ from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
 from louvre.core.text import Anchor
 from louvre.web import ui
-from louvre.web.app import ARTIFACT_POLICY, FILE_POLICY
+from louvre.web.app import FILE_POLICY, artifact_policy
 from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, sign_in
 
 #: The query that lists the demo's namespace, which a list leaves out unless it names it.
@@ -154,7 +154,7 @@ def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> No
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
     assert {a["namespace"] for a in listed} == {"demo"}
-    assert len(listed) == 8
+    assert len(listed) == 9
     assert response.status_code == 403
     assert response.json()["code"] == "read_only"
 
@@ -278,8 +278,8 @@ def test_a_versions_page_is_sandboxed_with_the_bridge_at_its_end(web: MakeWeb, p
         response = client.get(f"/content/{published}/1")
 
     assert response.status_code == 200
-    assert response.headers["content-security-policy"] == ARTIFACT_POLICY
-    assert "allow-same-origin" not in ARTIFACT_POLICY
+    assert response.headers["content-security-policy"] == artifact_policy(BASE_URL)
+    assert "allow-same-origin" not in artifact_policy(BASE_URL)
     assert response.text.startswith(REPORT)
     assert response.text.endswith("<script>window.bridged = '<\\/script>'</script>\n")
     assert client.get(f"/content/{published}/2").status_code == 404
@@ -392,8 +392,9 @@ def test_a_version_with_files_is_served_beside_them_under_a_policy_for_them_alon
     assert moved.headers["location"] == here
     assert shown.status_code == 200
     assert shown.text.startswith(page)
-    assert f"img-src data: {BASE_URL}{here};" in policy
-    assert f"connect-src {BASE_URL}{here};" in policy
+    assert policy == artifact_policy(BASE_URL, here)
+    assert f"img-src data: blob: {BASE_URL}{here};" in policy
+    assert f"connect-src {BASE_URL}/kit/louvre-map-1/ {BASE_URL}{here};" in policy
     assert "allow-same-origin" not in policy
     assert web().get(here).status_code == 401
     assert reader.get(f"/content/{artifact}/1/not-its-key/").status_code == 404
@@ -415,7 +416,7 @@ def test_a_version_without_files_is_served_where_it_was(web: MakeWeb, agent: Mak
     shown = reader.get(f"/content/{made['artifact_id']}/1", follow_redirects=False)
 
     assert shown.status_code == 200
-    assert shown.headers["content-security-policy"] == ARTIFACT_POLICY
+    assert shown.headers["content-security-policy"] == artifact_policy(BASE_URL)
 
 
 def test_the_inbox_needs_a_sign_in(web: MakeWeb) -> None:
