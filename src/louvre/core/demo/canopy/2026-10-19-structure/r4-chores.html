@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mailroom, round four: Chores</title>
+<style>
+body { margin: 0; }
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+h2 { font-size: 21px; line-height: 1.25; margin: 0px; letter-spacing: -0.01em; text-wrap: balance; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+}
+.mock { width: 1440px; min-height: 900px; font-size: 14px; line-height: 1.5; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.mock * { box-sizing: border-box; }
+.mock .mono { font-family: var(--mono); }
+.mock .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentcolor; flex: 0 0 auto; }
+.mock .s-wait { color: var(--wait); }
+.mock .s-run { color: var(--run); }
+.mock .s-other { color: var(--muted); }
+.mock .s-done { color: var(--done, var(--muted)); }
+.mock .chip { font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 4px; white-space: nowrap; }
+.mock .chip.s-wait { background: color-mix(in srgb, var(--wait) 14%, transparent); }
+.m2 { --sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; font-family: var(--sans); display: grid; grid-template-columns: 228px 404px minmax(0px, 1fr); grid-template-rows: minmax(0px, 1fr); height: 900px; }
+.m2 > * { min-height: 0px; overflow: hidden; }
+.m2[data-mode="dark"] { --bg: #0f0f11; --surface: #17171a; --raised: #222226; --line: #2a2a30; --fg: #f2f2f4; --text: #d4d4d8; --muted: #8d8d97; --accent: #8f90ff; --accent-fg: #0f0f11; --run: #3fcf8e; --wait: #f5b544; --fail: #f87171; --rev: #5ccfe6; }
+.m2[data-mode="light"] { --bg: #f4f4f5; --surface: #ffffff; --raised: #f0f0f3; --line: #e4e4e8; --fg: #18181b; --text: #27272a; --muted: #6b6b76; --accent: #4f46e5; --accent-fg: #ffffff; --run: #15803d; --wait: #a16207; --fail: #b91c1c; --rev: #0e7490; }
+.m2 .sd { padding: 18px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); background: var(--bg); }
+.m2 .sd .brand { display: flex; align-items: center; gap: 8px; padding: 2px 10px 16px; font-weight: 600; font-size: 16px; color: var(--fg); }
+.m2 .sd .brand i { width: 18px; height: 18px; border-radius: 6px; background: var(--accent); display: block; }
+.m2 .start { margin: 0px 4px 14px; padding: 9px 12px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font-weight: 500; text-align: center; }
+.m2 .mb { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 8px; color: var(--text); }
+.m2 .mb.on { background: var(--raised); color: var(--fg); font-weight: 500; }
+.m2 .mb .n { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m2 .mb.hot .n { color: var(--accent); font-weight: 500; }
+.m2 .grp { font-size: 11px; color: var(--muted); padding: 18px 10px 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.m2 .sd .foot { margin-top: auto; padding: 12px 10px 0px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+.m2 .sd .foot .lv { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.m2 .lp { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.m2 .lh { padding: 18px 18px 10px; display: flex; justify-content: space-between; align-items: baseline; }
+.m2 .lh h2 { margin: 0px; font-size: 19px; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; }
+.m2 .lh span { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m2 .srch { margin: 0px 14px 10px; padding: 8px 12px; border-radius: 8px; background: var(--raised); color: var(--muted); font-size: 13px; }
+.m2 .row { padding: 12px 18px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 10px minmax(0px, 1fr); gap: 3px 10px; }
+.m2 .row.sel { background: var(--raised); }
+.m2 .row .d { grid-row: 1 / 4; margin-top: 6px; }
+.m2 .row .l1 { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); gap: 8px; }
+.m2 .row .l1 .mono { color: var(--text); }
+.m2 .row .l2 { font-weight: 500; color: var(--fg); }
+.m2 .row .l3 { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.m2 .tp { display: flex; flex-direction: column; background: var(--surface); min-width: 0px; }
+.m2 .tph { padding: 18px 28px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.m2 .tph h2 { margin: 0px; font-size: 21px; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; }
+.m2 .tph .k { font-size: 13px; color: var(--muted); margin-top: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.m2 .tph .k .mono { color: var(--text); }
+.m2 .btns { display: flex; gap: 8px; flex: 0 0 auto; }
+.m2 .btn { padding: 7px 12px; border-radius: 9px; border: 1px solid var(--line); color: var(--fg); font-size: 13px; background: var(--surface); }
+.m2 .btn.pri { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 500; }
+.m2 .body { flex: 1 1 0%; padding: 24px 28px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.m2 .sys { align-self: center; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); padding: 4px 12px; border-radius: 999px; background: var(--raised); }
+.m2 .sys .dot { width: 6px; height: 6px; }
+.m2 .msg { display: flex; gap: 10px; max-width: 660px; }
+.m2 .av { width: 30px; height: 30px; border-radius: 50%; background: var(--raised); color: var(--muted); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; flex: 0 0 auto; }
+.m2 .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.m2 .bub { padding: 10px 14px; border-radius: 4px 16px 16px; background: var(--raised); color: var(--text); }
+.m2 .bub.note { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
+.m2 .compose { margin: 0px 28px 24px; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 14px; background: var(--bg); }
+.m2 .compose .ph { color: var(--muted); min-height: 40px; }
+.m2 .compose .bar { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.m2[data-mode="dark"] { --add: #4ade80; --del: #f87171; }
+.m2[data-mode="light"] { --add: #15803d; --del: #b91c1c; }
+.m2 .s-done { color: var(--rev); }
+</style>
+</head>
+<body>
+<div class="mock m2" data-mode="dark"><div class="sd"><div class="brand"><i></i>canopy</div><div class="start">Start a ticket</div><div class="mb  hot"><span>Needs you</span><span class="n">6</span></div><div class="mb  "><span>Working</span><span class="n">3</span></div><div class="mb  "><span>Waiting on others</span><span class="n">2</span></div><div class="mb  "><span>All tickets</span><span class="n">7</span></div><div class="mb  "><span>Done</span><span class="n">12</span></div><div class="grp">The loop</div><div class="mb  "><span>Runs</span><span class="n"></span></div><div class="mb  "><span>Reviews</span><span class="n">1</span></div><div class="mb on "><span>Chores</span><span class="n"></span></div><div class="mb  "><span>Spend</span><span class="n">$11.25</span></div>
+    <div class="foot"><span class="lv"><span class="dot s-run"></span>Live · tick 2 · next 0:42</span><span>2 of 3 slots busy</span><span class="lk"><span class="">Ticks</span> · <span class="">Worktrees</span> · <span class="">Memory</span> · <span class="">Settings</span></span></div></div><section class="lp"><div class="lh"><h2>Chores</h2><span>2 configured</span></div><div class="srch">Filter chores</div><div class="row sel"><span class="dot d s-wait"></span><div class="l1"><span><span class="mono">deps</span> · 1 finding</span><span>2h</span></div><div class="l2">Dependency advisories</div><div class="l3">chore run 2 · done · $0.31</div></div><div class="row "><span class="dot d s-run"></span><div class="l1"><span><span class="mono">build-health</span> · running</span><span>now</span></div><div class="l2">Build health</div><div class="l3">chore run 4 · started 3m ago</div></div></section>
+  <section class="tp"><div class="tph"><div><h2>Dependency advisories</h2><div class="k"><span class="mono">chore:deps</span>· every repository ·<span class="chip s-wait">1 open finding</span></div></div><div class="btns"><span class="btn">Prompt</span><span class="btn">Try it now</span></div></div>
+    <div class="body">
+      <div class="sys"><span class="dot s-other"></span>yesterday · chore run 1: found nothing · $0.22</div>
+      <div class="sys"><span class="dot s-done"></span>2h ago · chore run 2 · done · $0.31</div>
+      <div class="msg"><span class="av">C</span><div><div class="who">deps found, in web</div><div class="bub ">lodash 4.17.20 has a prototype pollution advisory. <span style="color:var(--accent)">github.com/advisories/GHSA-35jh-r3h4-6jhm</span></div></div></div>
+      <div class="msg"><span class="av">C</span><div><div class="who">deps noted, for its next run</div><div class="bub note">web pins lodash through an old eslint plugin; bumping lodash alone is refused by npm.</div></div></div>
+    </div>
+    <div class="compose"><div class="ph">Start a ticket from the finding, or dismiss it. A dismissed finding stays dismissed until the advisory changes.</div><div class="bar"><span>1 open finding</span><span style="display:flex;gap:8px"><span class="btn">Dismiss</span><span class="btn pri">Start a ticket</span></span></div></div></section></div><script>if (matchMedia('(prefers-color-scheme: light)').matches) document.querySelector('.mock').dataset.mode = 'light';</script>
+</body>
+</html>

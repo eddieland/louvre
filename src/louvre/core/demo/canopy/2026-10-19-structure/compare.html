@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compare and pick</title>
+<style>
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+main { min-width: 0px; padding-block: 36px 80px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.board { max-width: 1240px; display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--f-muted); }
+h1 { font-size: 36px; line-height: 1.1; letter-spacing: -0.02em; margin: 6px 0px 0px; text-wrap: balance; font-weight: 700; }
+h2 { font-size: 21px; line-height: 1.25; margin: 0px; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { font-size: 18px; max-width: 68ch; color: var(--f-fg); margin: 12px 0px 0px; }
+p { margin: 0px; max-width: 72ch; }
+.prose { display: flex; flex-direction: column; gap: 12px; }
+code, .code { font-family: var(--f-mono); font-size: 0.88em; background: var(--f-raised); padding: 1px 5px; border-radius: 4px; }
+.panel { background: var(--f-surface); border: 1px solid var(--f-line); border-radius: 12px; padding: 22px 24px; }
+.cols2 { display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 20px; }
+ul.tight { margin: 8px 0px 0px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+ul.tight li { max-width: 70ch; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--f-line); border-radius: 12px; background: var(--f-surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--f-line); vertical-align: top; }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--f-muted); font-weight: 500; background: var(--f-raised); white-space: nowrap; }
+tr:last-child td { border-bottom: 0px; }
+td.k { font-weight: 600; white-space: nowrap; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+h1 { font-size: 28px; }
+.cols2, .cols3, .shot-grid, .facts { grid-template-columns: minmax(0px, 1fr); }
+}
+</style>
+</head>
+<body>
+<main><div class="board"><header><div class="eyebrow">Decide</div><h1>Compare and pick</h1><p class="lede">The four side by side, against today. None has to win whole: round two was a blend, and this one can be too.</p></header>
+    <div class="tbl-wrap"><table><thead><tr><th></th><th>Today</th><th>1 · Ops inbox, kept</th><th>2 · Mailroom</th><th>3 · Ledger</th><th>4 · Briefing</th></tr></thead><tbody><tr><td class="k">Nav</td><td>10 sections, Settings and Guide in the rail</td><td>4 tabs</td><td>5 mailboxes, 4 loop folders, a foot</td><td>5 tabs</td><td>3 links and search</td></tr><tr><td class="k">Where you answer</td><td>Attention’s right pane, or the ticket page’s corner</td><td>Beside the list</td><td>The thread’s composer</td><td>A prompt under the log</td><td>In the page, under the question</td></tr><tr><td class="k">A ticket reads as</td><td>Five panels</td><td>A thread and a facts column</td><td>One thread, details in a drawer</td><td>One log under a header</td><td>A story with facts in the margin</td></tr><tr><td class="k">Identity color</td><td>11 section hues and an aurora</td><td>None</td><td>None</td><td>None; amber means you</td><td>None</td></tr><tr><td class="k">Type</td><td>IBM Plex Sans and Mono</td><td>Same</td><td>Geist and Geist Mono</td><td>IBM Plex Mono only</td><td>Newsreader, Instrument Sans, Plex Mono</td></tr><tr><td class="k">Fun lives in</td><td>Ticker, Sprig, the leaf, the rave</td><td>The counters and the cleared leaf</td><td>An empty mailbox that says so</td><td>The status line</td><td>The headline, when nothing needs you</td></tr><tr><td class="k">Cost to get there</td><td>·</td><td>Small to medium</td><td>Medium</td><td>Medium</td><td>Large</td></tr></tbody></table></div>
+    <div class="cols2"><div class="panel prose"><h2>Questions that decide it</h2><ul class="tight">
+      <li><b>Is the problem the look or the amount?</b> If direction 1 feels right, it was the amount, and the fix is a cull rather than a redesign.</li>
+      <li><b>Thread or record?</b> Directions 2 and 4 make a ticket one story. Today and direction 1 keep facts beside it.</li>
+      <li><b>How often do you open Ticks, Worktrees, Chores or Memory?</b> Weekly or less, and they can leave the nav in any direction.</li>
+      <li><b>Reading face?</b> Most of what you read is a worker’s prose. Direction 4 is the only one that sets it for reading.</li>
+      <li><b>Still dark first?</b> Every drawing has both themes; the toggle sits above it.</li></ul></div>
+    <div class="panel prose"><h2>Keep whichever way</h2><ul class="tight">
+      <li>Monospace, tabular readouts for every number, id and time.</li>
+      <li>Status colors held to 4.5:1 by <code>tokens.test.ts</code>, in both themes.</li>
+      <li>Every write is a CLI verb, and a refusal names its guard.</li>
+      <li>Untrusted text stays text.</li>
+      <li>A run’s summary first, then its transcript.</li>
+      <li>Review findings drawn on the diff.</li></ul></div></div>
+    
+    
+    </div></main>
+</body>
+</html>

@@ -10,6 +10,7 @@
     "\\.gen\\.ts$",
     "-OFL\\.txt$",
     "\\.pbf$",
+    "^src/louvre/core/demo/canopy/",
     "/maplibre-gl[-.][^/]*$"
   ]
 }

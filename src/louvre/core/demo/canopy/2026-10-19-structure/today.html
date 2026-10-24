@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where we are</title>
+<style>
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+main { min-width: 0px; padding-block: 36px 80px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.board { max-width: 1240px; display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--f-muted); }
+h1 { font-size: 36px; line-height: 1.1; letter-spacing: -0.02em; margin: 6px 0px 0px; text-wrap: balance; font-weight: 700; }
+h2 { font-size: 21px; line-height: 1.25; margin: 0px; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0px; }
+.lede { font-size: 18px; max-width: 68ch; color: var(--f-fg); margin: 12px 0px 0px; }
+p { margin: 0px; max-width: 72ch; }
+.muted { color: var(--f-muted); }
+code, .code { font-family: var(--f-mono); font-size: 0.88em; background: var(--f-raised); padding: 1px 5px; border-radius: 4px; }
+.panel { background: var(--f-surface); border: 1px solid var(--f-line); border-radius: 12px; padding: 22px 24px; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0px, 1fr)); gap: 1px; background: var(--f-line); border: 1px solid var(--f-line); border-radius: 12px; overflow: hidden; }
+.stat { background: var(--f-surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0px; }
+.stat .k { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--f-muted); }
+.stat .val { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 26px; line-height: 1.1; }
+.stat .val s { color: var(--f-muted); text-decoration: none; font-size: 16px; }
+.stat .d { font-size: 13px; color: var(--f-muted); }
+.diag { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.diag .panel { display: flex; flex-direction: column; gap: 8px; }
+.diag .num { font-family: var(--f-mono); font-size: 12px; color: var(--f-muted); }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+h1 { font-size: 28px; }
+.stats { grid-template-columns: repeat(2, minmax(0px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<main><div class="board"><header><div class="eyebrow">01 · Where we are</div><h1>The app today</h1>
+    <p class="lede">E promised “a control room’s at-a-glance state, kept calm enough to read a worker’s words and answer them.” The words are still the first lines of <code>ui/DESIGN.md</code>. Here is what the screens do now.</p></header>
+    <div class="stats">
+      <div class="stat"><span class="k">ui/DESIGN.md</span><span class="val">1,339 <s>lines</s></span><span class="d">111 when E was adopted</span></div>
+      <div class="stat"><span class="k">UI source files</span><span class="val">228</span><span class="d">49 on Oct 8, tests not counted</span></div>
+      <div class="stat"><span class="k">Route files</span><span class="val">25</span><span class="d">8 on Oct 8</span></div>
+      <div class="stat"><span class="k">Nav</span><span class="val">10 <s>+2</s></span><span class="d">E drew 4 tabs</span></div>
+      <div class="stat"><span class="k">UI commits</span><span class="val">341</span><span class="d">since Oct 8, in ten days</span></div>
+    </div>
+    
+    
+    <h2>Why it feels heavier</h2>
+    <div class="diag">
+      <div class="panel"><span class="num">1</span><h3>Nothing leads</h3><p class="muted">Every block is a panel with the same hairline and uppercase label, so a worker’s question and a session id get the same weight.</p></div>
+      <div class="panel"><span class="num">2</span><h3>The nav follows the journal, not your day</h3><p class="muted">Runs, ticks, worktrees, chores, spend and memory are each a section because each is a table. You work in tickets.</p></div>
+      <div class="panel"><span class="num">3</span><h3>The thing you do is small</h3><p class="muted">Answering is a text box in a corner. Reading a ticket means stitching Conversation, Runs and Decisions back into one story.</p></div>
+      <div class="panel"><span class="num">4</span><h3>Color is spent on identity</h3><p class="muted">Eleven section hues, an aurora and the ticker’s flair compete with the five status colors that carry meaning.</p></div>
+      <div class="panel"><span class="num">5</span><h3>The rules grew one incident at a time</h3><p class="muted">Most of the 1,339 lines are right. Needing that many is a sign the layout fights what it holds, and every new feature gets a panel because a panel is the only shape on offer.</p></div>
+    </div></div></main>
+</body>
+</html>

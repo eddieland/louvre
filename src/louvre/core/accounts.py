@@ -18,6 +18,9 @@ from louvre.core.store import Author, Permission, Scope, Via
 
 #: How long a session lasts after sign-in.
 SESSION_DAYS = 30
+#: How old a token's last use may be before a call notes it again. An agent calls many times a minute; noting each call
+#: would make every read a write, and line an agent's parallel calls up on its token's row.
+USE_NOTED_EVERY = timedelta(minutes=1)
 #: How a token's secret starts, so one is recognized in a config file or a leak scan.
 TOKEN_PREFIX = "lvt_"  # noqa: S105  (a prefix, not a secret)
 #: A namespace: lowercase words joined by `.`, `-`, `_`, or `/`, such as `canopy/eddie`.
@@ -176,16 +179,20 @@ def revoke(conn: Connection, account: Account, token_id: str) -> bool:
 
 
 def token_scope(conn: Connection, secret: str) -> Scope | None:
-    """Find the scope a token's secret gives, and note that it was used.
+    """Find the scope a token's secret gives, and note that it was used, unless that was noted in `USE_NOTED_EVERY`.
 
     Returns:
         The scope: its agent writes on its person's behalf, in its namespace, with its scopes. None for no such
         token, or one revoked.
     """
+    # The update runs though the query does not read it; a call waiting on another's finds its use noted, and skips.
     row = conn.execute(
-        "UPDATE tokens t SET last_used_at = now() FROM accounts a WHERE t.secret_hash = %s AND t.revoked_at IS NULL"
-        " AND a.id = t.account_id RETURNING t.*, a.login, a.display_name AS account_name",
-        (_hash(secret),),
+        "WITH found AS (SELECT t.*, a.login, a.display_name AS account_name FROM tokens t"
+        " JOIN accounts a ON a.id = t.account_id WHERE t.secret_hash = %(hash)s AND t.revoked_at IS NULL),"
+        " noted AS (UPDATE tokens SET last_used_at = now() WHERE id IN (SELECT id FROM found)"
+        " AND (last_used_at IS NULL OR last_used_at < now() - %(every)s))"
+        " SELECT * FROM found",
+        {"hash": _hash(secret), "every": USE_NOTED_EVERY},
     ).fetchone()
     if row is None:
         return None

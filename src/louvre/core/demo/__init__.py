@@ -10,16 +10,22 @@ notes ship, decided. They are seeded once too, after the artifacts they are aske
 
 The design study the operator picked Louvre's look from (docs/ui-explorations/2026-10-23-directions) is its first
 board: each direction at a laptop's size and a phone's, side by side, a row a direction (roadmap M3).
+
+canopy's two design studies (canopy/, from canopy's docs/ui-explorations by scripts/canopy_studies.py) are its agent's
+work too, each a board of its own: the style study's nine looks a row a round, and the structure study's screens a row
+a direction, after a row of the app as it was, its screenshots beside their pages.
 """
 
 import re
+from collections.abc import Mapping, Sequence
 from importlib.resources import files
 
 from louvre.core import explorations, style
 from louvre.core.accounts import Account, person_scope, upsert_account
 from louvre.core.boards import Board, Frame
-from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.decisions import Decisions, Option
+from louvre.core.files import File, Type
 from louvre.core.store import Author, Permission, Scope, Store, Via
 from louvre.core.text import Anchor
 
@@ -63,10 +69,89 @@ BOARD = Board(
         for column, (screen, label, width, height) in enumerate(SCREENS)
     ),
 )
+#: canopy's studies, by their directory in canopy/, and the origin each one's artifacts carry; each adds `page`, its
+#: file's name.
+CANOPY_STYLE = "2026-10-08-style"
+CANOPY_STYLE_ORIGIN = {"canopy.repo": "canopy", "study": CANOPY_STYLE}
+CANOPY_STRUCTURE = "2026-10-19-structure"
+CANOPY_STRUCTURE_ORIGIN = {"canopy.repo": "canopy", "study": CANOPY_STRUCTURE}
+#: A frame of a canopy study's board: a page, its id the page's name, or a frame's id and the page it shows, for a
+#: page a board shows twice.
+type CanopyFrame = str | tuple[str, str]
+#: The style study's pages, a row a round: each drew the same Attention screen.
+CANOPY_STYLE_ROWS: Sequence[Sequence[CanopyFrame]] = (
+    ("0-today-instrument-panel", "a-terminal-ledger", "b-field-notes", "c-control-room", "d-calm-inbox"),
+    ("e-ops-inbox-dark", "e-ops-inbox-light", "f-ledger-inbox-dark", "f-ledger-inbox-light"),
+)
+#: The structure study's pages: the app as it was, a row a direction of round three with its brief first, the
+#: comparison, then round four, Mailroom, as drawn and in canopy's own tokens. Its first three screens as drawn are
+#: Mailroom's in round three.
+CANOPY_STRUCTURE_ROWS: Sequence[Sequence[CanopyFrame]] = (
+    ("today", "today-attention", "today-ticket", "today-run", "today-review", "today-memory"),
+    *((d, f"{d}-inbox", f"{d}-ticket", f"{d}-run") for d in ("d1", "d2", "d3", "d4")),
+    ("compare",),
+    (
+        "r4",
+        ("r4-inbox", "d2-inbox"),
+        ("r4-ticket", "d2-ticket"),
+        ("r4-run", "d2-run"),
+        *(f"r4-{screen}" for screen in ("pr", "review", "memory", "chores", "clear")),
+    ),
+    tuple(f"r4-today-{screen}" for screen in ("inbox", "ticket", "run", "pr", "review", "memory", "chores", "clear")),
+)
+
+
+def _canopy_board(board_id: str, title: str, origin: Mapping[str, str], rows: Sequence[Sequence[CanopyFrame]]) -> Board:
+    """Lay a canopy study's pages out a row at a time, each at a laptop's size, as every one of them was drawn.
+
+    Returns:
+        The board.
+    """
+    _, label, width, height = SCREENS[0]
+    return Board(
+        id=board_id,
+        title=title,
+        namespace=NAMESPACE,
+        frames=tuple(
+            Frame(
+                id=frame_id,
+                label=label,
+                origin={**origin, "page": page},
+                x=column * (width + BOARD_GAP),
+                y=row * (height + BOARD_GAP),
+                width=width,
+                height=height,
+            )
+            for row, frames in enumerate(rows)
+            for column, (frame_id, page) in enumerate(_frame(f) for f in frames)
+        ),
+    )
+
+
+def _frame(frame: CanopyFrame) -> tuple[str, str]:
+    return (frame, frame) if isinstance(frame, str) else frame
+
+
+CANOPY_STYLE_BOARD = _canopy_board(
+    "canopy-style",
+    "canopy's style study, 2026-10-08",
+    CANOPY_STYLE_ORIGIN,
+    CANOPY_STYLE_ROWS,
+)
+CANOPY_STRUCTURE_BOARD = _canopy_board(
+    "canopy-structure",
+    "canopy's structure study, 2026-10-19",
+    CANOPY_STRUCTURE_ORIGIN,
+    CANOPY_STRUCTURE_ROWS,
+)
+#: The demo's boards, in the order the catalogue lists them.
+BOARDS = (BOARD, CANOPY_STYLE_BOARD, CANOPY_STRUCTURE_BOARD)
 #: Where the demo's pages are kept.
 _FILES = files("louvre.core.demo")
 #: A study page's links to Google's fonts, which an artifact's policy refuses: it loads nothing from the network.
 _FONT_LINK = re.compile(r"\s*<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>", re.IGNORECASE)
+#: A page's title, which a canopy study's artifact is published under.
+_TITLE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
 def seed(conn: Connection, *, base_url: str = "") -> bool:
@@ -76,6 +161,7 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         Whether it was published now.
     """
     with conn.transaction():
+        limited(conn)
         conn.execute("SELECT pg_advisory_xact_lock(%s)", (SEED_LOCK,))
         for account in PEOPLE.values():
             upsert_account(conn, account)
@@ -83,6 +169,8 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         people = {login: Store(conn, person_scope(account)) for login, account in PEOPLE.items()}
         # Each part by an origin pair its artifacts carry, oldest first, so the newest shows first in the list.
         parts = (
+            (CANOPY_STYLE_ORIGIN, _canopy_style),
+            (CANOPY_STRUCTURE_ORIGIN, _canopy_structure),
             (STUDY_ORIGIN, _study),
             ({"canopy.ticket": "PAY-142"}, _checkout),
             ({"canopy.ticket": "REL-2026.11"}, _release_notes),
@@ -136,6 +224,56 @@ def _study(agent: Store, people: dict[str, Store]) -> None:
         )
     if "studio" in made:
         people["raj"].comment(made["studio"], None, "Good for triage, but too much chrome for reading a report.")
+
+
+def _canopy_style(agent: Store, people: dict[str, Store]) -> None:
+    """The style study canopy began with, with a thread on where it began and one on the look it picked."""
+    made = _canopy_study(agent, CANOPY_STYLE, CANOPY_STYLE_ORIGIN, CANOPY_STYLE_ROWS)
+    people["raj"].comment(
+        made["0-today-instrument-panel"],
+        None,
+        "This one feels disconnected: a lab instrument, a name about trees, and a job that is mostly reading.",
+    )
+    people["ana"].comment(
+        made["e-ops-inbox-dark"],
+        None,
+        "The control room softened by the calm inbox. This is the one; the keyboard shortcuts can go.",
+    )
+
+
+def _canopy_structure(agent: Store, people: dict[str, Store]) -> None:
+    """The structure study canopy went on to, with a thread on each of the two directions it kept."""
+    made = _canopy_study(agent, CANOPY_STRUCTURE, CANOPY_STRUCTURE_ORIGIN, CANOPY_STRUCTURE_ROWS)
+    people["raj"].comment(made["d1"], None, "A maybe: much cleaner than today's app, so the amount was the problem.")
+    people["sam"].comment(made["d2"], None, "Keep. Mailroom, as drawn, goes forward.")
+
+
+def _canopy_study(
+    agent: Store,
+    study: str,
+    origin: Mapping[str, str],
+    rows: Sequence[Sequence[CanopyFrame]],
+) -> dict[str, str]:
+    """Publish each page of a canopy study its board shows, once, in its order, a screenshot beside the page it shows.
+
+    Returns:
+        Each page's artifact, by its name.
+    """
+    folder = _FILES / "canopy" / study
+    made: dict[str, str] = {}
+    for page in dict.fromkeys(_frame(f)[1] for frames in rows for f in frames):
+        content = _FONT_LINK.sub("", (folder / f"{page}.html").read_text(encoding="utf-8"))
+        title = match.group(1).strip() if (match := _TITLE.search(content)) else page
+        shot = folder / f"{page}.png"
+        published = agent.publish(
+            title=f"{title} (canopy's {study.rsplit('-', maxsplit=1)[-1]} study)",
+            content_type="text/html",
+            content=content,
+            origin={**origin, "page": page},
+            files=[File(shot.name, Type.PNG, shot.read_bytes())] if shot.is_file() else (),
+        )
+        made[page] = str(published["artifact_id"])
+    return made
 
 
 def _checkout(agent: Store, people: dict[str, Store]) -> None:

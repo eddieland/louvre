@@ -205,7 +205,7 @@ class Decisions:
             raise Refused(Code.READ_ONLY, "a person answers a decision, on the web; an agent reads the answers")
         bounded("note", note, MAX_BODY)
         with store.writing():
-            row = self._decision(decision_id)
+            row = self._decision(decision_id, locked=True)
             if row["state"] != "open":
                 raise Refused(Code.CLOSED, f"{decision_id} is closed")
             chosen = _choices(row, choices)
@@ -234,7 +234,7 @@ class Decisions:
         store.require(Permission.COMMENT)
         bounded("note", note, MAX_BODY)
         with store.writing():
-            row = self._decision(decision_id)
+            row = self._decision(decision_id, locked=True)
             if not self._may_close(row):
                 raise Refused(Code.OUT_OF_SCOPE, f"{decision_id} is closed by who asked it, or the person they act for")
             if row["state"] != "open":
@@ -285,8 +285,8 @@ class Decisions:
         """
         return f"{self._store.base_url}/a/{artifact_id}?decision={decision_id}"
 
-    def _decision(self, decision_id: str) -> Row:
-        """Find a decision on an artifact the scope reaches.
+    def _decision(self, decision_id: str, *, locked: bool = False) -> Row:
+        """Find a decision on an artifact the scope reaches, and lock its row until the write commits if `locked`.
 
         Returns:
             Its row, with its artifact's title and latest version.
@@ -295,8 +295,10 @@ class Decisions:
             Refused: `not_found` for no such decision, `out_of_scope` for one outside the scope.
         """
         row = self._conn.execute(
-            "SELECT d.*, a.title AS artifact_title, a.namespace, a.latest_version FROM decisions d"
-            " JOIN artifacts a ON a.id = d.artifact_id WHERE d.id = %s AND a.deleted_at IS NULL",
+            "SELECT d.*, a.title AS artifact_title, a.namespace, a.latest_version FROM decisions d"  # noqa: S608
+            " JOIN artifacts a ON a.id = d.artifact_id WHERE d.id = %s AND a.deleted_at IS NULL"
+            # Constant SQL; values are bound. FOR NO KEY UPDATE, as the store's writes lock rows (louvre.core.store).
+            + (" FOR NO KEY UPDATE OF d" if locked else ""),
             (decision_id,),
         ).fetchone()
         if row is None:
@@ -435,15 +437,16 @@ class Decisions:
         )
 
     def _event(self, kind: Event, decision_id: str, choices: Collection[str] = (), note: str = "") -> int:
-        """Record an event by the scope's author, inside a write.
+        """Record an event by the scope's author, inside a write, in `seq` order (louvre.core.store).
 
         Returns:
             Its `seq`.
         """
+        author_id = self._store.in_order()
         row = self._conn.execute(
             "INSERT INTO decision_events (kind, decision_id, author_id, choices, note, at)"
             " VALUES (%s, %s, %s, %s, %s, %s) RETURNING seq",
-            (kind.value, decision_id, self._store.author_id(), list(choices), note, _now()),
+            (kind.value, decision_id, author_id, list(choices), note, _now()),
         ).fetchone()
         return int(str(row["seq"])) if row else 0
 

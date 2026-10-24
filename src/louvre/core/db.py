@@ -10,6 +10,9 @@ connection, so a session's unlock can miss the one that holds the lock, leave it
 A transaction keeps its server connection until it ends, and its locks end with it, as they do when a process dies.
 The work a lock guards runs in that same transaction: a lock held on a second connection waits holding a server
 connection of the pooler's, so enough processes waiting at once leave none for the one holding the lock to work on.
+
+Every transaction serving a request is `limited` first: a statement or a lock wait past its limit is refused as busy
+(503 on the web, an error over MCP), never left to hang the request and the server connection it holds.
 """
 
 import os
@@ -20,6 +23,7 @@ from importlib.resources import files
 
 import psycopg
 from psycopg.rows import DictRow, dict_row
+from psycopg.sql import SQL
 
 #: The environment variables that name the database, the first set wins.
 URL_VARIABLES = ("DATABASE_URL", "POSTGRES_URL")
@@ -27,6 +31,16 @@ URL_VARIABLES = ("DATABASE_URL", "POSTGRES_URL")
 MIGRATE_LOCK = 0x10_0B_E1
 #: A connection whose rows are dicts by column name.
 type Connection = psycopg.Connection[DictRow]
+#: How long one statement may run in a transaction serving a request, and how long it may wait for a lock: past either
+#: it is refused, rather than holding the request, and the server connection a pooler lent it, as long as it is let run.
+STATEMENT_TIMEOUT = "15s"
+LOCK_TIMEOUT = "5s"
+#: How long a process starting waits for another's migrations, which may take a while; they run with no statement limit.
+MIGRATE_LOCK_TIMEOUT = "60s"
+#: What a statement or a lock past its limit raises: the database is too busy to answer now, and may soon be less so.
+BUSY = (psycopg.errors.QueryCanceled, psycopg.errors.LockNotAvailable)
+#: What Louvre says to a request refused as busy.
+BUSY_MESSAGE = "Louvre is busy: try again in a moment."
 
 _MIGRATION = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
 
@@ -78,6 +92,7 @@ def migrate(conn: Connection) -> list[str]:
     """
     applied_now: list[str] = []
     with conn.transaction():
+        conn.execute(SQL("SET LOCAL lock_timeout = {}").format(MIGRATE_LOCK_TIMEOUT))
         conn.execute("SELECT pg_advisory_xact_lock(%s)", (MIGRATE_LOCK,))
         conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations "
@@ -91,6 +106,20 @@ def migrate(conn: Connection) -> list[str]:
             conn.execute("INSERT INTO schema_migrations (version, name) VALUES (%s, %s)", (version, name))
             applied_now.append(name)
     return applied_now
+
+
+def limited(conn: Connection) -> None:
+    """Hold the transaction `conn` is in to `STATEMENT_TIMEOUT` a statement and `LOCK_TIMEOUT` a lock.
+
+    `SET LOCAL`, which ends with the transaction, so a pooler's next client of the server connection never has it. It
+    takes no snapshot, so a transaction's isolation may still be set after it.
+    """
+    conn.execute(
+        SQL("SET LOCAL statement_timeout = {}; SET LOCAL lock_timeout = {}").format(
+            STATEMENT_TIMEOUT,
+            LOCK_TIMEOUT,
+        ),
+    )
 
 
 def migrations() -> list[tuple[int, str, str]]:
