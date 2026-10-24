@@ -141,8 +141,8 @@ def prompt(name: str, arguments: Mapping[str, str] | None) -> types.GetPromptRes
         raise MCPError(types.INVALID_PARAMS, f"no kind {asked!r}: " + ", ".join(style.Kind)) from None
     page = f"a {kind} about {about}" if about else f"the {kind} I ask for"
     text = (
-        f"Write {page} as an HTML artifact in Louvre's house style, {style.VERSION}, and publish it with "
-        "artifact_publish, content_type text/html.\n\n"
+        f"Write {page} as an HTML artifact in Louvre's house style, {style.VERSION}. Check it with style_check and "
+        "fix what it finds, then publish it with artifact_publish, content_type text/html.\n\n"
         f"{style.RULES}\n"
         f"Start from this page, which inlines the stylesheet:\n\n```html\n{style.STARTERS[kind]}```\n"
     )

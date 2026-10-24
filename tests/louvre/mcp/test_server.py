@@ -39,6 +39,7 @@ TOOLS = [
     "comment_create",
     "thread_resolve",
     "style_get",
+    "style_check",
 ]
 
 
@@ -253,6 +254,17 @@ def test_style_get_hands_over_the_starter_page_of_the_kind_asked_for(client: Cli
     assert client.refused("style_get", kind="essay") == "invalid"
 
 
+def test_style_check_finds_what_a_page_should_change(client: Client) -> None:
+    starter = client.call("style_check", content=style.STARTERS[style.Kind.REPORT])
+    page = client.call("style_check", content=REPORT)
+
+    assert starter["ok"] is False
+    assert {f["rule"] for f in starter["findings"]} == {"placeholder"}
+    assert page["ok"] is True
+    assert {f["severity"] for f in page["findings"]} == {"warning"}
+    assert client.refused("style_check") == "invalid"
+
+
 def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
     listed = client.portal.call(client.session.list_resources).resources
     read = {r.uri: client.portal.call(client.session.read_resource, r.uri).contents for r in listed}
@@ -286,6 +298,7 @@ def test_the_style_prompt_asks_for_a_page_about_what_it_is_given(client: Client)
     assert message.role == "user"
     assert [a.name for a in listed.arguments or []] == ["about", "kind"]
     assert message.content.text.startswith("Write a report about checkout latency as an HTML artifact")
+    assert "style_check" in message.content.text
     assert style.RULES in message.content.text
     assert style.STARTERS[style.Kind.REPORT] in message.content.text
     assert plain.content.text.startswith("Write the report I ask for as an HTML artifact")
