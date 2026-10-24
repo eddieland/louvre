@@ -133,3 +133,11 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - Rejected: a lock held on a second connection (waiting in a transaction, it holds a pooled server connection; enough
   waiters leave none for the lock's holder to work on).
 - `tests/louvre/core/test_db.py` fails on a session's lock or unlock anywhere in `src/louvre`.
+
+## D014. The `seq` lock is a write's last lock, taken just before its `seq`; rows are locked `FOR NO KEY UPDATE`
+
+- It keeps `seq`s committing in order (`Store.in_order`), held from the `seq` to the commit; a write taking none, such
+  as a publish, never waits on it. Writes otherwise wait only on the rows they change.
+- Why: one lock over every write queued every agent behind the slowest. A row lock `FOR UPDATE` would deadlock with a
+  write holding the `seq` lock, whose change's foreign keys take a share lock on the same row.
+- Nothing waits on a row after the `seq` lock: a write records its author first, and inserts blobs in hash order.

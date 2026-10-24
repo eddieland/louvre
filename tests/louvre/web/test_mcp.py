@@ -127,14 +127,22 @@ def test_a_call_kept_waiting_past_its_limit_is_an_error_saying_louvre_is_busy(
 ) -> None:
     agent = web()
     secret = mint(conn)
-    publish: dict[str, object] = {
-        "name": "artifact_publish",
-        "arguments": {"title": "R", "content_type": "text/markdown", "content": "# R"},
+    called = rpc(
+        agent,
+        secret,
+        "tools/call",
+        {"name": "artifact_publish", "arguments": {"title": "R", "content_type": "text/markdown", "content": "# R"}},
+    )
+    made = json.loads(called["result"]["content"][0]["text"])  # type: ignore[index]
+    comment: dict[str, object] = {
+        "name": "comment_create",
+        "arguments": {"artifact_id": made["artifact_id"], "body": "Hi."},
     }
 
+    # A comment takes a seq, so it waits its turn behind a write holding the seq lock (D014).
     with lock_held(database_url, store.WRITE_LOCK), mock.patch.object(db, "LOCK_TIMEOUT", "100ms"):
-        busy = rpc(agent, secret, "tools/call", publish)
-    published = rpc(agent, secret, "tools/call", publish)
+        busy = rpc(agent, secret, "tools/call", comment)
+    commented = rpc(agent, secret, "tools/call", comment)
 
     assert busy["error"] == {"code": -32603, "message": db.BUSY_MESSAGE}
-    assert published["result"]["isError"] is False  # type: ignore[index]
+    assert commented["result"]["isError"] is False  # type: ignore[index]

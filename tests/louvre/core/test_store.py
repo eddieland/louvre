@@ -1,12 +1,16 @@
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 
+import psycopg
 import pytest
+from psycopg.sql import SQL
 
-from louvre.core import accounts
+from louvre.core import accounts, db
 from louvre.core.db import Connection
-from louvre.core.store import Code, Refused, Store, Via
+from louvre.core.store import Code, Refused, Scope, Store, Via
 from louvre.core.text import Anchor
-from tests.conftest import MakeAgent, person
+from tests.conftest import BASE_URL, MakeAgent, person
 
 #: A report with a passage a thread anchors on, and a second version that rewords it.
 V1 = "<h1>Checkout</h1><p>We will retry the fraud check twice before declining.</p><p>p95 rose to 1.2 s.</p>"
@@ -247,3 +251,75 @@ def test_a_markdown_version_is_shown_rendered(agent: MakeAgent, ana: Store) -> N
     assert ana.read(artifact)["text"] == "Notes Short."
     assert "<h1>Notes</h1>" in ana.page(artifact, 1)
     assert [v["n"] for v in ana.versions(artifact)["versions"]] == [1]  # type: ignore[union-attr]
+
+
+def test_a_publish_waits_on_no_write_in_progress_but_a_change_waits_its_turn(
+    agent: MakeAgent,
+    ana: Store,
+    database_url: str,
+) -> None:
+    store = agent()
+    made = store.publish(title="Report", content_type="text/html", content=V1)
+    thread = str(ana.comment(str(made["artifact_id"]), None, "First.")["thread_id"])
+
+    with ana.writing(), elsewhere(database_url, store.scope) as other:
+        ana.reply(thread, "Still writing.")
+        published = other.publish(title="Other", content_type="text/html", content=V2)
+        again = other.publish(
+            title="Report",
+            content_type="text/html",
+            content=V2,
+            artifact_id=str(made["artifact_id"]),
+        )
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            other.comment(str(published["artifact_id"]), None, "In order.")
+
+    assert (published["version"], again["version"]) == (1, 2)
+
+
+def test_versions_published_at_once_take_the_next_numbers_in_turn(agent: MakeAgent, database_url: str) -> None:
+    store = agent()
+    made = str(store.publish(title="Report", content_type="text/html", content=V1)["artifact_id"])
+    later: list[dict[str, object]] = []
+
+    with elsewhere(database_url, store.scope, wait="10s") as other:
+        waiting = threading.Thread(
+            target=lambda: later.append(
+                other.publish(title="R", content_type="text/html", content=V1, artifact_id=made),
+            ),
+        )
+        with store.writing():
+            store.publish(title="Report", content_type="text/html", content=V2, artifact_id=made)
+            waiting.start()
+            waiting.join(0.5)
+            assert waiting.is_alive(), "the second publish should wait for the first's row"
+        waiting.join()
+
+    assert [v["n"] for v in store.versions(made)["versions"]] == [1, 2, 3]  # type: ignore[index, union-attr]
+    assert later[0]["version"] == 3
+
+
+def test_a_row_locked_to_change_holds_up_no_write_taking_a_seq(
+    agent: MakeAgent,
+    ana: Store,
+    database_url: str,
+    conn: Connection,
+) -> None:
+    store = agent()
+    made = store.publish(title="Report", content_type="text/html", content=V1)
+    thread = str(ana.comment(str(made["artifact_id"]), None, "First.")["thread_id"])
+
+    # As resolving it holds the thread's row: a reply's change still checks its key against the row, and must not wait.
+    with ana.writing(), elsewhere(database_url, store.scope) as other:
+        conn.execute("SELECT id FROM threads WHERE id = %s FOR NO KEY UPDATE", (thread,))
+        replied = other.reply(thread, "Not held up.")
+
+    assert int(str(replied["seq"])) > 0
+
+
+@contextmanager
+def elsewhere(database_url: str, scope: Scope, *, wait: str = "1s") -> Iterator[Store]:
+    """Open a store as `scope` on a connection of its own, as another request's, waiting at most `wait` on a lock."""
+    with db.connect(database_url) as other:
+        other.execute(SQL("SET lock_timeout = {}").format(wait))
+        yield Store(other, scope, base_url=BASE_URL)
