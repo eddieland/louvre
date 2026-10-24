@@ -27,8 +27,9 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.routing import Route
 
-from louvre.core import accounts, explorations, style
+from louvre.core import accounts, explorations, maps, style
 from louvre.core import files as version_files
+from louvre.core.maps.streets import Streets
 from louvre.core.store import Code, Refused, Scope, Store
 from louvre.mcp import server
 from louvre.web import api, auth, ui
@@ -37,15 +38,6 @@ from louvre.web.settings import Settings
 
 #: Where Louvre's own server-made pages live, beside this module.
 PAGES = files("louvre.web") / "pages"
-#: An artifact's own policy: an opaque origin, scripts and styles inline, images inline or from data URLs, fonts from
-#: data URLs or Louvre itself, which serves only the house style's (D008), no network, and framed only by Louvre. A
-#: version with files may also load them, and nothing else (`files_policy`).
-#: Whether an artifact may load from the network is an open question (REQUIREMENTS).
-ARTIFACT_POLICY = (
-    "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; "
-    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-    "img-src data:; font-src data: 'self'; media-src data:; frame-ancestors 'self'"
-)
 #: A version's file's own policy, opened alone: a sandbox, so an SVG runs no script, and nothing it may load.
 FILE_POLICY = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
 #: The explorations' pages: their own files only, and fonts from Google, as the design study was made. Framed only by
@@ -74,7 +66,7 @@ STATUS = {
 #: Headers every response carries: no guessing a type, and no referrer leaving with a link out of an artifact.
 _NO_SNIFF = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}
 #: Paths the web UI never answers, so a mistyped API route is a 404, not the UI's page.
-_NOT_UI = ("api/", "auth/", "content/", "mcp", "directions", "style/")
+_NOT_UI = ("api/", "auth/", "content/", "mcp", "directions", "style/", "kit/")
 
 
 def create(settings: Settings | None = None) -> FastAPI:
@@ -84,7 +76,9 @@ def create(settings: Settings | None = None) -> FastAPI:
         The ASGI app, which Vercel imports from `vercel_app.py` and `louvre serve` runs locally.
     """
     app = FastAPI(title="Louvre", version=version("louvre"), docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.database = Database(settings or Settings.from_environ())
+    settings = settings or Settings.from_environ()
+    app.state.database = Database(settings)
+    app.state.streets = Streets(settings.streets)
     app.add_middleware(BaseHTTPMiddleware, dispatch=_writes_say_so)
     app.add_exception_handler(Refused, _refused)
     app.add_exception_handler(HTTPException, _http_error)
@@ -109,6 +103,8 @@ def create(settings: Settings | None = None) -> FastAPI:
                 **_NO_SNIFF,
             },
         )
+
+    _kit(app)
 
     # The MCP server, over streamable HTTP, for a request with a token: an ASGI app of the SDK's (louvre.mcp.server).
     app.router.routes.append(Route("/mcp", _Mcp(app.state.database), methods=["POST"]))
@@ -142,19 +138,23 @@ def create(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-def files_policy(here: str) -> str:
-    """Make the policy of a version's page beside its files: the artifact policy, and its files at `here`.
+def artifact_policy(origin: str, files: str | None = None) -> str:
+    """Make an artifact's own policy, as Louvre at `origin` serves it, beside its version's `files` if it has them.
+
+    An opaque origin (D008); scripts and styles inline, and the map kit's script (louvre.core.maps), whose worker runs
+    from a blob; images inline; fonts inline or the house style's, from Louvre (D008); the map kit's basemap and
+    glyphs to read; the version's own files, under `files`, to load and read (D012); nothing else from the network;
+    and framed only by Louvre. Whether an artifact may load from the network is an open question (REQUIREMENTS).
 
     Returns:
-        The policy, letting the page load images, fonts, and media from `here`, and read data there, and nothing else.
+        The policy.
     """
+    kit = f"{origin}{maps.PATH}"
+    own = f" {origin}{files}" if files else ""
     return (
-        ARTIFACT_POLICY.replace("img-src data:", f"img-src data: {here}")
-        .replace(
-            "font-src data:",
-            f"font-src data: {here}",
-        )
-        .replace("media-src data:", f"media-src data: {here}; connect-src {here}")
+        "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'none'; "
+        f"script-src 'unsafe-inline' {kit}; worker-src blob:; style-src 'unsafe-inline'; img-src data: blob:{own}; "
+        f"font-src data: 'self'{own}; media-src data:{own}; connect-src {kit}{own}; frame-ancestors 'self'"
     )
 
 
@@ -179,11 +179,15 @@ def with_bridge(page: str, bridge: str | None) -> str:
     return f"{page}\n<script>{safe}</script>\n"
 
 
+def _origin(request: Request) -> str:
+    return str(request.base_url).rstrip("/")
+
+
 def _content(app: FastAPI) -> None:
     """Serve versions' pages, sandboxed (D008), and their files beside them (louvre.core.files)."""
 
     @app.get("/content/{artifact_id}/{n}", response_class=HTMLResponse)
-    def content(store: Reader, artifact_id: str, n: int) -> Response:
+    def content(request: Request, store: Reader, artifact_id: str, n: int) -> Response:
         """A version's page, as its author wrote it with the bridge added, under the sandbox policy.
 
         A version with files is served under its files' key instead, so the page names them relative to itself.
@@ -191,15 +195,15 @@ def _content(app: FastAPI) -> None:
         key = store.files_key(artifact_id, n)
         if key is not None:
             return RedirectResponse(f"/content/{artifact_id}/{n}/{key}/", 307, headers=_NO_SNIFF)
-        return _version_page(store, artifact_id, n, ARTIFACT_POLICY)
+        return _version_page(store, artifact_id, n, artifact_policy(_origin(request)))
 
     @app.get("/content/{artifact_id}/{n}/{key}/", response_class=HTMLResponse)
     def content_with_files(request: Request, store: Reader, artifact_id: str, n: int, key: str) -> Response:
         """A version's page beside its files, under a policy that lets it load them, and nothing else."""
         if store.files_key(artifact_id, n) != key:
             raise HTTPException(status_code=404, detail="Not found.")
-        here = f"{str(request.base_url).rstrip('/')}/content/{artifact_id}/{n}/{key}/"
-        return _version_page(store, artifact_id, n, files_policy(here))
+        here = f"/content/{artifact_id}/{n}/{key}/"
+        return _version_page(store, artifact_id, n, artifact_policy(_origin(request), here))
 
     @app.get("/content/{artifact_id}/{n}/{key}/{path:path}", include_in_schema=False)
     def version_file(conn: Conn, artifact_id: str, n: int, key: str, path: str) -> Response:
@@ -218,6 +222,47 @@ def _content(app: FastAPI) -> None:
                 "Content-Security-Policy": FILE_POLICY,
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "private, max-age=31536000, immutable",
+                **_NO_SNIFF,
+            },
+        )
+
+
+def _kit(app: FastAPI) -> None:
+    """Serve the map kit's files, and the street tiles it passes on, to any origin, as an opaque origin needs (D008)."""
+
+    @app.get("/kit/{version}/streets/{z}/{x}/{y}.pbf", include_in_schema=False)
+    def street_tile(request: Request, version: str, z: int, x: int, y: int) -> Response:
+        """A street tile for the map kit, from OpenFreeMap through Louvre, as a page's map loads nothing else."""
+        streets: Streets = request.app.state.streets
+        found = streets.tile(z, x, y) if version == maps.VERSION else None
+        if found is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        # An empty tile is a 204, which the map draws as nothing; kept briefly, in case OpenFreeMap is back soon.
+        return Response(
+            found or None,
+            status_code=200 if found else 204,
+            media_type="application/x-protobuf" if found else None,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": f"public, max-age={86400 if found else 300}",
+                **_NO_SNIFF,
+            },
+        )
+
+    @app.get("/kit/{version}/{path:path}", include_in_schema=False)
+    def kit(version: str, path: str) -> Response:
+        """One of the map kit's files, which an artifact's page loads from its opaque origin, so with CORS."""
+        found = maps.served(path) if version == maps.VERSION else None
+        if found is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        media_type, data = found
+        return Response(
+            data,
+            media_type=media_type,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=31536000, immutable",
+                "Content-Security-Policy": FILE_POLICY,
                 **_NO_SNIFF,
             },
         )

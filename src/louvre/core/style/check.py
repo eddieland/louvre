@@ -15,6 +15,7 @@ from enum import StrEnum
 from html.parser import HTMLParser
 from typing import override
 
+from louvre.core import maps
 from louvre.core.style import CSS, FONTS_PATH, STARTERS
 from louvre.core.text import collapse, visible_text
 
@@ -55,6 +56,8 @@ class Rule(StrEnum):
     WIDTH = "width"
     #: A fixed color, which shows in one theme only.
     COLOR = "color"
+    #: A map: the map kit's script, and how many maps to a page.
+    MAP = "map"
 
 
 @dataclass(frozen=True)
@@ -106,6 +109,25 @@ _CSS_WIDTH = re.compile(r"(?<![-\w])(?:min-)?width\s*:\s*(\d+(?:\.\d+)?)px", re.
 _FIXED_COLOR = re.compile(r"#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|lab)\(", re.IGNORECASE)
 #: SVG attributes that take a color.
 _COLOR_ATTRIBUTES = frozenset({"fill", "stroke", "color", "stop-color", "flood-color", "lighting-color"})
+#: Where Louvre serves a map kit, of any version, and the script a page loads of the one it serves.
+_KITS = "/kit/"
+_KIT_SCRIPT = f"{maps.PATH}map.js"
+#: A map a script draws with the kit.
+_DRAW = re.compile(r"\bLouvreMap\s*\.\s*draw\s*\(")
+#: The most maps a page should draw: each holds a WebGL context, of which a phone keeps few, and the kit keeps one
+#: drawn at a time on a phone.
+MAX_MAPS = 1
+#: The most coordinates a page's scripts should give its maps inline, beyond which a phone draws them slowly.
+MAX_COORDINATES = 20_000
+#: A coordinate, longitude and latitude, as GeoJSON writes one.
+_COORDINATE = re.compile(r"\[\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\]")
+#: Whose basemap the kit draws, which a page with a map credits in its words: Natural Earth's, and OpenStreetMap's
+#: streets, whose license asks for it.
+BASEMAP_CREDITS = ("Natural Earth", "OpenStreetMap")
+#: The credit a page gives them, as the guide has it.
+BASEMAP_CREDIT = "Basemap: Natural Earth; streets © OpenStreetMap contributors."
+#: A string in a script, which may name one of the page's files, as the kit's `data: "places.json"` does.
+_QUOTED = re.compile(r"""(['"`])([^'"`\s]+)\1""")
 #: The shortest run of a starter page's words that counts as left in: shorter ones, such as "Done", are any page's.
 _PLACEHOLDER_LENGTH = 16
 
@@ -123,8 +145,9 @@ def check(page: str, files: AbstractSet[str] = frozenset()) -> list[Finding]:
     named = list(_named(read, styles))
     findings = [
         *_network(named, read),
-        *_files(named, files),
+        *_files(named, files, read),
         *_storage(read),
+        *_maps(named, read, page),
         *_stylesheet(read),
         *_placeholders(page),
         *_head(read),
@@ -155,8 +178,9 @@ class _Url:
         Returns:
             Whether it is.
         """
-        if self.url.startswith(FONTS_PATH):
-            # The house style's fonts, which Louvre serves to every page (D008).
+        if self.url.startswith((FONTS_PATH, _KITS)):
+            # The house style's fonts, and the map kit, which Louvre serves to every page (D008); `_maps` checks
+            # that a kit is one Louvre serves.
             return False
         inline = self.url.lower().startswith(_INLINE)
         return self.url.startswith("/") or (bool(_SCHEME.match(self.url)) and not inline)
@@ -311,7 +335,8 @@ def _network(named: Sequence[_Url], page: _Page) -> Iterator[Finding]:
         "script or stylesheet inline."
     )
     for named_url in named:
-        if named_url.loaded and (named_url.elsewhere() or not named_url.from_files):
+        kit = named_url.url.startswith(_KITS)
+        if named_url.loaded and not kit and (named_url.elsewhere() or not named_url.from_files):
             yield Finding(Rule.NETWORK, Severity.ERROR, message, named_url.excerpt)
     for script in page.scripts:
         for found in _NETWORK_API.finditer(script):
@@ -323,8 +348,9 @@ def _network(named: Sequence[_Url], page: _Page) -> Iterator[Finding]:
             )
 
 
-def _files(named: Sequence[_Url], files: AbstractSet[str]) -> Iterator[Finding]:
+def _files(named: Sequence[_Url], files: AbstractSet[str], page: _Page) -> Iterator[Finding]:
     relative = [n for n in named if n.relative() and n.from_files]
+    in_scripts = {found.group(2).removeprefix("./") for script in page.scripts for found in _QUOTED.finditer(script)}
     for n in relative:
         if n.path() not in files:
             yield Finding(
@@ -334,7 +360,7 @@ def _files(named: Sequence[_Url], files: AbstractSet[str]) -> Iterator[Finding]:
                 "files_publish, or name a file that is.",
                 n.excerpt,
             )
-    for path in sorted(files - {n.path() for n in relative}):
+    for path in sorted(files - {n.path() for n in relative} - in_scripts):
         yield Finding(Rule.FILE, Severity.WARNING, "A file published beside the page that nothing names.", path)
 
 
@@ -347,6 +373,55 @@ def _storage(page: _Page) -> Iterator[Finding]:
                 "Louvre's sandbox has no storage: this throws. Keep the state in the script's own variables.",
                 _cut(found.group()),
             )
+
+
+def _maps(named: Sequence[_Url], page: _Page, markup: str) -> Iterator[Finding]:
+    kits = [n for n in named if n.url.startswith(_KITS)]
+    for n in kits:
+        if n.path() != _KIT_SCRIPT:
+            yield Finding(
+                Rule.MAP,
+                Severity.ERROR,
+                f"Louvre serves no such map kit: load {_KIT_SCRIPT}, the kit's one script.",
+                n.excerpt,
+            )
+    draws = sum(len(_DRAW.findall(script)) for script in page.scripts)
+    if draws and not any(n.path() == _KIT_SCRIPT for n in kits):
+        yield Finding(
+            Rule.MAP,
+            Severity.ERROR,
+            f'The page draws a map without the map kit: load it first, with <script src="{_KIT_SCRIPT}"></script> '
+            "in <head>.",
+        )
+    if not draws:
+        return
+    if not all(credit in visible_text(markup) for credit in BASEMAP_CREDITS):
+        yield Finding(
+            Rule.MAP,
+            Severity.ERROR,
+            f'The page draws a map without crediting its basemap: say "{BASEMAP_CREDIT}" in the figure\'s l-source.',
+        )
+    if not any("l-key" in _classes(tag) for tag in page.tags):
+        yield Finding(
+            Rule.MAP,
+            Severity.WARNING,
+            'A map without a key: say what the accent marks and what the rest are, in a <p class="l-key"> under it.',
+        )
+    if draws > MAX_MAPS:
+        yield Finding(
+            Rule.MAP,
+            Severity.WARNING,
+            f"The page draws {draws} maps: a phone keeps one drawn at a time, and a reader compares them only by "
+            "scrolling. Draw one, with every place on it, and say the rest in a table.",
+        )
+    coordinates = sum(len(_COORDINATE.findall(script)) for script in page.scripts if _DRAW.search(script))
+    if coordinates > MAX_COORDINATES:
+        yield Finding(
+            Rule.MAP,
+            Severity.WARNING,
+            f"The page's maps have {coordinates:,} coordinates inline, more than a phone draws well: simplify their "
+            f"shapes to {MAX_COORDINATES:,} or fewer.",
+        )
 
 
 def _stylesheet(page: _Page) -> Iterator[Finding]:

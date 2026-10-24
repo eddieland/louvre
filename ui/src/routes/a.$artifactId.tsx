@@ -22,6 +22,7 @@ import {
     request,
     sessionQuery,
     threadsQuery,
+    useMarkRead,
     useThreadWrites,
 } from '@/lib/api'
 import type { Account, Decision, Detail, Thread } from '@/lib/api'
@@ -62,6 +63,8 @@ interface Search {
     frame?: string
     /** A decision to open the page at, shown whole and scrolled to. */
     decision?: string
+    /** The thread to open, as the inbox links to it. */
+    t?: string
 }
 
 /** An artifact's page: a version in its frame, its threads in the margin (ui/DESIGN.md). */
@@ -69,12 +72,13 @@ export const Route = createFileRoute('/a/$artifactId')({
     validateSearch: (search: Record<string, unknown>): Search => {
         const v = Number(search['v'])
         const changes = Number(search['changes'])
-        const { board, frame, decision } = search
+        const { board, frame, decision, t } = search
         return {
             ...(Number.isInteger(v) && v > 0 ? { v } : {}),
             ...(Number.isInteger(changes) && changes > 0 ? { changes } : {}),
             ...(typeof board === 'string' && typeof frame === 'string' ? { board, frame } : {}),
             ...(typeof decision === 'string' ? { decision } : {}),
+            ...(typeof t === 'string' && t ? { t } : {}),
         }
     },
     component: ArtifactPage,
@@ -135,6 +139,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const here = { ...(latest ? {} : { v: version }), ...framed }
     const threads = threadsResult.data?.threads ?? []
     const writes = useThreadWrites(artifact.id)
+    const { artifact: markRead } = useMarkRead()
     // Open decisions first, those awaiting the reader before the rest, each group newest first.
     const decisions = (useQuery(artifactDecisionsQuery(artifact.id)).data?.decisions ?? []).toSorted(
         (a, b) => rank(a) - rank(b),
@@ -144,7 +149,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const theme = useTheme()
     const narrow = useMedia(NARROW)
 
-    const [active, setActive] = useState<string | null>(null)
+    const [active, setActive] = useState<string | null>(search.t ?? null)
     const [hover, setHover] = useState<string | null>(null)
     const [showResolved, setShowResolved] = useState(false)
     const [draft, setDraft] = useState<Draft | null>(null)
@@ -154,6 +159,9 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const [deleting, setDeleting] = useState(false)
     // A thread opened from the comparison's summary, to scroll to once the page has placed its passage.
     const pendingScroll = useRef<string | null>(null)
+    // The threads with news for the reader on this visit: kept once the page has marked them read, so they still say
+    // so, and grown as news comes while the page is open.
+    const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
 
     const frameRef = useRef<HTMLIFrameElement>(null)
     const railRef = useRef<HTMLElement>(null)
@@ -181,6 +189,11 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         comparing === null ? [...unplaced, ...anchored, ...gone].map((t) => t.id) : railed.map((item) => item.id)
     const open = threads.filter((t) => t.state === 'open').length
     const goneOpen = threads.filter((t) => isGone(t) && t.state === 'open')
+    const arrived = threads.filter((t) => t.unread && !fresh.has(t.id))
+    if (arrived.length > 0) {
+        setFresh(new Set([...fresh, ...arrived.map((t) => t.id)]))
+    }
+    const freshIds = threads.filter((t) => fresh.has(t.id)).map((t) => t.id)
 
     const threadMarks = threads.flatMap((t): Mark[] =>
         t.anchor && !isGone(t) ? [{ id: t.id, anchor: t.anchor, state: t.state, n: numbers.get(t.id) ?? null }] : [],
@@ -227,6 +240,15 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         const at = active ? order.indexOf(active) : -1
         const next = at < 0 ? (delta > 0 ? 0 : order.length - 1) : (at + delta + order.length) % order.length
         const id = order[next]
+        if (id) {
+            activate(id)
+            scrollToPassage(id)
+        }
+    }
+
+    // To the next thread with news after the active one, open or resolved, in the order they were started.
+    const nextFresh = () => {
+        const id = freshIds[(freshIds.indexOf(active ?? '') + 1) % freshIds.length]
         if (id) {
             activate(id)
             scrollToPassage(id)
@@ -374,6 +396,33 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         }
     }, [wanted])
 
+    // Opened at a thread, as the inbox links to one: once its passage is placed, it is scrolled to.
+    const jumped = useRef(false)
+    const jump = useEffectEvent(() => {
+        const id = search.t
+        const thread = threads.find((t) => t.id === id)
+        if (jumped.current || !id || !thread || (thread.anchor && !isGone(thread) && !places[id])) {
+            return
+        }
+        jumped.current = true
+        activate(id)
+        scrollToPassage(id)
+    })
+    useEffect(() => jump())
+
+    // The reader has seen the threads as they were read: the page marks the artifact read through them.
+    const through = threadsResult.data?.through ?? null
+    const marked = useRef('')
+    const mark = useEffectEvent(() => {
+        const key = `${String(version)}:${String(through)}`
+        if (!signedIn || through === null || marked.current === key) {
+            return
+        }
+        marked.current = key
+        markRead.mutate({ artifactId: artifact.id, version, through })
+    })
+    useEffect(() => mark())
+
     useEffect(() => {
         document.body.classList.toggle('sheet-open', narrow && active !== null)
         return () => document.body.classList.remove('sheet-open')
@@ -459,6 +508,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                 n={numbers.get(id) ?? null}
                 active={active === id}
                 hovered={hover === id}
+                fresh={fresh.has(id)}
                 gone={thread.state !== 'draft' && isGone(thread)}
                 version={version}
                 account={account}
@@ -548,6 +598,11 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                             }}
                         >
                             Changes
+                        </button>
+                    ) : null}
+                    {comparing === null && freshIds.length > 0 ? (
+                        <button type="button" className="pill text-accent" onClick={nextFresh}>
+                            {freshIds.length} new
                         </button>
                     ) : null}
                     {comparing === null && goneOpen.length > 0 ? (

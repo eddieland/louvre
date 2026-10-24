@@ -261,6 +261,53 @@
         border-bottom: 1px solid var(--rule);
     }
 
+    /* The inbox: the catalogue's entries, each quoting its newest news under its title (ui/DESIGN.md, "Inbox"). */
+    .inbox-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    .news {
+        display: grid;
+        gap: 0.625rem;
+        grid-column: 1 / -1;
+        margin-top: 0.5rem;
+        min-width: 0;
+    }
+    .news-item {
+        display: block;
+        min-width: 0;
+        padding-left: 0.875rem;
+        border-left: 1px solid var(--rule);
+        font-size: 0.9375rem;
+        line-height: 1.45;
+    }
+    .news-quote {
+        display: block;
+        overflow: hidden;
+        color: var(--muted);
+        font-style: italic;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .news-line {
+        display: -webkit-box;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+    }
+    .thread-new {
+        display: block;
+        margin-bottom: 0.125rem;
+        font-family: var(--font-ui);
+        font-size: 0.6875rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+    }
+
     /* The artifact's toolbar: versions as pills in roman numerals, the notice, and the filter. */
     .toolbar {
         display: flex;
@@ -636,8 +683,9 @@
             margin-top: 0;
         }
     }
-    /* How many decisions wait on the reader, beside the header's link to them. */
-    .awaiting {
+    /* A count beside one of the header's links: decisions waiting on the reader, artifacts with news for them. */
+    .awaiting,
+    .news-count {
         margin-left: 0.375rem;
         color: var(--accent);
         font-variant-numeric: tabular-nums;
@@ -1010,7 +1058,8 @@
         }
         .masthead-nav {
             flex: none;
-            gap: 0.75rem;
+            /* Four links beside the wordmark and the ticket, on a 360 px screen. */
+            gap: 0.5rem;
         }
         .provenance {
             margin: 0;

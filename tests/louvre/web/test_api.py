@@ -10,7 +10,7 @@ from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
 from louvre.core.text import Anchor
 from louvre.web import ui
-from louvre.web.app import ARTIFACT_POLICY, FILE_POLICY
+from louvre.web.app import FILE_POLICY, artifact_policy
 from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, sign_in
 
 #: The query that lists the demo's namespace, which a list leaves out unless it names it.
@@ -154,7 +154,7 @@ def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> No
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
     assert {a["namespace"] for a in listed} == {"demo"}
-    assert len(listed) == 8
+    assert len(listed) == 9
     assert response.status_code == 403
     assert response.json()["code"] == "read_only"
 
@@ -315,8 +315,8 @@ def test_a_versions_page_is_sandboxed_with_the_bridge_at_its_end(web: MakeWeb, p
         response = client.get(f"/content/{published}/1")
 
     assert response.status_code == 200
-    assert response.headers["content-security-policy"] == ARTIFACT_POLICY
-    assert "allow-same-origin" not in ARTIFACT_POLICY
+    assert response.headers["content-security-policy"] == artifact_policy(BASE_URL)
+    assert "allow-same-origin" not in artifact_policy(BASE_URL)
     assert response.text.startswith(REPORT)
     assert response.text.endswith("<script>window.bridged = '<\\/script>'</script>\n")
     assert client.get(f"/content/{published}/2").status_code == 404
@@ -429,8 +429,9 @@ def test_a_version_with_files_is_served_beside_them_under_a_policy_for_them_alon
     assert moved.headers["location"] == here
     assert shown.status_code == 200
     assert shown.text.startswith(page)
-    assert f"img-src data: {BASE_URL}{here};" in policy
-    assert f"connect-src {BASE_URL}{here};" in policy
+    assert policy == artifact_policy(BASE_URL, here)
+    assert f"img-src data: blob: {BASE_URL}{here};" in policy
+    assert f"connect-src {BASE_URL}/kit/louvre-map-1/ {BASE_URL}{here};" in policy
     assert "allow-same-origin" not in policy
     assert web().get(here).status_code == 401
     assert reader.get(f"/content/{artifact}/1/not-its-key/").status_code == 404
@@ -452,4 +453,80 @@ def test_a_version_without_files_is_served_where_it_was(web: MakeWeb, agent: Mak
     shown = reader.get(f"/content/{made['artifact_id']}/1", follow_redirects=False)
 
     assert shown.status_code == 200
-    assert shown.headers["content-security-policy"] == ARTIFACT_POLICY
+    assert shown.headers["content-security-policy"] == artifact_policy(BASE_URL)
+
+
+def test_the_inbox_needs_a_sign_in(web: MakeWeb) -> None:
+    client = web()
+
+    assert client.get("/api/inbox").status_code == 401
+    assert client.post("/api/inbox/read", headers=WRITES).status_code == 401
+
+
+def test_a_reply_reaches_the_inbox_and_reading_the_page_clears_it(
+    web: MakeWeb,
+    agent: MakeAgent,
+    published: str,
+) -> None:
+    client = web()
+    sign_in(client, "ana", "Ana Ruiz")
+    made = client.post(f"/api/artifacts/{published}/threads", json={"body": "Ready?"}, headers=WRITES).json()
+    seen = client.get(f"/api/artifacts/{published}/threads").json()
+    client.post(f"/api/artifacts/{published}/read", json={"version": 1, "through": seen["through"]}, headers=WRITES)
+    assert client.get("/api/inbox").json() == {"entries": []}
+
+    agent().reply(made["thread_id"], "Yes.")
+
+    [entry] = client.get("/api/inbox").json()["entries"]
+    assert entry["artifact"]["id"] == published
+    assert entry["news"][0]["author"]["on_behalf_of_name"] == "Sam Okafor"
+    shown = client.get(f"/api/artifacts/{published}/threads").json()
+    assert [t["unread"] for t in shown["threads"]] == [True]
+    assert shown["through"] > seen["through"]
+
+    read = client.post(
+        f"/api/artifacts/{published}/read",
+        json={"version": 1, "through": shown["through"]},
+        headers=WRITES,
+    )
+
+    assert read.json() == {"artifact_id": published}
+    assert client.get("/api/inbox").json() == {"entries": []}
+    assert [t["unread"] for t in client.get(f"/api/artifacts/{published}/threads").json()["threads"]] == [False]
+
+
+def test_reading_everything_clears_the_inbox(web: MakeWeb, agent: MakeAgent, published: str) -> None:
+    client = web()
+    sign_in(client, "ana")
+    made = client.post(f"/api/artifacts/{published}/threads", json={"body": "Ready?"}, headers=WRITES).json()
+    agent().reply(made["thread_id"], "Yes.")
+    assert len(client.get("/api/inbox").json()["entries"]) == 1
+
+    assert client.post("/api/inbox/read", headers=WRITES).json() == {"artifacts": 1}
+
+    assert client.get("/api/inbox").json() == {"entries": []}
+
+
+def test_reading_an_artifact_is_refused_where_it_cannot_be_read(web: MakeWeb, published: str) -> None:
+    client = web()
+    sign_in(client, "ana")
+    body = {"version": 1, "through": 0}
+
+    assert client.post("/api/artifacts/a_missing/read", json=body, headers=WRITES).status_code == 404
+    assert client.post(f"/api/artifacts/{published}/read", json=body).status_code == 403
+    assert (
+        client.post(f"/api/artifacts/{published}/read", json={"version": 0, "through": 0}, headers=WRITES).json()[
+            "code"
+        ]
+        == "invalid"
+    )
+
+
+def test_a_reader_of_the_demo_has_no_news(web: MakeWeb) -> None:
+    client = web(demo=True)
+    listed = client.get("/api/artifacts", params={"namespace": "demo"}).json()["artifacts"]
+
+    shown = client.get(f"/api/artifacts/{listed[0]['id']}/threads").json()
+
+    assert shown["through"] is None
+    assert {t["unread"] for t in shown["threads"]} <= {False}

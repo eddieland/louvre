@@ -35,7 +35,7 @@ function comment(created_at: string, deleted = false): Comment {
 }
 
 function thread(state: Thread['state'], comments: Comment[]): Thread {
-    return { id: 't1', anchor: null, anchored_version: 1, state, anchor_status: null, comments }
+    return { id: 't1', anchor: null, anchored_version: 1, state, anchor_status: null, comments, unread: false }
 }
 
 describe('changes', () => {

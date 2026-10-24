@@ -54,6 +54,8 @@ export interface Thread {
     anchor_status: 'found' | 'passage_gone' | null
     /** Its comments, oldest first. */
     comments: Comment[]
+    /** Whether it has news for the signed-in person: a comment by another, or a resolving, since they last read it. */
+    unread: boolean
 }
 
 /** An artifact, as a list or its page shows it. */
@@ -288,6 +290,42 @@ export interface DirectionsFrame {
     src: string
 }
 
+/** One change in an inbox: a comment another wrote, or a thread another resolved or reopened. */
+export interface News {
+    /** What changed. */
+    kind: 'comment_created' | 'thread_resolved' | 'thread_reopened'
+    /** Its place in the store's one sequence of changes. */
+    seq: number
+    /** When, as ISO 8601. */
+    at: string
+    /** The thread it is in. */
+    thread_id: string
+    /** The comment, for a comment. */
+    comment_id: string | null
+    /** The thread's passage, or null for a thread on the whole artifact. */
+    passage: string | null
+    /** The comment's text: null for a change that is no comment, or a comment since deleted. */
+    body: string | null
+    /** Who made it. */
+    author: Author
+}
+
+/** An artifact in an inbox, with what is new on it. */
+export interface InboxEntry {
+    /** The artifact. */
+    artifact: Artifact
+    /** The newest version the person has opened, or null for none yet. */
+    read_version: number | null
+    /** How many changes to its threads are new. */
+    unread: number
+    /** How many of its threads have news. */
+    threads: number
+    /** When the newest news came, as ISO 8601. */
+    at: string
+    /** The newest few changes, newest first. */
+    news: News[]
+}
+
 /** A signed-in person. */
 export interface Account {
     /** Their id, such as gh:583231. */
@@ -428,12 +466,12 @@ export function artifactQuery(id: string) {
     })
 }
 
-/** An artifact's threads, each anchor looked for in `version`. */
+/** An artifact's threads, each anchor looked for in `version`, and the `seq` to mark them read through. */
 export function threadsQuery(id: string, version: number) {
     return queryOptions({
         queryKey: ['threads', id, version],
         queryFn: () =>
-            request<{ threads: Thread[] }>(
+            request<{ threads: Thread[]; through: number | null }>(
                 'GET',
                 `/api/artifacts/${encodeURIComponent(id)}/threads?version=${String(version)}`,
             ),
@@ -453,6 +491,36 @@ export function compareQuery(id: string, base: number, head: number) {
         // Two published versions never change, so neither does what changed between them.
         staleTime: Infinity,
     })
+}
+
+/** How often the inbox is read again while a page is open, in milliseconds. */
+export const INBOX_POLL = 60_000
+
+/** What is new to the signed-in person, the newest first. */
+export const inboxQuery = queryOptions({
+    queryKey: ['inbox'],
+    queryFn: () => request<{ entries: InboxEntry[] }>('GET', '/api/inbox'),
+    refetchInterval: INBOX_POLL,
+})
+
+/** Mark an artifact read, or everything in the inbox; either reads the inbox again. */
+export function useMarkRead() {
+    const client = useQueryClient()
+    const settle = () => client.invalidateQueries({ queryKey: ['inbox'] })
+    return {
+        artifact: useMutation({
+            mutationFn: (given: { artifactId: string; version: number; through: number }) =>
+                request('POST', `/api/artifacts/${encodeURIComponent(given.artifactId)}/read`, {
+                    version: given.version,
+                    through: given.through,
+                }),
+            onSettled: settle,
+        }),
+        all: useMutation({
+            mutationFn: () => request('POST', '/api/inbox/read'),
+            onSettled: settle,
+        }),
+    }
 }
 
 /** Every decision the reader reaches, newest first. */

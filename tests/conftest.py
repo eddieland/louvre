@@ -37,6 +37,7 @@ LIVE_DEADLINE = 15.0
 WRITES = {"X-Louvre": "1"}
 #: Every table the store writes, emptied before each test.
 TABLES = (
+    "reads",
     "files",
     "blobs",
     "decision_events",
@@ -154,6 +155,8 @@ def web_settings(database_url: str | None) -> Settings:
         dev_sign_in=True,
         demo=False,
         secure_cookies=False,
+        # No street tiles: a test reaches no other site, and a map's streets are drawn empty.
+        streets="",
     )
 
 

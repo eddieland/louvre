@@ -92,8 +92,9 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
 - A notice in `accent` names threads whose passages left this version, and jumps to them.
 - The frame carries a label row above the artifact (its kind, its age) on wider screens only.
 - The header centers the wordmark over the page's provenance on wide screens, with the person's links (the theme,
-  Decisions with how many wait on them in `accent`, Tokens, signing in or out) at its right, in Instrument Sans. A
-  phone's one line leaves Tokens out: minting one is a desk task.
+  Inbox with how many artifacts have news, Decisions with how many wait on them, both counts in `accent`, Tokens,
+  signing in or out) at its right, in Instrument Sans. A phone's one line leaves Tokens out: minting one is a desk
+  task.
 - Threads on the whole artifact sit at the top of the margin; "Comment on the page" in the toolbar starts one.
 - An older version says so under the toolbar, in `accent`, with a link to the latest: comments go on the latest only.
 - From version II on, "Changes" in the toolbar compares the version shown with the one before it (Changes).
@@ -130,6 +131,22 @@ dash. The tokens page and signing in are the same column.
 The demo, where a deployment publishes it, is its own catalogue at `/demo`, which anyone reads without signing in;
 the catalogue at `/` leaves it out, and links to it, as the sign-in a reader is first asked for does.
 
+## Inbox
+
+What is new to the signed-in person on the artifacts they take part in (REQUIREMENTS U11), at `/inbox`: the
+catalogue's column and entries, newest news first, "Mark all read" at the title's right.
+
+- **An entry** is the artifact's title, then in its meta line whether a version is new (`New to you` for one never
+  opened, else the version), how many threads have news, and when the newest came. How many changes are new sits at
+  the right in `accent`. Under it, its newest three changes, each on a `rule` hairline at its left: the passage in
+  `muted` italics on one line, then the author's name in small caps and their words, three lines at most.
+- **Opening an entry** opens the artifact at its newest news's thread. The page marks every thread with news for the
+  reader "New", a label in `accent` above its first comment, for the rest of the visit; the toolbar counts them
+  (`2 new`, in `accent`) and steps through them. Only an artifact the reader takes part in marks anything new.
+- **The header** shows Inbox among the person's links, its count in `accent` when there is news; the catalogue says
+  "New to you" in `accent` on an entry with news.
+- **Empty**, it says so in a line of `muted`, and what would come there.
+
 ## Boards
 
 A board is several artifacts on one canvas, each in a frame at a screen's size, as a design study hangs its directions
@@ -163,7 +180,7 @@ but the canvas, to the screen's edges, under one hairline.
 
 ## Decisions
 
-A decision is a question an agent asked on the artifact, for people to answer by choosing (REQUIREMENTS U7). It is
+A decision is a question an agent asked on the artifact, for people to answer by choosing (REQUIREMENTS U11). It is
 the one call to action Louvre makes, so it hangs above the artifact, in the artifact's column, before the reader
 starts reading; the margin stays the conversation's.
 
@@ -207,9 +224,21 @@ gridline a `rule` hairline. Each series is labeled where it is, in Source Serif 
 moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
 quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
+**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-1`) in the same look, in a figure like a chart's.
+The basemap is quiet: water is `bg`, land a mix of `card` and `rule`, borders a hairline, and cities in Noto Sans
+italic, a step lighter than `muted`, the larger ones zoomed out and more zoomed in. The page's places are over it: what
+the map is about in `accent`, filled; the rest hollow in `muted`. Each is labeled in Noto Sans, toward the map's middle
+first so a place at its edge is labeled inside it, and numbered in `accent` as a chart's notes are. A key under the map
+(`l-key`) says what the accent marks. The controls are cards with `rule` hairlines, the attribution and scale bar in
+`muted`; a phone pans with two fingers, so one scrolls the page. The box is 22rem tall, 18rem on a phone.
+Past a city's scale Natural Earth fades out, its coast a kilometre out there, and OpenStreetMap's streets fade in:
+water in `bg`, buildings a step darker than the ground, roads a step above `rule` widening as the map zooms in, rail
+and paths dashed, street names in Noto Sans italic. A page's own `context` is drawn as the roads are. Both are always
+quieter than the data, whose lines widen with them.
+
 ## Not decided yet
 
 - A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).
 - A decision across a board's frames, each frame an option (REQUIREMENTS, Open).
 - How two versions compare on a page, and on a phone (REQUIREMENTS U8).
-- A map's page in the kit, and how a thread on a place shows on the map and in the margin (REQUIREMENTS U9, U10).
+- How a thread on a place shows on the map and in the margin (REQUIREMENTS U10).

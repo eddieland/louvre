@@ -178,6 +178,8 @@ banned-from = ["unittest.mock"]
 ]
 # A click command's docstring is its --help text, so Returns and Raises sections would print there.
 "src/louvre/cli/*" = ["DOC201", "DOC501"]
+# A script run by its path, never imported, so it is no package's (scripts/basemap.py builds the map kit's basemap).
+"scripts/*" = ["INP001"]
 # A route's docstring is its description in the OpenAPI schema, and its response is its annotation, so Returns and
 # Raises sections would only repeat them there.
 "src/louvre/web/*" = ["DOC201", "DOC501"]
@@ -206,7 +208,7 @@ exclude_also = ["if TYPE_CHECKING:", "assert_never\\("]
 # Strict preset (D001).
 [tool.pyrefly]
 preset = "strict"
-project-includes = ["src", "tests", "vercel_app.py"]
+project-includes = ["src", "tests", "scripts", "vercel_app.py"]
 # Tests are packages under the repository root (D005) and import shared helpers from `tests.conftest`.
 search-path = ["src", "."]
 

@@ -52,12 +52,14 @@ class Scene:
     name: str
     #: What the gallery calls it.
     label: str
-    #: The page's path; `{checkout}`, `{notes}`, `{weekly}`, and `{gallery}` stand for the demo's artifacts' ids.
+    #: The page's path; a name of `DEMO`'s in braces, such as `{checkout}`, stands for that artifact's id.
     path: str
     #: What to do on the page before it is checked, such as opening a thread.
     act: Callable[[Page], None] | None = None
-    #: Whether the reader is signed in, as Ana, or reads the demo without signing in.
+    #: Whether the reader is signed in, or reads the demo without signing in.
     signed_in: bool = True
+    #: Who signs in: Ana, unless a scene's act would leave what other scenes show changed for her.
+    login: str = "ana"
 
 
 def _open_thread(page: Page) -> None:
@@ -97,6 +99,14 @@ def _report_open(page: Page) -> None:
     page.wait_for_selector(".thread.is-active", state="visible")
 
 
+def _map_drawn(page: Page) -> None:
+    """The artifact drawn, scrolled to its map, and the map drawn, as the kit draws one only in view."""
+    _artifact_shown(page)
+    frame = page.frame_locator("iframe.exhibit")
+    frame.locator(".l-map").scroll_into_view_if_needed()
+    frame.locator(".l-map[data-drawn]").wait_for(state="attached", timeout=DEADLINE * 1000)
+
+
 def _decision_waiting(page: Page) -> None:
     """The artifact drawn, with the decision that waits on the reader above it."""
     _artifact_shown(page)
@@ -114,6 +124,39 @@ def _decided(page: Page) -> None:
 def _decisions_listed(page: Page) -> None:
     """Every group of the list of decisions drawn."""
     page.wait_for_selector("#decisions-decided", state="visible")
+
+
+def _inbox_news(page: Page) -> None:
+    """News in Kim's inbox: Raj replies to her on the weekly report and resolves it, so no other scene shows it.
+
+    Kim has read the report, her thread on it included, before Raj answers: each screen shows the same two changes.
+    """
+    origin = page.url.split("/inbox")[0]
+    kim = page.context.request
+    listed = kim.get(f"{origin}/api/artifacts?namespace=demo").json()["artifacts"]
+    weekly = next(a["id"] for a in listed if a["title"].startswith(DEMO["weekly"]))
+    made = kim.post(
+        f"{origin}/api/artifacts/{weekly}/threads",
+        data={
+            "anchor": {"exact": "The tax quote now makes one call per cart."},
+            "body": "Does this hold for carts with a promotion?",
+        },
+        headers=WRITES,
+    ).json()
+    assert kim.post(f"{origin}/api/inbox/read", headers=WRITES).ok
+    browser = page.context.browser
+    assert browser is not None
+    raj = browser.new_context()
+    try:
+        assert raj.request.post(f"{origin}/auth/dev", data={"login": "raj", "name": "Raj Patel"}, headers=WRITES).ok
+        thread = made["thread_id"]
+        reply = {"body": "It does: the promotion's version is in the cache key, so a cart quotes once either way."}
+        assert raj.request.post(f"{origin}/api/threads/{thread}/replies", data=reply, headers=WRITES).ok
+        assert raj.request.post(f"{origin}/api/threads/{thread}/resolve", data={"resolved": True}, headers=WRITES).ok
+    finally:
+        raj.close()
+    page.reload(wait_until="networkidle")
+    page.wait_for_selector(".news-item", state="visible")
 
 
 #: Every screen, dark first; light at one phone and one laptop size.
@@ -143,6 +186,7 @@ SCENES = (
     Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
     Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
     Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
+    Scene("house-style-map", "A map in the house style, drawn by the map kit", "/a/{map}", _map_drawn),
     Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
     Scene(
         "board-frame",
@@ -150,6 +194,7 @@ SCENES = (
         "/a/{gallery}?board=design-study&frame=gallery-phone",
         _artifact_shown,
     ),
+    Scene("inbox", "The inbox, with a reply and a thread resolved", "/inbox", _inbox_news, login="kim"),
     Scene("tokens", "Tokens", "/tokens"),
     Scene("directions", "Design directions", "/directions"),
     Scene("directions-board", "Design directions, as a board", "/directions/board", _board_shown, signed_in=False),
@@ -166,6 +211,7 @@ DEMO = {
     "weekly": "Payments, week",
     "decision": "Where should checkout cache",
     "plan": "Stored cards move",
+    "map": "Declines at submit",
     "gallery": "Direction: Gallery",
 }
 
@@ -213,7 +259,8 @@ def test_a_page_fits_the_screen(
         reduced_motion="reduce",
     )
     if scene.signed_in:
-        signed = context.request.post(f"{live_app}/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES)
+        who = {"login": scene.login, "name": {"ana": "Ana Ruiz", "kim": "Kim Lee"}[scene.login]}
+        signed = context.request.post(f"{live_app}/auth/dev", data=who, headers=WRITES)
         assert signed.status == 204
     errors: list[str] = []
     page = context.new_page()

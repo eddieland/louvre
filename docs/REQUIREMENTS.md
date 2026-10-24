@@ -85,10 +85,12 @@ person at what it changed. Not over MCP: the contract's tools are canopy's (L1),
 
 ### U9. Maps, drawn with what Louvre serves
 
-Planned (M10, M11). The operator works in a geospatial field (2026-10-24), so agents will publish maps. An artifact
-draws one from a map kit Louvre serves at a version, a map library and a basemap's tiles, so its policy stays closed
-to the network (L7). An agent may also publish the data alone, as GeoJSON, which Louvre draws in its style, as it
-shows Markdown.
+The kit is built (M10); the data alone is planned (M11). The operator works in a geospatial field (2026-10-24), so
+agents will publish maps. An artifact draws one from a map kit Louvre serves at a version, `louvre-map-1`: MapLibre GL
+JS and a basemap of Natural Earth's down to a city, and OpenStreetMap's streets from OpenFreeMap, which Louvre passes
+on, below it, drawn in the page's colors, so its policy stays closed to the network but for the kit (L7). The
+guide, the `map` starter, and `style_check` hold a map to the house style, and the demo publishes one. An agent
+may also publish the data alone, as GeoJSON, which Louvre draws in its style, as it shows Markdown.
 
 ### U10. Comments and decisions on places
 
@@ -100,8 +102,16 @@ person may comment where they stand.
 
 ### U11. A person hears what waits on them
 
-Gap; the half inside Louvre, an inbox, is built in #26. A reply to their comment, or a decision that asks them,
-reaches a person away from Louvre. C1 binds Louvre's readers of the feed, not people.
+Half built: the inbox, inside Louvre, at the operator's word (2026-10-24), outside the milestones. A person learns
+what changed on the artifacts they take part in without opening each one: those they commented on, and those their
+agents published. Their inbox lists each such artifact with a reply, a resolving, or a version they have not read,
+the newest first, quoting the passage and the words; the header counts them on every page. Opening one opens its
+newest thread, marks the threads that were new, and marks the artifact read, through what the page was shown, so a
+reply that lands meanwhile stays new. Their own words and their own agents' are never news to them; a version is,
+whoever published it.
+
+Gap: reaching a person away from Louvre, so a reply to their comment, or a decision that asks them, finds them where
+they are. C1 binds Louvre's readers of the feed, not people.
 
 ### U12. Search across artifacts
 
@@ -185,14 +195,14 @@ To settle before the milestone that needs it:
 - Whether a board is an artifact of its own content type, which grows canopy's contract, and whether a comment may be
   pinned to a point on the canvas rather than to a frame's words (U5, M3).
 - Whether an artifact may load from the network (a CDN's script, a web font, a remote image), or must carry everything
-  inline or in files published with it. For now it may not: its policy allows data: URLs, and fonts from Louvre
-  itself, which serves only the house style's (D008, settled by the operator on 2026-10-24). Files beside a version
-  (L8) and a map kit Louvre serves (U9) are planned so that it need not.
+  inline or in files published with it. For now it may not: its policy allows data: URLs, its own version's files
+  (L8), and what Louvre serves every page, the house style's fonts and the map kit (D008, settled by the operator on
+  2026-10-24).
 - Whether canopy's `artifact_publish` takes a version's files, as Louvre's `files_publish` does for now (L8, D011).
 - Whether canopy's contract takes a content type for geodata, and a place's anchor beside a thread's quote, or a place
   is carried as a quote alone (U9, U10).
-- Where the map kit's basemap tiles live, and what they cover: the whole earth to a low zoom, or a region in detail;
-  and which formats larger geodata takes beside GeoJSON, such as FlatGeobuf or PMTiles (U9).
+- Which formats larger geodata takes beside GeoJSON, such as FlatGeobuf or PMTiles; and whether Louvre caches the
+  street tiles it passes on from OpenFreeMap, or hosts its own, if OpenFreeMap proves too slow or goes away (U9).
 - From canopy's open list: whether Louvre's design system is public on npm or internal; what Louvre keeps of an
   artifact whose ticket canopy forgets; and whether Louvre is the name.
 

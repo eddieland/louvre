@@ -298,6 +298,32 @@ body.louvre {
     font: 600 0.8em/1.9 var(--l-sans);
 }
 .louvre .l-source { margin: 0.5em 0 0; color: var(--l-muted); font: 0.7em/1.4 var(--l-sans); }
+/* A map, as the map kit draws it (louvre-map-1), in an l-plot figure: the box it draws in, with its land as a card. */
+.louvre .l-map {
+    position: relative;
+    height: 22rem;
+    overflow: hidden;
+    border: 1px solid var(--l-rule);
+    border-radius: 4px;
+    background: var(--l-bg);
+}
+@media (max-width: 600px) {
+    .louvre .l-map { height: 18rem; }
+}
+/* A map's key, under it: what the accent marks, and what the muted rest are, each with the mark the map draws. */
+.louvre .l-key { display: flex; flex-wrap: wrap; gap: 0.3em 1.2em; margin: 0.6em 0 0; font: 0.78em/1.4 var(--l-sans); }
+.louvre .l-key span { display: inline-flex; align-items: center; gap: 0.45em; color: var(--l-muted); }
+.louvre .l-key span::before {
+    width: 0.62em;
+    height: 0.62em;
+    box-sizing: border-box;
+    border: 1.5px solid var(--l-muted);
+    border-radius: 50%;
+    background: var(--l-bg);
+    content: "";
+}
+.louvre .l-key .l-focus { color: var(--l-ink); }
+.louvre .l-key .l-focus::before { border-color: var(--l-accent); background: var(--l-accent); }
 
 /* The page's end: its sources, and how it was made. */
 .louvre footer {

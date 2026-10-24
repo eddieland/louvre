@@ -312,6 +312,28 @@ Light:
 | --- | --- |
 | ![A plan in the house style, Phone, 390, light](house-style-plan/phone-light.png) | ![A plan in the house style, Laptop, 1440, light](house-style-plan/laptop-light.png) |
 
+## A map in the house style, drawn by the map kit
+
+`/a/{map}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![A map in the house style, drawn by the map kit, Small phone, 360, dark](house-style-map/phone-small-dark.png) | ![A map in the house style, drawn by the map kit, Phone, 390, dark](house-style-map/phone-dark.png) | ![A map in the house style, drawn by the map kit, Tablet, 820, dark](house-style-map/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![A map in the house style, drawn by the map kit, Tablet landscape, 1180, dark](house-style-map/tablet-landscape-dark.png) | ![A map in the house style, drawn by the map kit, Laptop, 1440, dark](house-style-map/laptop-dark.png) | ![A map in the house style, drawn by the map kit, Wide, 1920, dark](house-style-map/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![A map in the house style, drawn by the map kit, Phone, 390, light](house-style-map/phone-light.png) | ![A map in the house style, drawn by the map kit, Laptop, 1440, light](house-style-map/laptop-light.png) |
+
 ## A board, fitted to the screen
 
 `/b/design-study`
@@ -355,6 +377,28 @@ Light:
 | Phone, 390 | Laptop, 1440 |
 | --- | --- |
 | ![A board's frame, opened at its size, Phone, 390, light](board-frame/phone-light.png) | ![A board's frame, opened at its size, Laptop, 1440, light](board-frame/laptop-light.png) |
+
+## The inbox, with a reply and a thread resolved
+
+`/inbox`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![The inbox, with a reply and a thread resolved, Small phone, 360, dark](inbox/phone-small-dark.png) | ![The inbox, with a reply and a thread resolved, Phone, 390, dark](inbox/phone-dark.png) | ![The inbox, with a reply and a thread resolved, Tablet, 820, dark](inbox/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![The inbox, with a reply and a thread resolved, Tablet landscape, 1180, dark](inbox/tablet-landscape-dark.png) | ![The inbox, with a reply and a thread resolved, Laptop, 1440, dark](inbox/laptop-dark.png) | ![The inbox, with a reply and a thread resolved, Wide, 1920, dark](inbox/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![The inbox, with a reply and a thread resolved, Phone, 390, light](inbox/phone-light.png) | ![The inbox, with a reply and a thread resolved, Laptop, 1440, light](inbox/laptop-light.png) |
 
 ## Tokens
 

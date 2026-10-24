@@ -70,13 +70,13 @@ _FONT_LINK = re.compile(r"\s*<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>"
 
 
 def seed(conn: Connection, *, base_url: str = "") -> bool:
-    """Publish the demo, unless it is published already.
+    """Publish the demo, unless it is published already, in one transaction holding the seeding's lock.
 
     Returns:
         Whether it was published now.
     """
-    conn.execute("SELECT pg_advisory_lock(%s)", (SEED_LOCK,))
-    try:
+    with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (SEED_LOCK,))
         for account in PEOPLE.values():
             upsert_account(conn, account)
         agent = Store(conn, _agent_scope(), base_url=base_url)
@@ -89,6 +89,7 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
             ({"canopy.report": "weekly"}, _weekly),
             ({"canopy.ticket": "PAY-151"}, _quote_cache),
             ({"canopy.ticket": "PAY-160"}, _vault_migration),
+            ({"canopy.ticket": "PAY-163"}, _declines_map),
         )
         missing = [
             part for marker, part in parts if not agent.overview(origin=marker, namespace=NAMESPACE)["artifacts"]
@@ -98,8 +99,6 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         unasked = not Decisions(agent).listed()["decisions"]
         if unasked:
             _decisions(agent, people)
-    finally:
-        conn.execute("SELECT pg_advisory_unlock(%s)", (SEED_LOCK,))
     return bool(missing) or unasked
 
 
@@ -320,6 +319,21 @@ def _vault_migration(agent: Store, people: dict[str, Store]) -> None:
         artifact,
         Anchor.of("Does finance need a reconciliation report for each step, or only at the end?"),
         "For each step: we close the month on the 3rd, and the backfill will straddle it.",
+    )
+
+
+def _declines_map(agent: Store, people: dict[str, Store]) -> None:
+    """A map in the house style, drawn by the map kit: two markets marked, and a thread on one."""
+    made = agent.publish(
+        title="Declines at submit are over 2% only in São Paulo and Mexico City",
+        content_type="text/html",
+        content=_styled("declines-map.html.tmpl"),
+        origin={"canopy.ticket": "PAY-163", "canopy.repo": "payments"},
+    )
+    people["raj"].comment(
+        str(made["artifact_id"]),
+        Anchor.of("we send 3-D Secure up front on charges over R$\N{NO-BREAK SPACE}200"),
+        "Up front adds a step for every customer over R$ 200. Could we only do it for the issuers that ask?",
     )
 
 

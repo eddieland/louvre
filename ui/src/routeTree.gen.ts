@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DecisionsRouteImport } from './routes/decisions'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as TokensRouteImport } from './routes/tokens'
 import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
@@ -31,6 +32,11 @@ const DecisionsRoute = DecisionsRouteImport.update({
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/decisions': typeof DecisionsRoute
   '/demo': typeof DemoRoute
+  '/inbox': typeof InboxRoute
   '/sign-in': typeof SignInRoute
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/decisions': typeof DecisionsRoute
   '/demo': typeof DemoRoute
+  '/inbox': typeof InboxRoute
   '/sign-in': typeof SignInRoute
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/decisions': typeof DecisionsRoute
   '/demo': typeof DemoRoute
+  '/inbox': typeof InboxRoute
   '/sign-in': typeof SignInRoute
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/decisions'
     | '/demo'
+    | '/inbox'
     | '/sign-in'
     | '/tokens'
     | '/a/$artifactId'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/decisions'
     | '/demo'
+    | '/inbox'
     | '/sign-in'
     | '/tokens'
     | '/a/$artifactId'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/decisions'
     | '/demo'
+    | '/inbox'
     | '/sign-in'
     | '/tokens'
     | '/a/$artifactId'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DecisionsRoute: typeof DecisionsRoute
   DemoRoute: typeof DemoRoute
+  InboxRoute: typeof InboxRoute
   SignInRoute: typeof SignInRoute
   TokensRoute: typeof TokensRoute
   AArtifactIdRoute: typeof AArtifactIdRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DecisionsRoute: DecisionsRoute,
   DemoRoute: DemoRoute,
+  InboxRoute: InboxRoute,
   SignInRoute: SignInRoute,
   TokensRoute: TokensRoute,
   AArtifactIdRoute: AArtifactIdRoute,

@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Literal
 
+from psycopg.pq import TransactionStatus
+
 from louvre.core import compare, render
 from louvre.core.db import MIGRATE_LOCK, Connection
 from louvre.core.files import File, FilesError, new_key
@@ -623,8 +625,12 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             Refused: `out_of_scope` when the scope may not read.
         """
         self.require(Permission.READ, Code.OUT_OF_SCOPE)
+        # Only a transaction's first statement may say how it reads, so a read inside one already, such as the
+        # demo's seeding, which publishes in one under its lock (D013), is a part of it.
+        outer = self._conn.info.transaction_status != TransactionStatus.IDLE
         with self._conn.transaction():
-            self._conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            if not outer:
+                self._conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             yield
 
     @contextmanager

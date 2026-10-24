@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { Notice } from '@/components/notice'
-import { ApiError, boardsQuery, listArtifacts } from '@/lib/api'
+import { ApiError, boardsQuery, inboxQuery, listArtifacts, sessionQuery } from '@/lib/api'
 import type { Listed, ListedBoard } from '@/lib/api'
 import { ago, count, provenance } from '@/lib/format'
 
@@ -31,6 +31,10 @@ export function Catalogue({ namespace, title, intro, empty, after }: CataloguePr
     })
     const artifacts = list.data?.pages.flatMap((page) => page.artifacts) ?? []
     const boards = useQuery(boardsQuery(namespace)).data?.boards ?? []
+    // The artifacts with news for a signed-in reader (their inbox), marked in the list.
+    const signedIn = Boolean(useQuery(sessionQuery).data?.account)
+    const inbox = useQuery({ ...inboxQuery, enabled: signedIn }).data?.entries ?? []
+    const news = new Set(inbox.map((entry) => entry.artifact.id))
     if (list.error) {
         return (
             <Notice title="The list did not load">
@@ -64,7 +68,7 @@ export function Catalogue({ namespace, title, intro, empty, after }: CataloguePr
             </h1>
             <ol className="mt-6 border-t border-rule">
                 {artifacts.map((artifact) => (
-                    <Entry key={artifact.id} artifact={artifact} />
+                    <Entry key={artifact.id} artifact={artifact} news={news.has(artifact.id)} />
                 ))}
             </ol>
             {list.hasNextPage ? (
@@ -95,13 +99,14 @@ export function NeedsDatabase() {
     )
 }
 
-function Entry({ artifact }: { artifact: Listed }) {
+function Entry({ artifact, news }: { artifact: Listed; news: boolean }) {
     const from = provenance(artifact.origin)
     return (
         <li className="entry">
             <Link to="/a/$artifactId" params={{ artifactId: artifact.id }} className="entry-link">
                 <span className="entry-title">{artifact.title}</span>
                 <span className="entry-meta">
+                    {news ? <span className="text-accent">New to you</span> : null}
                     <span>{artifact.namespace}</span>
                     {from ? <span className="text-ink">{from}</span> : null}
                     <span>{ago(artifact.updated_at)}</span>

@@ -12,7 +12,7 @@ import time
 from collections.abc import Iterator, Sequence
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, CDPSession, Page, expect
+from playwright.sync_api import Browser, BrowserContext, CDPSession, ConsoleMessage, Page, expect
 
 from louvre.core import style
 from tests.conftest import WRITES
@@ -196,6 +196,78 @@ def test_a_page_in_the_house_style_is_set_in_louvres_own_faces(context: BrowserC
     assert {"Fraunces", "Source Serif 4", "Instrument Sans"} <= set(loaded)
 
 
+def test_a_map_is_drawn_in_its_sandbox_from_the_kit_louvre_serves(context: BrowserContext) -> None:
+    page = context.new_page()
+    refused: list[str] = []
+
+    def heard(message: ConsoleMessage) -> None:
+        if "Content Security Policy" in message.text:
+            refused.append(message.text)
+
+    page.on("console", heard)
+    page.goto(f"/a/{publish(context, style.STARTERS[style.Kind.MAP])}")
+    frame = page.frame_locator("iframe.exhibit")
+
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000 * 3)
+    expect(frame.locator("#map canvas")).to_be_visible()
+    assert not refused
+
+
+def test_a_vehicles_trace_is_drawn_at_a_streets_scale_on_its_streets_and_named_once(context: BrowserContext) -> None:
+    def street(*cells: tuple[int, int]) -> list[list[float]]:
+        return [[-9.145 + 0.0016 * i, 38.71 + 0.0012 * j] for i, j in cells]
+
+    streets = [street((i, 0), (i, 4)) for i in range(5)] + [street((0, j), (4, j)) for j in range(5)]
+    trace = {"type": "MultiLineString", "coordinates": [street((0, 1), (2, 1), (2, 3)), street((3, 0), (3, 2))]}
+    data = {"type": "Feature", "properties": {"name": "Van 7", "mark": 1}, "geometry": trace}
+    context_ = {"type": "MultiLineString", "coordinates": streets}
+    starter = style.STARTERS[style.Kind.MAP]
+    start = starter.index('LouvreMap.draw("map", {')
+    drawn = f'LouvreMap.draw("map", {{ data: {json.dumps(data)}, context: {json.dumps(context_)} }});\n'
+    page = context.new_page()
+    page.goto(f"/a/{publish(context, starter[:start] + drawn + starter[starter.index('</script>', start) :])}")
+    frame = page.frame_locator("iframe.exhibit")
+
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    shown = frame.locator("#map").evaluate(
+        """(element) => {
+            const map = element.louvreMap;
+            const named = map.queryRenderedFeatures({ layers: ["labels"] }).map((f) => f.properties["louvre:label"]);
+            return { zoom: map.getZoom(), named };
+        }""",
+    )
+    # A few streets fill the map, and the trace in two parts is named once.
+    assert shown["zoom"] > 14
+    assert shown["named"] == ["Van 7"]
+
+
+def test_on_a_phone_a_page_keeps_one_map_drawn_the_one_in_view(browser: Browser, live_app: str) -> None:
+    phone = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    assert phone.request.post("/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES).status == 204
+    starter = style.STARTERS[style.Kind.MAP]
+    second = '<div style="height: 150vh"></div><div class="l-map" id="second"></div>'
+    twice = starter.replace("<h2>Each place", f"{second}<h2>Each place").replace(
+        "</script>\n</body>",
+        'LouvreMap.draw("second", {});\n</script>\n</body>',
+    )
+    page = phone.new_page()
+    page.goto(f"/a/{publish(phone, twice)}")
+    frame = page.frame_locator("iframe.exhibit")
+
+    frame.locator("#map").scroll_into_view_if_needed()
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    expect(frame.locator("#second canvas")).to_have_count(0)
+    frame.locator("#second").scroll_into_view_if_needed()
+    expect(frame.locator("#second[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    expect(frame.locator("#map canvas")).to_have_count(0)
+    phone.close()
+
+
 def test_a_reader_comments_on_words_across_tags_then_replies_resolves_and_undoes(context: BrowserContext) -> None:
     artifact = publish(context)
     page = context.new_page()
@@ -238,6 +310,40 @@ def test_a_selection_across_blocks_comments_too(context: BrowserContext) -> None
     expect(page.locator(".thread.is-active .comments")).to_contain_text("Both, please.")
     threads = context.request.get(f"/api/artifacts/{artifact}/threads").json()["threads"]
     assert any(t["anchor"] and t["anchor"]["exact"] == "shard it. Then measure" for t in threads)
+
+
+def test_a_reply_reaches_the_inbox_and_opens_at_its_thread_marked_new(
+    browser: Browser,
+    live_app: str,
+    context: BrowserContext,
+) -> None:
+    artifact = publish(context)
+    raj = browser.new_context(base_url=live_app)
+    assert raj.request.post("/auth/dev", data={"login": "raj", "name": "Raj Patel"}, headers=WRITES).ok
+    asked = raj.request.post(
+        f"/api/artifacts/{artifact}/threads",
+        data={"anchor": {"exact": "Then measure again."}, "body": "Measure what, exactly?"},
+        headers=WRITES,
+    ).json()
+    raj.close()
+
+    page = context.new_page()
+    page.goto("/inbox")
+    entry = page.locator(".entry", has_text="Measure what, exactly?")
+    expect(entry).to_contain_text("Raj Patel")
+    expect(entry).to_contain_text("Then measure again.")
+    expect(page.get_by_role("link", name=re.compile(r"^Inbox, \d+ new$"))).to_be_visible()
+    entry.locator("a").click()
+
+    expect(page).to_have_url(re.compile(rf"/a/{artifact}\?t={asked['thread_id']}$"))
+    note = page.locator(f'.thread.is-active[data-id="{asked["thread_id"]}"]')
+    expect(note).to_contain_text("New")
+    expect(note).to_contain_text("Measure what, exactly?")
+    expect(page.get_by_role("button", name="1 new")).to_be_visible()
+    deadline = time.monotonic() + DEADLINE
+    while any(e["artifact"]["id"] == artifact for e in context.request.get("/api/inbox").json()["entries"]):
+        assert time.monotonic() < deadline, "opening the artifact did not mark it read"
+        time.sleep(0.1)
 
 
 def test_a_token_is_shown_once_and_revoked(context: BrowserContext) -> None:
