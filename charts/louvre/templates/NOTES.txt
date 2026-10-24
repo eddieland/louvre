@@ -1,0 +1,30 @@
+{{- $fullname := include "louvre.fullname" . -}}
+Louvre {{ .Values.image.tag | default .Chart.AppVersion }} is installed as {{ $fullname }} in {{ .Release.Namespace }}.
+{{- if .Values.ingress.enabled }}
+
+It is served at:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+
+Reach it from this machine:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ $fullname }} 8000:{{ .Values.service.port }}
+  then open http://127.0.0.1:8000/
+{{- end }}
+
+{{- if .Values.config.devSignIn }}
+
+Anyone who can reach it may sign in as anyone (config.devSignIn): keep this release on a local cluster.
+{{- end }}
+{{- if not (or .Values.config.github.clientId .Values.config.devSignIn) }}
+
+No one can sign in yet: set config.github to a GitHub OAuth app (docs/DEPLOY.md).
+{{- end }}
+
+Check the release: helm test {{ .Release.Name }} --namespace {{ .Release.Namespace }} --logs
+{{- if .Values.postgresql.enabled }}
+
+The bundled PostgreSQL ({{ include "louvre.postgresql.fullname" . }}) is for local clusters and trials: it has
+no backups. Its volume and password Secret outlive `helm uninstall`; delete both to start from an empty database.
+{{- end }}

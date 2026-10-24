@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help all check fmt lint test coverage snapshots screens screenshots hooks burn-in ui-fmt ui-check ui-build
+.PHONY: help all check fmt lint test coverage snapshots screens screenshots hooks burn-in ui-fmt ui-check ui-build \
+	image chart-lint kind-up kind-down
 
 ##@ General
 
@@ -98,6 +99,42 @@ burn-in: ## Run each test file changed since BASE (ALL=1: every one) REPEAT time
 		echo "Run $$i of $(REPEAT):" $$files; \
 		$(PYTEST) $$files || { echo "Failed on run $$i of $(REPEAT): flaky, or broken."; exit 1; }; \
 	done
+
+##@ Deploy (needs Docker; helm and kind for the chart)
+
+# The image's version, from git as the wheel's is (D004): the build context carries no .git, so it goes in as a
+# build argument.
+IMAGE ?= louvre:dev
+VERSION ?= $(shell uvx -q --from uv-dynamic-versioning==0.14.1 uv-dynamic-versioning)
+CHART := charts/louvre
+KIND_CLUSTER ?= louvre
+
+image: ## Build the container image, as IMAGE (louvre:dev)
+	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+# Each example values file, as well as the defaults: a template that fails to render for one of them fails here.
+chart-lint: ## Lint the Helm chart and render it with each example values file
+	helm lint --strict $(CHART)
+	@for values in $(CHART)/examples/*.yaml; do \
+		echo "helm lint and template with $$values"; \
+		helm lint --strict --quiet $(CHART) -f $$values && helm template louvre $(CHART) -f $$values >/dev/null || exit 1; \
+	done
+
+# The image goes into the cluster's nodes, so nothing is pushed or pulled; then the chart's own test checks Louvre and
+# its bundled PostgreSQL. Run it again after a change: it rebuilds, reloads, and upgrades in place. The tag stays the
+# same, so the image's id goes on the pods as an annotation: a new build rolls them, and helm's --wait sees it ready.
+kind-up: image ## Run Louvre and a bundled PostgreSQL on a local kind cluster, and test the release
+	kind get clusters | grep -qx $(KIND_CLUSTER) || kind create cluster --name $(KIND_CLUSTER) --wait 120s
+	kind load docker-image $(IMAGE) --name $(KIND_CLUSTER)
+	helm upgrade --install louvre $(CHART) --kube-context kind-$(KIND_CLUSTER) -f $(CHART)/examples/local.yaml \
+		--set image.repository=$(word 1,$(subst :, ,$(IMAGE))) --set image.tag=$(word 2,$(subst :, ,$(IMAGE))) \
+		--set-string podAnnotations.image-id=$$(docker image inspect --format '{{.Id}}' $(IMAGE)) \
+		--wait --timeout 5m
+	helm test louvre --kube-context kind-$(KIND_CLUSTER) --logs
+	@echo "kubectl --context kind-$(KIND_CLUSTER) port-forward svc/louvre 8000:80, then open http://127.0.0.1:8000/"
+
+kind-down: ## Delete the local kind cluster, its database with it
+	kind delete cluster --name $(KIND_CLUSTER)
 
 ##@ Setup
 

@@ -1,0 +1,70 @@
+{{- /*
+`helm test`: Louvre answers on its Service and says it has a database, and the database takes the DATABASE_URL and
+password Louvre is given. Each check runs in an image the release already uses.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "louvre.fullname" . }}-test
+  labels:
+    helm.sh/chart: {{ include "louvre.chart" . }}
+    app.kubernetes.io/name: {{ include "louvre.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: test
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook: test
+    # Kept until the next run, so `helm test --logs` and `kubectl logs` can read it.
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: healthz
+      image: {{ include "louvre.imageRef" (list .Values.image .Chart.AppVersion) | quote }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      command: [python, -c]
+      args:
+        - |
+          import json, time, urllib.error, urllib.request
+          base = "http://{{ include "louvre.fullname" . }}:{{ .Values.service.port }}"
+          def get(path):
+              with urllib.request.urlopen(base + path, timeout=10) as response:
+                  return json.load(response)
+          # A Service can lag a pod that just became ready by a few seconds, as right after a rollout.
+          deadline = time.monotonic() + 60
+          while True:
+              try:
+                  health = get("/healthz")
+                  break
+              except urllib.error.URLError:
+                  if time.monotonic() > deadline:
+                      raise
+                  time.sleep(1)
+          assert health["status"] == "ok", health
+          session = get("/api/session")
+          assert session["configured"], session
+          print("louvre", health["version"], "is healthy, with a database")
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+    - name: database
+      image: {{ include "louvre.imageRef" (list .Values.postgresql.image "") | quote }}
+      imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+      # $(DATABASE_URL) is Kubernetes' own expansion, from the container's env.
+      command:
+        - psql
+        - $(DATABASE_URL)
+        - --no-psqlrc
+        - --tuples-only
+        - --command
+        - select 'database ' || current_database() || ' answers'
+      env:
+        {{- include "louvre.database.env" . | trim | nindent 8 }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}

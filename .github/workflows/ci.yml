@@ -209,13 +209,54 @@ jobs:
       - name: Screens
         run: make screens
 
+  # The container image and the Helm chart: the chart lints and renders with each example values file, and installs on
+  # a kind cluster, with the image built here and a bundled PostgreSQL, until its own `helm test` passes.
+  chart:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # uvx computes the image's version (`make image`).
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+
+      - name: Lint the chart
+        run: make chart-lint
+
+      - name: Create a kind cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: v0.33.0
+          cluster_name: louvre
+
+      - name: Install the chart and test the release
+        run: make kind-up
+
+      - name: Show the cluster's state
+        if: failure()
+        run: |
+          kubectl get pods,pvc,events --all-namespaces
+          kubectl describe pods --selector app.kubernetes.io/instance=louvre
+          kubectl logs --selector app.kubernetes.io/instance=louvre --all-containers --prefix --tail 100
+
   # The one check branch protection requires, so a new job needs no change to the ruleset: list the job in `needs`
   # here, or nothing requires it. It runs whatever happened above and fails unless every job it needs succeeded, since
   # a required check that is skipped counts as passing. The exception is a docs-only pull request (code=false), when
   # `changes` succeeded.
   ci-passed:
     runs-on: ubuntu-latest
-    needs: [changes, lint-and-test, ui-check, screens]
+    needs: [changes, lint-and-test, ui-check, screens, chart]
     if: ${{ always() }}
     timeout-minutes: 5
     steps:

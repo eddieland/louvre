@@ -37,6 +37,12 @@ uv run louvre serve --host 0.0.0.0 --port 8000
 Put it behind HTTPS, and set `LOUVRE_SECURE_COOKIES=1` so the session cookie is sent over HTTPS only (Vercel's own
 deployments set it by themselves). The other variables are as on Vercel.
 
+## On Kubernetes
+
+The `Dockerfile` builds Louvre's image, which the Image workflow pushes to `ghcr.io/eddieland/louvre`, and the Helm
+chart in [charts/louvre](../charts/louvre/README.md) runs it: its `config` values set the variables above, with a
+bundled PostgreSQL for a local cluster (`make kind-up`) or a managed one in production.
+
 ## Connecting an agent
 
 A token is bound to the person who minted it and one namespace, with scopes `read`, `publish`, and `comment`. The

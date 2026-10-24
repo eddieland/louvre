@@ -1,0 +1,177 @@
+# Louvre's chart. The defaults suit a local cluster: one replica and a bundled PostgreSQL. A production install turns
+# the bundled database off and names a managed one under externalDatabase (D007); examples/production.yaml shows how.
+
+image:
+  repository: ghcr.io/eddieland/louvre
+  # Defaults to the chart's appVersion. Pin a version, or a digest, in production.
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  # Louvre calls no Kubernetes API.
+  automountToken: false
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: louvre.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: louvre-tls
+  #    hosts: [louvre.example.com]
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 3
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 3
+
+# Louvre's settings (docs/DEPLOY.md), each set as its LOUVRE_* variable only when given.
+config:
+  # Where Louvre is served, such as https://louvre.example.com, for the links a publish returns; empty uses the address
+  # each request came to.
+  baseUrl: ""
+  # The GitHub logins who may sign in; ["*"] lets anyone with a GitHub account in.
+  allowedLogins: []
+  # The session cookie over HTTPS only: right behind a TLS Ingress, wrong for a plain-HTTP port-forward.
+  secureCookies: true
+  # Publish the demo's artifacts, which anyone may read without signing in.
+  demo: false
+  # Let anyone sign in as anyone by typing a name: for a local cluster only, never a deployment people use.
+  devSignIn: false
+  # The GitHub OAuth app people sign in with. Its callback URL is baseUrl with /auth/github/callback.
+  github:
+    clientId: ""
+    # Prefer existingSecret: a secret here is stored in the release.
+    clientSecret: ""
+    existingSecret: ""
+    existingSecretKey: client-secret
+
+# Extra environment variables for Louvre's container, as a list of EnvVar objects.
+extraEnv: []
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# Louvre reads its database as DATABASE_URL, which the chart sets from one of the two blocks below, with the password
+# in PGPASSWORD. One of them must name a database. Louvre makes its tables itself, on its first request.
+
+# A PostgreSQL run by this chart, as one StatefulSet with its own volume: for local clusters and trials. It has no
+# backups, replicas, or upgrades between major versions; production uses externalDatabase.
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "18"
+    digest: ""
+    pullPolicy: IfNotPresent
+  auth:
+    database: louvre
+    username: louvre
+    # Left empty, a random password is generated once and kept across upgrades.
+    password: ""
+    # A Secret of your own holding the password, instead of one the chart makes.
+    existingSecret: ""
+    existingSecretPasswordKey: password
+  persistence:
+    enabled: true
+    # Empty uses the cluster's default StorageClass.
+    storageClass: ""
+    size: 8Gi
+    accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  podSecurityContext:
+    runAsNonRoot: true
+    # The postgres user of the official Debian image.
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  # Only Louvre's pods, and the chart's test, may reach it. Needs a CNI that enforces NetworkPolicy.
+  networkPolicy:
+    enabled: false
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# A database run elsewhere, such as a managed PostgreSQL. Used when postgresql.enabled is false.
+externalDatabase:
+  host: ""
+  port: 5432
+  database: louvre
+  username: louvre
+  # libpq's sslmode; a managed database across a network wants at least `require`, and `verify-full` with its CA.
+  sslMode: require
+  # Prefer existingSecret: a password here is stored in the release, readable by whoever can read its Secrets.
+  password: ""
+  existingSecret: ""
+  existingSecretPasswordKey: password
+  # Instead of all the above: the key of existingSecret holding a whole postgresql:// URL, as a provider gives one.
+  existingSecretUrlKey: ""

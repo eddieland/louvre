@@ -1,0 +1,70 @@
+# Production: a pinned image, two replicas behind TLS, sign-in with GitHub, and a managed PostgreSQL (D007), with
+# their secrets in Secrets made outside the chart, for example:
+#   kubectl create secret generic louvre-database --from-literal=password='...'
+#   kubectl create secret generic louvre-github --from-literal=client-secret='...'
+#   helm upgrade --install louvre charts/louvre -f charts/louvre/examples/production.yaml --wait
+# Replace every example.com value with your own.
+image:
+  # A released version; a digest (image.digest) pins it harder.
+  tag: "0.1.0"
+
+replicaCount: 2
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: louvre
+        app.kubernetes.io/component: web
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: louvre.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: louvre-tls
+      hosts: [louvre.example.com]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+config:
+  baseUrl: https://louvre.example.com
+  allowedLogins: [octocat]
+  secureCookies: true
+  github:
+    clientId: Iv1.0123456789abcdef
+    existingSecret: louvre-github
+    existingSecretKey: client-secret
+
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: louvre.postgres.example.com
+  port: 5432
+  database: louvre
+  username: louvre
+  # verify-full also checks the server's certificate against a CA: mount your provider's and point PGSSLROOTCERT at
+  # it through extraEnv, or set PGSSLROOTCERT=system when its certificate chains to a public CA.
+  sslMode: require
+  existingSecret: louvre-database
+  existingSecretPasswordKey: password
+  # Or, for a provider that gives a whole URL: a Secret holding it, named by this key, and no host above.
+  # existingSecretUrlKey: url
