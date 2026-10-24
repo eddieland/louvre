@@ -59,6 +59,25 @@ def test_a_token_gives_its_agent_a_scope_until_revoked(conn: Connection) -> None
     assert accounts.token_scope(conn, secret) is None
 
 
+def test_a_tokens_use_is_noted_at_most_once_a_minute(conn: Connection) -> None:
+    ana = person(conn, "ana", "Ana Ruiz")
+    minted, secret = accounts.mint(conn, ana, "canopy worker", "canopy/ana", {"read"})
+
+    def used(ago: timedelta) -> datetime | None:
+        """Say the token was last used `ago`, call with it, and read when its use is noted now."""
+        conn.execute("UPDATE tokens SET last_used_at = now() - %s WHERE id = %s", (ago, minted.id))
+        assert accounts.token_scope(conn, secret) is not None
+        [listed] = accounts.tokens(conn, ana)
+        return listed.last_used_at
+
+    recent, stale = used(timedelta(seconds=30)), used(timedelta(minutes=2))
+
+    assert recent is not None
+    assert stale is not None
+    assert datetime.now(UTC) - recent > timedelta(seconds=25)
+    assert datetime.now(UTC) - stale < timedelta(seconds=5)
+
+
 def test_only_its_person_revokes_a_token(conn: Connection) -> None:
     ana, raj = person(conn, "ana"), person(conn, "raj")
     minted, secret = accounts.mint(conn, ana, "agent", "canopy/ana", {"read"})
