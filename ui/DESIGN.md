@@ -80,6 +80,10 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
   with its quote struck through and the version it was on. It never moves to other words.
 - **Starting one.** Selecting words shows "comment" in the margin level with them (above them on a phone); it, or the
   `c` key, opens a new thread there.
+- **On a map.** On GeoJSON Louvre draws, a tap on a feature, or off every feature on a point, is a selection too, and
+  shows "comment" level with it. A place's thread is marked on the map by a disc ringed in `accent` with its number,
+  filled `accent` while hovered or active, `muted` when resolved, and its note sits level with the disc. Its quote is
+  the feature's label or the point's latitude and longitude.
 - **Keyboard.** `j` and `k` move between threads in page order, Escape closes one, `c` comments on a selection.
 
 ## Chrome

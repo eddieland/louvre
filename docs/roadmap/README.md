@@ -36,5 +36,5 @@ interaction first, over mock data, then the store under them, at the operator's 
 - [M10. A map kit, served by Louvre](M10-map-kit.md): built, for the operator to accept; its basemap is Natural
   Earth's.
 - [M11. Geodata as an artifact](M11-geodata.md): built, for the operator to accept; published by `map_publish`.
-- [M12. Comments on places](M12-places.md): not started.
+- [M12. Comments on places](M12-places.md): built for features and points, for the operator to accept.
 - [M13. Maps reviewed](M13-maps-reviewed.md): not started.

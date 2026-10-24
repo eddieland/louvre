@@ -10,6 +10,7 @@ import os
 import re
 import time
 from collections.abc import Iterator, Sequence
+from typing import Any
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, CDPSession, ConsoleMessage, Page, expect
@@ -742,3 +743,62 @@ def test_a_reader_taps_a_feature_of_geojson_reads_it_and_comments_and_a_new_vers
     [kept] = threads["threads"]
     assert kept["anchor"]["exact"] == "P-102 status lamp out"
     assert kept["comments"][0]["body"] == "Which crew?"
+
+
+def test_a_reader_comments_on_a_feature_and_a_point_and_the_feature_goes_with_a_new_version(
+    context: BrowserContext,
+) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
+        headers=WRITES,
+    ).json()["secret"]
+
+    def poles(*numbers: int) -> dict[str, object]:
+        features = [
+            {
+                "type": "Feature",
+                "id": f"pole-{n}",
+                "properties": {"name": f"P-{n}"},
+                "geometry": {"type": "Point", "coordinates": [-9.14 + 0.001 * (n - 101), 38.71]},
+            }
+            for n in numbers
+        ]
+        return {"type": "FeatureCollection", "features": features}
+
+    made = json.loads(call(context, secret, "map_publish", title="Poles", data=poles(101, 102)))
+    artifact = made["artifact_id"]
+    page = context.new_page()
+    page.goto(f"/a/{artifact}")
+    frame = page.frame_locator("iframe.exhibit")
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+
+    def comment_at(lon: float, lat: float, body: str) -> None:
+        x, y = frame.locator("#map").evaluate(f"(e) => Object.values(e.louvreMap.project([{lon}, {lat}]))")
+        frame.locator("#map").click(position={"x": x, "y": y})
+        page.click("button.add")
+        page.fill(".thread[data-id=draft] textarea", body)
+        page.keyboard.press("Control+Enter")
+        expect(page.locator(".thread.is-active .comments")).to_contain_text(body)
+
+    comment_at(-9.139, 38.71, "Lamp out?")
+    comment_at(-9.1395, 38.7101, "A pole is missing here.")
+
+    # Both are marked on the map, numbered as the margin numbers them, once the map has drawn them.
+    numbered = "(e) => e.louvreMap.queryRenderedFeatures({ layers: ['thread-numbers'] }).map((f) => f.properties.n)"
+    deadline = time.monotonic() + DEADLINE
+    while sorted(frame.locator("#map").evaluate(numbered)) != ["1", "2"]:
+        assert time.monotonic() < deadline, frame.locator("#map").evaluate(numbered)
+        page.wait_for_timeout(50)
+
+    def threads() -> list[Any]:
+        return json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"]
+
+    on_feature, on_point = threads()
+    assert on_feature["anchor"]["exact"] == "P-102"
+    assert on_feature["place"]["id"] == "pole-102"
+    assert on_point["anchor"]["exact"].startswith("38.710")
+    assert on_point["place"]["kind"] == "point"
+
+    call(context, secret, "map_publish", title="Poles", data=poles(101), artifact_id=artifact)
+    assert [t["anchor_status"] for t in threads()] == ["passage_gone", "found"]

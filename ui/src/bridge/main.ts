@@ -6,9 +6,14 @@
 // thread level with its passage, and it quotes what the reader selects as an anchor. The page it was added to keeps
 // working as its author wrote it; the bridge's only elements, a stylesheet and the threads' numbers, are marked
 // data-louvre, and the text skips them.
+//
+// On a map drawn by Louvre's map kit, a thread may be on a place rather than words. The kit and the bridge speak by
+// events on the document: the kit says what the reader tapped (louvre:pick), where each place's thread sits
+// (louvre:spots), and which one was tapped (louvre:click); the bridge says which places to mark (louvre:marks). The
+// bridge passes on what the kit says as it does a selection, and trusts it no further (D008).
 
-import { CHANNEL, KEYS } from './protocol'
-import type { Colors, FromBridge, Mark, Place, Selected, ToBridge } from './protocol'
+import { CHANNEL, KEYS, mapPlaceOf } from './protocol'
+import type { Colors, FromBridge, MapPlace, Mark, Place, Selected, ToBridge } from './protocol'
 import { locate, quote, readText } from './text'
 import type { PageText } from './text'
 
@@ -19,6 +24,67 @@ const RUNAWAY = 3
 
 function own(element: Element): boolean {
     return element instanceof HTMLElement && 'louvre' in element.dataset
+}
+
+/** A place's thread, as the bridge asks the map kit to mark it. */
+interface PlaceMark {
+    /** The thread's id, or a draft's. */
+    id: string
+    /** Its number in the margin, or null. */
+    n: number | null
+    /** Open, resolved, or a draft. */
+    state: Mark['state']
+    /** Whether it is active or hovered. */
+    lit: boolean
+    /** Where it is. */
+    place: MapPlace
+}
+
+function finite(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value)
+}
+
+/** Read what the kit says the reader picked on a map, or null when it says nothing the bridge can pass on. */
+function pickOf(detail: unknown): Selected | null {
+    if (typeof detail !== 'object' || detail === null) {
+        return null
+    }
+    const { place, words, top, bottom, left, right } = detail as Record<string, unknown>
+    const read = mapPlaceOf(place)
+    if (!read || typeof words !== 'string' || !words) {
+        return null
+    }
+    if (!finite(top) || !finite(bottom) || !finite(left) || !finite(right)) {
+        return null
+    }
+    return { anchor: { exact: words, prefix: '', suffix: '' }, place: read, top, bottom, left, right }
+}
+
+/** Where the kit says each place's thread sits: on a map element, from its top, as the page last laid it out. */
+interface Spots {
+    /** The map's element. */
+    map: Element
+    /** Each thread's spot, from the map's top. */
+    at: Record<string, Place>
+}
+
+/** Read where the kit says each place's thread sits, or null when it says nothing the bridge can use. */
+function spotsOf(detail: unknown): Spots | null {
+    if (typeof detail !== 'object' || detail === null) {
+        return null
+    }
+    const { map, spots } = detail as Record<string, unknown>
+    if (!(map instanceof Element) || typeof spots !== 'object' || spots === null) {
+        return null
+    }
+    const at: Record<string, Place> = {}
+    for (const [id, spot] of Object.entries(spots)) {
+        const { top, bottom } = (spot ?? {}) as Record<string, unknown>
+        if (finite(top) && finite(bottom)) {
+            at[id] = { top, bottom }
+        }
+    }
+    return { map, at }
 }
 
 function start(): void {
@@ -48,10 +114,16 @@ function start(): void {
     let growing = 0
     let pending = 0
     let reread = false
+    // Where each place's thread sits on a map, as the kit last said; and whether what is selected is a place.
+    let spots: Spots | null = null
+    let picked = false
 
     const locateAll = () => {
         ranges = new Map()
         for (const mark of marks) {
+            if (mark.place) {
+                continue
+            }
             const at = locate(read.text, mark.anchor)
             const range = at === null ? null : read.range(at, at + mark.anchor.exact.length)
             if (range) {
@@ -112,6 +184,14 @@ function start(): void {
             placed.push(n)
         }
         numbers.replaceChildren(...placed)
+        const onMaps: PlaceMark[] = []
+        for (const mark of marks) {
+            if (mark.place && mark.state !== 'passage') {
+                const lit = mark.id === active || mark.id === hover
+                onMaps.push({ id: mark.id, n: mark.n, state: mark.state, lit, place: mark.place })
+            }
+        }
+        doc.dispatchEvent(new CustomEvent('louvre:marks', { detail: { marks: onMaps } }))
     }
 
     const measure = (): number => {
@@ -141,6 +221,12 @@ function start(): void {
         lastHeight = height
         lastViewport = viewport
         const places: Record<string, Place> = {}
+        if (spots?.map.isConnected) {
+            const top = spots.map.getBoundingClientRect().top + scrollY
+            for (const [id, spot] of Object.entries(spots.at)) {
+                places[id] = { top: top + spot.top, bottom: top + spot.bottom }
+            }
+        }
         for (const [id, range] of ranges) {
             const rects = [...range.getClientRects()]
             const first = rects[0]
@@ -208,8 +294,27 @@ function start(): void {
 
     doc.addEventListener('selectionchange', () => {
         requestAnimationFrame(() => {
-            send({ channel: CHANNEL, type: 'selection', selected: selected() })
+            const now = selected()
+            // A tap on a map collapses the selection as it picks a place: the place stays picked.
+            if (now || !picked) {
+                picked = false
+                send({ channel: CHANNEL, type: 'selection', selected: now })
+            }
         })
+    })
+
+    doc.addEventListener('louvre:pick', (event) => {
+        const pick = pickOf((event as CustomEvent<unknown>).detail)
+        picked = pick !== null
+        send({ channel: CHANNEL, type: 'selection', selected: pick })
+    })
+    doc.addEventListener('louvre:spots', (event) => {
+        spots = spotsOf((event as CustomEvent<unknown>).detail)
+        report()
+    })
+    doc.addEventListener('louvre:click', (event) => {
+        const { id } = ((event as CustomEvent<unknown>).detail ?? {}) as Record<string, unknown>
+        send({ channel: CHANNEL, type: 'click', id: typeof id === 'string' ? id : null })
     })
 
     const selected = (): Selected | null => {
@@ -224,12 +329,27 @@ function start(): void {
         }
         const box = range.getBoundingClientRect()
         const anchor = span.end - span.start > MAX_EXACT ? null : quote(read.text, span.start, span.end)
-        return { anchor, top: box.top + scrollY, bottom: box.bottom + scrollY, left: box.left, right: box.right }
+        return {
+            anchor,
+            place: null,
+            top: box.top + scrollY,
+            bottom: box.bottom + scrollY,
+            left: box.left,
+            right: box.right,
+        }
     }
 
     doc.addEventListener('click', (event) => {
         if (getSelection()?.isCollapsed === false) {
             return
+        }
+        if (event.target instanceof Element && event.target.closest('.maplibregl-map')) {
+            // The map kit says what a tap on a map picked, or which thread it was on.
+            return
+        }
+        if (picked) {
+            picked = false
+            send({ channel: CHANNEL, type: 'selection', selected: null })
         }
         const id = hit(event.clientX, event.clientY)
         const link = event.target instanceof Element ? event.target.closest('a[href]') : null

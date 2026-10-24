@@ -12,7 +12,9 @@ import html
 import json
 import math
 from collections.abc import Iterator, Mapping, Sequence
-from typing import Annotated
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Annotated, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr, ValidationError
 
@@ -132,7 +134,7 @@ def page(content: str, title: str) -> str:
     features, look = check(content)
     labels = [_label(feature, look, i) for i, feature in enumerate(features)]
     drawn = {"type": "FeatureCollection", "features": list(_drawn(features, look))}
-    options = {"data": drawn, "label": look.label, "popups": True, **_ramp(features, look)}
+    options = {"data": drawn, "label": look.label, "popups": True, "places": True, **_ramp(features, look)}
     named = ", ".join(labels[:_NAMED]) + (", and more" if len(labels) > _NAMED else "")
     count = f"{len(features):,} feature{'' if len(features) == 1 else 's'}"
     parts = [
@@ -152,6 +154,138 @@ def page(content: str, title: str) -> str:
         f'<script>\nLouvreMap.draw("map", {_script_json(options)});\n</script>\n</body>\n</html>\n',
     ]
     return "".join(parts)
+
+
+class PlaceKind(StrEnum):
+    """What a thread on a map is on."""
+
+    #: One of the data's features, found again by its id.
+    FEATURE = "feature"
+    #: A point on the earth, which stays where it is.
+    POINT = "point"
+
+
+@dataclass(frozen=True)
+class Place:
+    """Where on a map a thread is: a feature of the data, or a point on the earth, as its words are where a passage is.
+
+    A feature is named by its layer and its id, its label and geometry kept beside them as they were when the thread
+    was opened; a point by its coordinates. Words, never positions (REQUIREMENTS L2): a pixel is never kept.
+    """
+
+    kind: PlaceKind
+    #: The feature's layer: `data`, the one layer a GeoJSON version has. Empty for a point.
+    layer: str = ""
+    #: The feature's id: its GeoJSON `id`, or without one its label. Empty for a point.
+    id: str = ""
+    #: The feature's label, when the thread was opened.
+    label: str = ""
+    #: The feature's geometry, when the thread was opened, or the point's, as GeoJSON.
+    geometry: Mapping[str, object] | None = None
+
+    def quote(self) -> str:
+        """Say where the thread is in words, for a reader that knows only words, as its anchor's `exact`.
+
+        Returns:
+            The feature's label, or the point's latitude and longitude.
+        """
+        match self.kind:
+            case PlaceKind.FEATURE:
+                return self.label
+            case PlaceKind.POINT:
+                lon, lat = _point(self.geometry)
+                return f"{abs(lat):.5f}° {'N' if lat >= 0 else 'S'}, {abs(lon):.5f}° {'E' if lon >= 0 else 'W'}"
+            case _:
+                assert_never(self.kind)
+
+    def json(self) -> dict[str, object]:
+        """Give the place as the API and the tools show it, and as it is stored.
+
+        Returns:
+            Its kind, and its layer, id, label, and geometry for a feature, or its geometry for a point.
+        """
+        if self.kind == PlaceKind.POINT:
+            return {"kind": self.kind, "geometry": dict(self.geometry or {})}
+        return {"kind": self.kind, "layer": self.layer, "id": self.id, "label": self.label, "geometry": self.geometry}
+
+
+#: The one layer a GeoJSON version has, as a feature's place names it.
+LAYER = "data"
+#: The property the page gives each feature for the kit: its id, as a place names it.
+PLACE_ID = "louvre:id"
+
+
+@dataclass(frozen=True)
+class Pick:
+    """What a reader picked on a map, as their page says it: a feature by its id, or a point by its coordinates."""
+
+    kind: PlaceKind
+    #: The feature's id, as the page's map names it.
+    id: str = ""
+    #: The point's longitude and latitude.
+    coordinates: Sequence[float] = ()
+
+
+def place_on(content: str, pick: Pick) -> Place:
+    """Make the place a reader picked on a GeoJSON version's map, from what the version itself says of it.
+
+    Only the feature's id, or the point's coordinates, are taken from the reader (D008): the label and geometry are
+    the version's own.
+
+    Returns:
+        The place.
+
+    Raises:
+        GeodataError: The content is not GeoJSON Louvre draws, the point is off the earth, or no feature has the id.
+    """
+    features, look = check(content)
+    match pick.kind:
+        case PlaceKind.POINT:
+            _position(list(pick.coordinates), "the point")
+            point = [float(c) for c in pick.coordinates[:2]]
+            return Place(pick.kind, geometry={"type": "Point", "coordinates": point})
+        case PlaceKind.FEATURE:
+            for i, feature in enumerate(features):
+                if pick.id and _id_of(feature, look) == pick.id:
+                    geometry = feature.get("geometry")
+                    shape = geometry if isinstance(geometry, dict) else None
+                    return Place(pick.kind, LAYER, pick.id, _label(feature, look, i), shape)
+            raise GeodataError(f"no feature of the data has the id {pick.id!r}")
+        case _:
+            assert_never(pick.kind)
+
+
+def found(content: str, place: Place) -> bool:
+    """Tell whether a place is on a version's map: its feature, by its layer and id, or any point.
+
+    A feature found nowhere is gone, and never moves to the nearest one.
+
+    Returns:
+        Whether it is there.
+    """
+    try:
+        features, look = check(content)
+    except GeodataError:
+        return False
+    if place.kind == PlaceKind.POINT:
+        return True
+    return place.layer == LAYER and any(_id_of(feature, look) == place.id for feature in features)
+
+
+def place_from(stored: Mapping[str, object]) -> Place:
+    """Read a place as it is stored.
+
+    Returns:
+        The place.
+    """
+    geometry = stored.get("geometry")
+    return Place(
+        PlaceKind(str(stored["kind"])),
+        str(stored.get("layer", "")),
+        str(stored.get("id", "")),
+        str(stored.get("label", "")),
+        geometry if isinstance(geometry, dict) else None,
+    )
 
 
 def _feature(feature: object, where: str) -> Mapping[str, object]:
@@ -253,6 +387,8 @@ def _drawn(features: Sequence[Mapping[str, object]], look: Look) -> Iterator[Map
         properties = dict(_properties(feature))
         if look.focus is not None:
             properties["focus"] = properties.get(look.focus.property) in look.focus.equals
+        # The id a place on it is named by, as the server names it, so the kit and Louvre never read it apart.
+        properties[PLACE_ID] = _id_of(feature, look)
         yield {"type": "Feature", "properties": properties, "geometry": feature.get("geometry")}
 
 
@@ -315,3 +451,23 @@ def _script_json(value: object) -> str:
     """
     written = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
     return written.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
+def _id_of(feature: Mapping[str, object], look: Look) -> str:
+    """Name a feature as a place does: its GeoJSON `id`, or without one its label property.
+
+    Returns:
+        The id, or empty when it has neither.
+    """
+    given = feature.get("id")
+    if isinstance(given, str | int | float) and not isinstance(given, bool):
+        return str(given)
+    label = _properties(feature).get(look.label)
+    return _shown(label) if label is not None else ""
+
+
+def _point(geometry: Mapping[str, object] | None) -> tuple[float, float]:
+    coordinates = (geometry or {}).get("coordinates")
+    if isinstance(coordinates, list) and len(coordinates) >= 2:  # noqa: PLR2004  (longitude and latitude)
+        return float(coordinates[0]), float(coordinates[1])
+    return 0.0, 0.0
