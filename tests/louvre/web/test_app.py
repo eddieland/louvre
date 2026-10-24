@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from louvre.core import maps, style
+from louvre.core.maps.streets import Streets
 from louvre.web import ui
 from louvre.web.app import FILE_POLICY, artifact_policy, create, with_bridge
 from tests.conftest import web_settings
@@ -202,6 +203,25 @@ def test_the_map_kits_files_are_served_to_any_origin_and_kept(client: TestClient
 )
 def test_nothing_but_the_map_kits_files_is_served_there(client: TestClient, path: str) -> None:
     assert client.get(path).status_code == 404
+
+
+def test_a_street_tile_is_passed_on_and_one_out_of_reach_is_empty(client: TestClient) -> None:
+    tile = f"{maps.PATH}streets/14/7820/6290.pbf"
+
+    with mock.patch.object(Streets, "tile", autospec=True, return_value=b"tile") as fetched:
+        shown = client.get(tile)
+    fetched.assert_called_once_with(mock.ANY, 14, 7820, 6290)
+    # The tests' app has no street source, as a deployment that turns it off.
+    empty = client.get(tile)
+
+    assert shown.status_code == 200
+    assert shown.content == b"tile"
+    assert shown.headers["content-type"] == "application/x-protobuf"
+    assert shown.headers["access-control-allow-origin"] == "*"
+    assert empty.status_code == 204
+    assert empty.content == b""
+    assert client.get(f"{maps.PATH}streets/15/0/0.pbf").status_code == 404
+    assert client.get("/kit/louvre-map-0/streets/1/0/0.pbf").status_code == 404
 
 
 def test_a_range_of_glyphs_the_kit_lacks_is_served_empty_so_a_label_leaves_it_out(client: TestClient) -> None:

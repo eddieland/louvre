@@ -150,7 +150,7 @@ of class `l-plot`, as the `map` starter does:
 <div class="l-map" id="map" role="img" aria-label="What the map shows, naming each place"></div>
 <p class="l-key"><span class="l-focus">What the accent marks</span><span>What the rest are</span></p>
 ...
-<p class="l-source">Where the places come from. Basemap: Natural Earth.</p>
+<p class="l-source">Where the places come from. Basemap: Natural Earth; streets © OpenStreetMap contributors.</p>
 <script>
 LouvreMap.draw("map", { data: { type: "FeatureCollection", features: [...] } });
 </script>
@@ -159,9 +159,11 @@ LouvreMap.draw("map", { data: { type: "FeatureCollection", features: [...] } });
 - **`data`** is GeoJSON, with longitude before latitude: points for sites or poles, lines for routes or a vehicle's
   trace, polygons for regions or blocks, each with its parts if it has several. It may instead be a file published
   beside the page, by its path: `data: "places.json"`.
-- **`context`**, GeoJSON or a file too, is what places the data at a street's scale: the streets, kerbs, or lanes
-  around it, drawn quietly under it. The basemap is Natural Earth's, at a city's scale at most: zoomed in past it, it
-  fades to plain ground, and a map of a street with no `context` is shapes on a blank page.
+- **The basemap** is Natural Earth's land, borders, and cities from the whole earth down to a city, and
+  OpenStreetMap's streets, water, and buildings from there down to a few streets, which Louvre passes on from
+  OpenFreeMap. It is quiet, in the page's colors, so the data is what a reader sees.
+- **`context`**, GeoJSON or a file too, is what you know that the basemap does not: lanes, kerbs, a site's own paths,
+  drawn quietly under the data, as its streets are.
 - **`focus`**: give the place the map is about `"focus": true` in its properties, and it is in the accent; the rest
   are muted ink. With no `focus` anywhere, every place is in the accent.
 - **`name`** labels each feature on the map once: a point beside it, a line at its middle, an area at its centre;
@@ -170,7 +172,8 @@ LouvreMap.draw("map", { data: { type: "FeatureCollection", features: [...] } });
   `l-notes`, under the map.
 - **The key**, `<p class="l-key">` under the map, says what the accent marks, in a `<span class="l-focus">`, and what
   the muted rest are, in a `<span>`, each beside the mark the map draws for it.
-- **The basemap's credit**, "Basemap: Natural Earth.", goes in the figure's `l-source`; the map shows it too.
+- **The basemap's credit**, "Basemap: Natural Earth; streets © OpenStreetMap contributors.", goes in the figure's
+  `l-source`, as OpenStreetMap's license asks; the map shows it too, folded into its button on a phone.
 - The map fits its data, from the whole earth down to a few streets (`maxZoom`, 17 unless said), with a scale bar. A
   reader may pan and zoom it, with two fingers on a phone, or the buttons.
 - One map to a page, with every place on it. Each map holds a WebGL context, of which a phone keeps few: the kit

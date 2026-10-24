@@ -16,6 +16,8 @@
     const LABEL = "louvre:label";
     /** The zoom past which the basemap has faded to plain ground: about a city's, Natural Earth's finest. */
     const DETAIL = 11;
+    /** How narrow a map is, in CSS pixels, for its credits to fold away: a phone's. */
+    const NARROW = 480;
     /** How far in a map zooms to fit its data, unless the page says: a few streets. */
     const MAX_ZOOM = 17;
     /** A label's sides under its place and over it, as MapLibre's anchors and offsets, in ems. */
@@ -85,6 +87,48 @@
         paint: { "text-color": mix(c.muted, c.card, 0.3), "text-halo-color": c.card, "text-halo-width": 1 },
     });
 
+    /** OpenStreetMap's water, buildings, roads, and rail, from Louvre's street tiles, as Natural Earth's fade. */
+    const streets = (c, ground, fade) => {
+        const road = mix(c.rule, c.muted, 0.12);
+        const major = ["motorway", "trunk", "primary"];
+        const middle = ["secondary", "tertiary"];
+        const width = (narrow, wide) => [
+            "interpolate",
+            ["exponential", 1.6],
+            ["zoom"],
+            DETAIL - 1,
+            ["match", ["get", "class"], major, narrow[0], middle, narrow[1], narrow[2]],
+            17,
+            ["match", ["get", "class"], major, wide[0], middle, wide[1], wide[2]],
+        ];
+        const layer = (id, type, from, rest) => ({ id, type, source: "streets", "source-layer": from, ...rest });
+        return [
+            layer("street-water", "fill", "water", { paint: { "fill-color": c.bg, "fill-opacity": fade(0, 1) } }),
+            layer("street-buildings", "fill", "building", {
+                minzoom: 14,
+                paint: { "fill-color": mix(ground, c.rule, 0.6) },
+            }),
+            layer("street-roads", "line", "transportation", {
+                filter: ["!", ["in", ["get", "class"], ["literal", ["rail", "transit", "ferry", "path", "track"]]]],
+                layout: { "line-cap": "round", "line-join": "round" },
+                paint: {
+                    "line-color": road,
+                    "line-width": width([1, 0.6, 0.3], [9, 7, 4]),
+                    "line-opacity": fade(0, 1),
+                },
+            }),
+            layer("street-paths", "line", "transportation", {
+                minzoom: 14,
+                filter: ["in", ["get", "class"], ["literal", ["path", "track"]]],
+                paint: { "line-color": road, "line-width": 1, "line-dasharray": [2, 2] },
+            }),
+            layer("street-rail", "line", "transportation", {
+                filter: ["in", ["get", "class"], ["literal", ["rail", "transit"]]],
+                paint: { "line-color": mix(c.rule, c.muted, 0.3), "line-width": 1, "line-dasharray": [3, 2] },
+            }),
+        ];
+    };
+
     /** The map's style: the basemap from the kit, in the page's colors, the page's context, and its data over it. */
     const styleOf = (entry) => {
         const c = tokens();
@@ -104,6 +148,13 @@
                 lakes: kit("lakes"),
                 borders: kit("borders"),
                 places: kit("places"),
+                streets: {
+                    type: "vector",
+                    tiles: [`${base}streets/{z}/{x}/{y}.pbf`],
+                    minzoom: DETAIL - 2,
+                    maxzoom: 14,
+                    attribution: "© OpenStreetMap contributors, OpenFreeMap",
+                },
                 context: { type: "geojson", data: entry.context },
                 data: { type: "geojson", data: entry.data },
                 anchors: { type: "geojson", data: entry.anchors },
@@ -123,8 +174,23 @@
                     source: "borders",
                     paint: { "line-color": mix(c.rule, c.muted, 0.3), "line-width": 0.75, "line-opacity": fade(1, 0) },
                 },
+                ...streets(c, ground, fade),
                 places("places", [0, 2], 2.5, c),
                 places("places-more", [3, 5], 5, c),
+                {
+                    id: "street-names",
+                    type: "symbol",
+                    source: "streets",
+                    "source-layer": "transportation_name",
+                    minzoom: 14,
+                    layout: {
+                        "symbol-placement": "line",
+                        "text-field": ["coalesce", ["get", "name:latin"], ["get", "name"]],
+                        "text-font": italic,
+                        "text-size": 10.5,
+                    },
+                    paint: { "text-color": mix(c.muted, c.card, 0.3), "text-halo-color": ground, "text-halo-width": 1 },
+                },
                 {
                     id: "context-areas",
                     type: "fill",
@@ -312,6 +378,11 @@
             map.fitBounds(settings.bounds, { padding: 48, maxZoom: settings.maxZoom ?? MAX_ZOOM, duration: 0 });
         }
         map.once("idle", () => {
+            // On a narrow map the credits would cover it: they fold into their button, and the figure's source
+            // line, under the map, credits the same.
+            if (element.clientWidth < NARROW) {
+                element.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+            }
             element.dataset.drawn = "";
         });
         element.louvreMap = map;

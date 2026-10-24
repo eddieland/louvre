@@ -206,9 +206,10 @@ the map is about in `accent`, filled; the rest hollow in `muted`. Each is labele
 first so a place at its edge is labeled inside it, and numbered in `accent` as a chart's notes are. A key under the map
 (`l-key`) says what the accent marks. The controls are cards with `rule` hairlines, the attribution and scale bar in
 `muted`; a phone pans with two fingers, so one scrolls the page. The box is 22rem tall, 18rem on a phone.
-Past a city's scale the basemap fades to plain ground, where Natural Earth's coast would be a kilometre out, and a
-page's own `context` (streets, kerbs) is drawn under its data in a hairline a step above `rule`, widening to a street
-as it zooms in, always quieter than the data, whose lines widen with it.
+Past a city's scale Natural Earth fades out, its coast a kilometre out there, and OpenStreetMap's streets fade in:
+water in `bg`, buildings a step darker than the ground, roads a step above `rule` widening as the map zooms in, rail
+and paths dashed, street names in Noto Sans italic. A page's own `context` is drawn as the roads are. Both are always
+quieter than the data, whose lines widen with them.
 
 ## Not decided yet
 

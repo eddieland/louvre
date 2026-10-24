@@ -121,8 +121,11 @@ MAX_MAPS = 1
 MAX_COORDINATES = 20_000
 #: A coordinate, longitude and latitude, as GeoJSON writes one.
 _COORDINATE = re.compile(r"\[\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\]")
-#: Whose basemap the kit draws, which a page with a map credits in its words.
-BASEMAP_CREDIT = "Natural Earth"
+#: Whose basemap the kit draws, which a page with a map credits in its words: Natural Earth's, and OpenStreetMap's
+#: streets, whose license asks for it.
+BASEMAP_CREDITS = ("Natural Earth", "OpenStreetMap")
+#: The credit a page gives them, as the guide has it.
+BASEMAP_CREDIT = "Basemap: Natural Earth; streets © OpenStreetMap contributors."
 #: A string in a script, which may name one of the page's files, as the kit's `data: "places.json"` does.
 _QUOTED = re.compile(r"""(['"`])([^'"`\s]+)\1""")
 #: The shortest run of a starter page's words that counts as left in: shorter ones, such as "Done", are any page's.
@@ -392,12 +395,11 @@ def _maps(named: Sequence[_Url], page: _Page, markup: str) -> Iterator[Finding]:
         )
     if not draws:
         return
-    if BASEMAP_CREDIT not in visible_text(markup):
+    if not all(credit in visible_text(markup) for credit in BASEMAP_CREDITS):
         yield Finding(
             Rule.MAP,
             Severity.ERROR,
-            f'The page draws a map without crediting its basemap: say "Basemap: {BASEMAP_CREDIT}" in the figure\'s '
-            "l-source.",
+            f'The page draws a map without crediting its basemap: say "{BASEMAP_CREDIT}" in the figure\'s l-source.',
         )
     if not any("l-key" in _classes(tag) for tag in page.tags):
         yield Finding(

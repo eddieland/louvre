@@ -29,6 +29,7 @@ from starlette.routing import Route
 
 from louvre.core import accounts, explorations, maps, style
 from louvre.core import files as version_files
+from louvre.core.maps.streets import Streets
 from louvre.core.store import Code, Refused, Scope, Store
 from louvre.mcp import server
 from louvre.web import api, auth, ui
@@ -75,7 +76,9 @@ def create(settings: Settings | None = None) -> FastAPI:
         The ASGI app, which Vercel imports from `vercel_app.py` and `louvre serve` runs locally.
     """
     app = FastAPI(title="Louvre", version=version("louvre"), docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.database = Database(settings or Settings.from_environ())
+    settings = settings or Settings.from_environ()
+    app.state.database = Database(settings)
+    app.state.streets = Streets(settings.streets)
     app.add_middleware(BaseHTTPMiddleware, dispatch=_writes_say_so)
     app.add_exception_handler(Refused, _refused)
     app.add_exception_handler(HTTPException, _http_error)
@@ -101,23 +104,7 @@ def create(settings: Settings | None = None) -> FastAPI:
             },
         )
 
-    @app.get("/kit/{version}/{path:path}", include_in_schema=False)
-    def kit(version: str, path: str) -> Response:
-        """One of the map kit's files, which an artifact's page loads from its opaque origin, so with CORS."""
-        found = maps.served(path) if version == maps.VERSION else None
-        if found is None:
-            raise HTTPException(status_code=404, detail="Not found.")
-        media_type, data = found
-        return Response(
-            data,
-            media_type=media_type,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=31536000, immutable",
-                "Content-Security-Policy": FILE_POLICY,
-                **_NO_SNIFF,
-            },
-        )
+    _kit(app)
 
     # The MCP server, over streamable HTTP, for a request with a token: an ASGI app of the SDK's (louvre.mcp.server).
     app.router.routes.append(Route("/mcp", _Mcp(app.state.database), methods=["POST"]))
@@ -235,6 +222,47 @@ def _content(app: FastAPI) -> None:
                 "Content-Security-Policy": FILE_POLICY,
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "private, max-age=31536000, immutable",
+                **_NO_SNIFF,
+            },
+        )
+
+
+def _kit(app: FastAPI) -> None:
+    """Serve the map kit's files, and the street tiles it passes on, to any origin, as an opaque origin needs (D008)."""
+
+    @app.get("/kit/{version}/streets/{z}/{x}/{y}.pbf", include_in_schema=False)
+    def street_tile(request: Request, version: str, z: int, x: int, y: int) -> Response:
+        """A street tile for the map kit, from OpenFreeMap through Louvre, as a page's map loads nothing else."""
+        streets: Streets = request.app.state.streets
+        found = streets.tile(z, x, y) if version == maps.VERSION else None
+        if found is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        # An empty tile is a 204, which the map draws as nothing; kept briefly, in case OpenFreeMap is back soon.
+        return Response(
+            found or None,
+            status_code=200 if found else 204,
+            media_type="application/x-protobuf" if found else None,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": f"public, max-age={86400 if found else 300}",
+                **_NO_SNIFF,
+            },
+        )
+
+    @app.get("/kit/{version}/{path:path}", include_in_schema=False)
+    def kit(version: str, path: str) -> Response:
+        """One of the map kit's files, which an artifact's page loads from its opaque origin, so with CORS."""
+        found = maps.served(path) if version == maps.VERSION else None
+        if found is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        media_type, data = found
+        return Response(
+            data,
+            media_type=media_type,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=31536000, immutable",
+                "Content-Security-Policy": FILE_POLICY,
                 **_NO_SNIFF,
             },
         )

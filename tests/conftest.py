@@ -155,6 +155,8 @@ def web_settings(database_url: str | None) -> Settings:
         dev_sign_in=True,
         demo=False,
         secure_cookies=False,
+        # No street tiles: a test reaches no other site, and a map's streets are drawn empty.
+        streets="",
     )
 
 

@@ -142,7 +142,7 @@ def test_a_page_names_its_files_by_their_paths_and_every_file_is_named() -> None
 MAP = (
     '<script src="/kit/louvre-map-1/map.js"></script><div class="l-map" id="map" role="img" aria-label="Sites"></div>'
     '<p class="l-key"><span class="l-focus">Over target</span><span>Under it</span></p>'
-    '<p class="l-source">Basemap: Natural Earth.</p>{}'
+    '<p class="l-source">Basemap: Natural Earth; streets © OpenStreetMap contributors.</p>{}'
 )
 #: A map's drawing, from a file beside the page.
 DRAW = '<script>LouvreMap.draw("map", {data: "places.json"})</script>'
@@ -158,7 +158,7 @@ def test_a_map_loads_the_kit_credits_its_basemap_and_has_a_key() -> None:
     assert rules(MAP.replace('<script src="/kit/louvre-map-1/map.js"></script>', "").format(DRAW)) == [
         (Rule.MAP, Severity.ERROR, "The page draws a map without the map kit"),
     ]
-    assert rules(MAP.replace("Basemap: Natural Earth.", "").format(DRAW)) == [
+    assert rules(MAP.replace("; streets © OpenStreetMap contributors", "").format(DRAW)) == [
         (Rule.MAP, Severity.ERROR, "The page draws a map without crediting its basemap"),
     ]
     assert rules(MAP.replace("l-key", "l-legend").format(DRAW)) == [(Rule.MAP, Severity.WARNING, "A map without a key")]

@@ -83,9 +83,10 @@ changed in its visible words, and what became of each thread between them.
 
 The kit is built (M10); the data alone is planned (M11). The operator works in a geospatial field (2026-10-24), so
 agents will publish maps. An artifact draws one from a map kit Louvre serves at a version, `louvre-map-1`: MapLibre GL
-JS and a basemap of Natural Earth's, drawn in the page's colors, so its policy stays closed to the network but for
-the kit (L7). The guide, the `map` starter, and `style_check` hold a map to the house style, and the demo publishes
-one. An agent may also publish the data alone, as GeoJSON, which Louvre draws in its style, as it shows Markdown.
+JS and a basemap of Natural Earth's down to a city, and OpenStreetMap's streets from OpenFreeMap, which Louvre passes
+on, below it, drawn in the page's colors, so its policy stays closed to the network but for the kit (L7). The
+guide, the `map` starter, and `style_check` hold a map to the house style, and the demo publishes one. An agent
+may also publish the data alone, as GeoJSON, which Louvre draws in its style, as it shows Markdown.
 
 ### U10. Comments and decisions on places
 
@@ -196,10 +197,8 @@ To settle before the milestone that needs it:
 - Whether canopy's `artifact_publish` takes a version's files, as Louvre's `files_publish` does for now (L8, D011).
 - Whether canopy's contract takes a content type for geodata, and a place's anchor beside a thread's quote, or a place
   is carried as a quote alone (U9, U10).
-- Whether a later map kit's basemap goes past a city's scale: `louvre-map-1`'s is Natural Earth's 1:50m (land,
-  lakes, borders, and cities, 2 MB of GeoJSON), as Protomaps' builds were out of the build machine's reach; a street's
-  detail is PMTiles, for the whole earth or a region. And which formats larger geodata takes beside GeoJSON, such as
-  FlatGeobuf or PMTiles (U9).
+- Which formats larger geodata takes beside GeoJSON, such as FlatGeobuf or PMTiles; and whether Louvre caches the
+  street tiles it passes on from OpenFreeMap, or hosts its own, if OpenFreeMap proves too slow or goes away (U9).
 - From canopy's open list: whether Louvre's design system is public on npm or internal; what Louvre keeps of an
   artifact whose ticket canopy forgets; and whether Louvre is the name.
 
