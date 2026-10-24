@@ -307,11 +307,16 @@
         color: var(--accent);
     }
 
-    /* A board: the header and toolbar above a canvas that takes the rest of the screen (ui/DESIGN.md, "Boards"). */
+    /*
+     * A board: the header and toolbar above a canvas that takes the rest of the screen (ui/DESIGN.md, "Boards"). The
+     * page takes every touch: the browser's own pinch and double-tap zoom would redraw all of the board's pages at
+     * several times their size, which a phone has not the memory for, so only the canvas's zoom zooms.
+     */
     .board-page {
         display: flex;
         flex-direction: column;
         height: 100dvh;
+        touch-action: none;
         & > .toolbar {
             width: 100%;
             margin-bottom: 0.75rem;
@@ -341,7 +346,6 @@
         overflow: hidden;
         border-top: 1px solid var(--rule);
         cursor: grab;
-        touch-action: none;
         user-select: none;
         &:active {
             cursor: grabbing;

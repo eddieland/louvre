@@ -5,8 +5,12 @@
 
 /** How far a reader zooms out, and in, as the scale of the canvas on the screen. */
 export const MIN_SCALE = 0.05
-/** See MIN_SCALE. */
-export const MAX_SCALE = 2
+/**
+ * See MIN_SCALE: a frame's page at its own size, which a reader opens the frame to read closer. Past it, WebKit, every
+ * iPhone browser's engine, draws each page at the zoom times the screen's density: a laptop's page at 2 on a phone's
+ * screen is some 190 MB.
+ */
+export const MAX_SCALE = 1
 /** How much one press of a zoom control zooms. */
 export const ZOOM_STEP = 1.25
 
