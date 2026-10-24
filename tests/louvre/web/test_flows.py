@@ -29,6 +29,10 @@ PAGE = (
 CLOSE = 0.001
 #: How long a board may take to be drawn as a test expects, in seconds.
 DEADLINE = 5.0
+#: The board's least zoom (ui/src/lib/canvas.ts, MIN_SCALE).
+MIN_SCALE = 0.05
+#: How far past its frame a frame's shadows may reach on the canvas, in canvas pixels: the sheet's shadow's reach.
+SHADOW_REACH = 48
 
 pytestmark = pytest.mark.skipif(MODE not in {"1", "update"}, reason="drives a browser: run `make screens`")
 
@@ -289,6 +293,58 @@ def test_on_a_phone_a_reader_drags_and_pinches_a_board_then_taps_a_frame_open(br
         page.get_by_role("link", name="Open Direction: Studio, Laptop, 1440").tap()
         page.wait_for_url(re.compile(r"frame=studio-laptop$"))
         expect(page.locator("iframe.exhibit")).to_be_visible()
+    finally:
+        context.close()
+
+
+def test_on_a_phone_a_board_zoomed_out_paints_little_past_its_frames(browser: Browser, live_app: str) -> None:
+    """A frame's shadow reaches past it by the sheet's few pixels on the canvas at any zoom, not more as it zooms out.
+
+    A shadow of one size on the screen grew to eight times the pages' own area at the least zoom, and panning that
+    took more memory than a phone's browser has.
+    """
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        zoom_out = page.get_by_role("button", name="Zoom out")
+        while view(page)[2] > MIN_SCALE + CLOSE:
+            zoom_out.tap()
+        reach = page.evaluate(
+            "() => getComputedStyle(document.querySelector('.board-frame iframe')).boxShadow"
+            ".split(/,(?![^(]*\\))/).map((s) => s.match(/-?[\\d.]+px/g).map(parseFloat))"
+            ".map(([x, y, blur, spread]) => Math.max(Math.abs(x), Math.abs(y)) + blur + spread)",
+        )
+        assert max(reach) <= SHADOW_REACH, f"a frame's shadows reach {reach} canvas pixels past it"
+    finally:
+        context.close()
+
+
+def test_on_a_phone_a_pinch_off_the_canvas_does_not_zoom_the_page(browser: Browser, live_app: str) -> None:
+    """A pinch on the header or the toolbar leaves the page at its size: the browser's zoom draws every frame larger."""
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        touch = context.new_cdp_session(page)
+        for bar in ("header", ".toolbar"):
+            box = page.locator(bar).first.bounding_box()
+            assert box is not None
+            y = int(box["y"] + box["height"] / 2)
+            fingers(touch, [[(170, y), (220, y)], *([(170 - n * 20, y), (220 + n * 20, y)] for n in range(1, 8))])
+            assert page.evaluate("visualViewport.scale") == 1, f"a pinch on the {bar} zoomed the page"
     finally:
         context.close()
 

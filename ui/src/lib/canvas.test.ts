@@ -35,8 +35,8 @@ describe('fit', () => {
         expect(view).toEqual({ x: 0, y: 0, scale: 1 })
     })
 
-    it('never zooms in past the most', () => {
-        expect(fit({ x: 0, y: 0, width: 10, height: 10 }, 1000, 1000, 0).scale).toBe(MAX_SCALE)
+    it('never zooms in past the pages at their own size', () => {
+        expect(fit({ x: 0, y: 0, width: 10, height: 10 }, 1000, 1000, 0).scale).toBe(1)
     })
 })
 

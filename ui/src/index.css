@@ -307,11 +307,16 @@
         color: var(--accent);
     }
 
-    /* A board: the header and toolbar above a canvas that takes the rest of the screen (ui/DESIGN.md, "Boards"). */
+    /*
+     * A board: the header and toolbar above a canvas that takes the rest of the screen (ui/DESIGN.md, "Boards"). The
+     * page takes every touch: the browser's own pinch and double-tap zoom would redraw all of the board's pages at
+     * several times their size, which a phone has not the memory for, so only the canvas's zoom zooms.
+     */
     .board-page {
         display: flex;
         flex-direction: column;
         height: 100dvh;
+        touch-action: none;
         & > .toolbar {
             width: 100%;
             margin-bottom: 0.75rem;
@@ -341,7 +346,6 @@
         overflow: hidden;
         border-top: 1px solid var(--rule);
         cursor: grab;
-        touch-action: none;
         user-select: none;
         &:active {
             cursor: grabbing;
@@ -363,9 +367,15 @@
             height: 100%;
             border: 0;
             background: var(--paper);
+            /*
+             * The outline keeps one size on the screen; the shadow is the sheet's, and scales with its frame. A shadow
+             * of one size on the screen would be ever larger on the canvas as the board zooms out: at the least zoom,
+             * eight times the pages' own area for the browser to paint, which a phone that paints a scaled layer at
+             * full size, as Safari does, has not the memory for.
+             */
             box-shadow:
                 0 0 0 calc(1px / var(--zoom)) var(--rule),
-                0 calc(24px / var(--zoom)) calc(48px / var(--zoom)) calc(-28px / var(--zoom)) var(--shadow);
+                0 24px 48px -28px var(--shadow);
             pointer-events: none;
         }
     }
