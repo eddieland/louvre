@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
+import { SignInLink } from '@/components/sign-in'
 import { sessionQuery, useSignIn } from '@/lib/api'
 import { setTheme, useTheme } from '@/lib/theme'
 
@@ -46,9 +47,7 @@ export function Header({ provenance }: HeaderProps) {
                         </button>
                     </>
                 ) : (
-                    <Link to="/sign-in" className="action action-primary">
-                        Sign in
-                    </Link>
+                    <SignInLink className="action action-primary">Sign in</SignInLink>
                 )}
             </nav>
         </header>

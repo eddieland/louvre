@@ -3,20 +3,17 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
-import { SignIn } from '@/components/sign-in'
+import { SignIn, SignInLink } from '@/components/sign-in'
 import { ApiError, boardsQuery, listArtifacts, sessionQuery } from '@/lib/api'
 import type { Listed, ListedBoard } from '@/lib/api'
 import { ago, count, provenance } from '@/lib/format'
 
 /** The catalogue: every artifact the reader reaches, newest first (ui/DESIGN.md, "Catalogue"). */
 export const Route = createFileRoute('/')({
-    validateSearch: (search: Record<string, unknown>): { sign_in?: string } =>
-        typeof search['sign_in'] === 'string' ? { sign_in: search['sign_in'] } : {},
     component: Catalogue,
 })
 
 function Catalogue() {
-    const { sign_in: why } = Route.useSearch()
     const session = useQuery(sessionQuery)
     const reachable = session.data?.configured === true && (session.data.account !== null || session.data.demo)
     const list = useInfiniteQuery({
@@ -54,7 +51,7 @@ function Catalogue() {
             return (
                 <Notice title="Sign in to read">
                     <p>Louvre holds the pages agents publish for people to read and comment on.</p>
-                    <SignIn why={why} />
+                    <SignIn />
                 </Notice>
             )
         }
@@ -85,11 +82,7 @@ function Catalogue() {
             <section className="catalogue" aria-labelledby="catalogue-title">
                 {session.data?.account === null ? (
                     <p className="mb-6 font-ui text-sm text-muted">
-                        You are reading the demo.{' '}
-                        <Link to="/sign-in" className="link">
-                            Sign in
-                        </Link>{' '}
-                        to comment.
+                        You are reading the demo. <SignInLink className="link">Sign in</SignInLink> to comment.
                     </p>
                 ) : null}
                 {boards.length > 0 ? (

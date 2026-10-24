@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { Composer } from '@/components/composer'
+import { SignInLink } from '@/components/sign-in'
 import type { Account, Comment, Thread } from '@/lib/api'
 import { ago, roman } from '@/lib/format'
 
@@ -132,9 +132,7 @@ function Actions(props: ThreadNoteProps & { thread: Thread }) {
     if (!account) {
         return (
             <div className="actions">
-                <Link to="/sign-in" className="action action-primary">
-                    Sign in to reply
-                </Link>
+                <SignInLink className="action action-primary">Sign in to reply</SignInLink>
             </div>
         )
     }
