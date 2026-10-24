@@ -1,11 +1,15 @@
-"""The MCP server answers the artifacts contract's tools, and style_get, as canopy's local store does."""
+"""The MCP server answers the contract's tools, and style_get, as canopy's local store does, to the SDK's client."""
 
-import itertools
 import json
-from collections.abc import Mapping
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
+import mcp
 import pytest
+from anyio.from_thread import BlockingPortal, start_blocking_portal
+from mcp.shared.exceptions import MCPError
+from mcp.types import CallToolResult, TextContent, TextResourceContents
 
 from louvre.core import style
 from louvre.core.store import MAX_BODY, MAX_FEED, MAX_ORIGIN, Store
@@ -39,26 +43,24 @@ TOOLS = [
 
 
 class Client:
-    """Calls a store's tools through the MCP server, one JSON-RPC message at a time."""
+    """Calls a store's tools through the MCP server, with the SDK's client, in process."""
 
-    def __init__(self, store: Store) -> None:
-        """Call `store`."""
-        self.store = store
-        self._ids = itertools.count(1)
+    def __init__(self, portal: BlockingPortal, session: mcp.Client) -> None:
+        """Call through `session`, connected in `portal`'s event loop."""
+        self.portal = portal
+        self.session = session
 
-    def request(self, method: str, params: Mapping[str, object] | None = None) -> dict[str, Any]:
-        """Send a request, and return its response."""
-        line = json.dumps({"jsonrpc": "2.0", "id": next(self._ids), "method": method, "params": params or {}})
-        response = server.answer(line.encode(), self.store)
-        assert response is not None
-        return response
+    def tool(self, name: str, **arguments: object) -> CallToolResult:
+        """Call a tool, and return its result."""
+        return self.portal.call(self.session.call_tool, name, arguments)
 
     def result(self, name: str, **arguments: object) -> str:
-        """Call a tool, and return its result."""
-        result = self.request("tools/call", {"name": name, "arguments": arguments})["result"]
-        assert result["isError"] is False, result
-        [content] = result["content"]
-        return str(content["text"])
+        """Call a tool that succeeds, and return its text."""
+        result = self.tool(name, **arguments)
+        assert result.is_error is False, result
+        [content] = result.content
+        assert isinstance(content, TextContent)
+        return content.text
 
     def call(self, name: str, **arguments: object) -> dict[str, Any]:
         """Call a tool that succeeds, and return what it returned."""
@@ -66,9 +68,11 @@ class Client:
 
     def refused(self, name: str, **arguments: object) -> str:
         """Call a tool that refuses, and return its code."""
-        result = self.request("tools/call", {"name": name, "arguments": arguments})["result"]
-        assert result["isError"] is True, result
-        refusal = json.loads(result["content"][0]["text"])
+        result = self.tool(name, **arguments)
+        assert result.is_error is True, result
+        [content] = result.content
+        assert isinstance(content, TextContent)
+        refusal = json.loads(content.text)
         assert refusal["message"]
         return refusal["code"]
 
@@ -87,10 +91,30 @@ class Client:
         )
 
 
+@contextmanager
+def connected(store: Store) -> Iterator[Client]:
+    """Connect a client to the MCP server, whose every call reaches `store`.
+
+    Yields:
+        The client, connected until the block ends.
+    """
+
+    @contextmanager
+    def open_store(_ctx: object) -> Iterator[Store]:
+        yield store
+
+    with (
+        start_blocking_portal() as portal,
+        portal.wrap_async_context_manager(mcp.Client(server.server(open_store))) as session,
+    ):
+        yield Client(portal, session)
+
+
 @pytest.fixture
-def client(agent: MakeAgent) -> Client:
+def client(agent: MakeAgent) -> Iterator[Client]:
     """A client as an agent of Sam's, in canopy/sam."""
-    return Client(agent())
+    with connected(agent()) as found:
+        yield found
 
 
 def test_a_published_artifact_reads_back_with_its_visible_text(client: Client) -> None:
@@ -143,22 +167,22 @@ def test_the_feed_carries_each_change_and_ends_with_its_cursor(client: Client) -
 
 def test_another_namespace_is_out_of_scope(client: Client, agent: MakeAgent) -> None:
     artifact = client.publish()["artifact_id"]
-    other = Client(agent("canopy/other"))
 
-    assert other.refused("artifact_read", artifact_id=artifact) == "out_of_scope"
-    assert other.call("artifact_list") == {"artifacts": [], "next_cursor": None}
+    with connected(agent("canopy/other")) as other:
+        assert other.refused("artifact_read", artifact_id=artifact) == "out_of_scope"
+        assert other.call("artifact_list") == {"artifacts": [], "next_cursor": None}
 
 
 def test_a_read_only_token_refuses_every_write(client: Client, agent: MakeAgent) -> None:
     artifact = client.publish()["artifact_id"]
     thread = client.call("comment_create", artifact_id=artifact, body="x")["thread_id"]
-    reader = Client(agent(scopes=("read",)))
 
-    assert reader.refused("artifact_publish", title="t", content_type="text/markdown", content="x") == "read_only"
-    assert reader.refused("comment_create", artifact_id=artifact, body="x") == "read_only"
-    assert reader.refused("comment_reply", thread_id=thread, body="x") == "read_only"
-    assert reader.refused("thread_resolve", thread_id=thread, resolved=True) == "read_only"
-    assert reader.call("artifact_read", artifact_id=artifact)["content"] == REPORT
+    with connected(agent(scopes=("read",))) as reader:
+        assert reader.refused("artifact_publish", title="t", content_type="text/markdown", content="x") == "read_only"
+        assert reader.refused("comment_create", artifact_id=artifact, body="x") == "read_only"
+        assert reader.refused("comment_reply", thread_id=thread, body="x") == "read_only"
+        assert reader.refused("thread_resolve", thread_id=thread, resolved=True) == "read_only"
+        assert reader.call("artifact_read", artifact_id=artifact)["content"] == REPORT
 
 
 @pytest.mark.parametrize(
@@ -211,29 +235,59 @@ def test_arguments_the_tool_cannot_use_are_invalid(client: Client, name: str, ar
 
 
 def test_style_get_hands_over_the_house_style(client: Client) -> None:
-    assert client.call("style_get") == {"version": style.VERSION, "css": style.CSS, "rules": style.RULES}
-
-
-def test_it_serves_its_tools_and_nothing_else(client: Client) -> None:
-    hello = client.request("initialize", {"protocolVersion": "2024-11-05", "capabilities": {}})["result"]
-    assert hello["protocolVersion"] == "2024-11-05"
-    assert hello["serverInfo"]["name"] == "louvre"
-    assert (
-        client.request("initialize", {"protocolVersion": "1999-01-01"})["result"]["protocolVersion"]
-        == (server.PROTOCOL_VERSIONS[0])
-    )
-    tools = client.request("tools/list")["result"]["tools"]
-    assert [t["name"] for t in tools] == TOOLS
-    assert "$ref" not in json.dumps([t["inputSchema"] for t in tools])
-    assert client.request("ping")["result"] == {}
-    assert client.request("resources/list")["error"]["code"] == server.METHOD_NOT_FOUND
-    assert client.request("tools/call", {"name": "artifact_delete", "arguments": {}})["error"]["code"] == (
-        server.INVALID_PARAMS
-    )
-    assert server.answer(b"{not json", client.store) == {
-        "jsonrpc": "2.0",
-        "id": None,
-        "error": {"code": server.PARSE_ERROR, "message": "not a JSON message"},
+    assert client.call("style_get") == {
+        "version": style.VERSION,
+        "css": style.CSS,
+        "rules": style.RULES,
+        "starter": style.STARTER,
     }
-    assert server.answer(b"[]", client.store)["error"]["code"] == server.INVALID_REQUEST  # type: ignore[index]
-    assert server.answer(b'{"jsonrpc": "2.0", "method": "notifications/initialized"}', client.store) is None
+
+
+def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
+    listed = client.portal.call(client.session.list_resources).resources
+    read = {r.uri: client.portal.call(client.session.read_resource, r.uri).contents for r in listed}
+
+    assert [(r.uri, r.mime_type) for r in listed] == [
+        ("louvre://style/louvre-1/style.css", "text/css"),
+        ("louvre://style/louvre-1/rules.md", "text/markdown"),
+        ("louvre://style/louvre-1/starter.html", "text/html"),
+    ]
+    assert [[c.text for c in contents if isinstance(c, TextResourceContents)] for contents in read.values()] == [
+        [style.CSS],
+        [style.RULES],
+        [style.STARTER],
+    ]
+    with pytest.raises(MCPError):
+        client.portal.call(client.session.read_resource, "louvre://style/louvre-0/style.css")
+
+
+def test_the_style_prompt_asks_for_a_page_about_what_it_is_given(client: Client) -> None:
+    [listed] = client.portal.call(client.session.list_prompts).prompts
+    given = client.portal.call(client.session.get_prompt, "style", {"about": "checkout latency"})
+    bare = client.portal.call(client.session.get_prompt, "style", None)
+    [message] = given.messages
+    assert isinstance(message.content, TextContent)
+    [plain] = bare.messages
+    assert isinstance(plain.content, TextContent)
+
+    assert listed.name == "style"
+    assert message.role == "user"
+    assert message.content.text.startswith("Write a page about checkout latency as an HTML artifact")
+    assert style.RULES in message.content.text
+    assert style.STARTER in message.content.text
+    assert plain.content.text.startswith("Write the page I ask for as an HTML artifact")
+    with pytest.raises(MCPError):
+        client.portal.call(client.session.get_prompt, "publish", None)
+
+
+def test_it_serves_its_tools_and_says_what_it_is_for(client: Client) -> None:
+    tools = client.portal.call(client.session.list_tools).tools
+    info = client.session.server_info
+
+    assert [t.name for t in tools] == TOOLS
+    assert "$ref" not in json.dumps([t.input_schema for t in tools])
+    assert info is not None
+    assert info.name == "louvre"
+    assert client.session.instructions == server.INSTRUCTIONS
+    with pytest.raises(MCPError):
+        client.tool("artifact_delete")

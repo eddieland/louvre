@@ -88,9 +88,11 @@ the log reads as what is true now; the old text is in git history. Numbers are n
   `/auth`, where the middleware holds it.
 - `/mcp` takes a bearer token and never a cookie: a person's session cannot be used as an agent's.
 
-## D010. The MCP server is hand-rolled JSON-RPC, as canopy's local store's is
+## D010. The MCP server is the MCP SDK's low-level server, serving canopy's tool definitions
 
-- The tools' definitions and the answering are canopy's (`packages/canopy-artifacts`), ported, so both stores serve
-  one contract; Louvre carries it over streamable HTTP, one message a request, answered as JSON.
-- Rejected: the `mcp` SDK (its own async stack and transports, for five methods).
-- Revisit: if a client needs server-sent events or sessions.
+- Settled by the operator (2026-10-24). The SDK speaks the protocol and streamable HTTP; louvre.mcp lists canopy's
+  definitions (`packages/canopy-artifacts`) as they are, so both stores serve one contract, and answers each call
+  from the store. Stateless, answered in JSON, with no stream: any instance answers any request, as on Vercel.
+- Tests reach it through the SDK's own client, in process and over HTTP, as agents' runtimes do.
+- Rejected: hand-rolled JSON-RPC (every protocol version, and resources and prompts, by hand); the SDK's `MCPServer`
+  (schemas from function signatures, not canopy's).

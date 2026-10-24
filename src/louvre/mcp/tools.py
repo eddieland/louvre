@@ -214,8 +214,9 @@ TOOLS = (
     tool(
         "style_get",
         "Get Louvre's house style, optional: a stylesheet to inline in an HTML artifact so it looks like Louvre's own "
-        "pages, dark and light, and the rules for using it. A Markdown artifact is shown in it already.",
+        "pages, dark and light, the rules for using it, and a starter page that uses it. A Markdown artifact is shown "
+        "in it already.",
         StyleGet,
-        lambda _store, _r: {"version": style.VERSION, "css": style.CSS, "rules": style.RULES},
+        lambda _store, _r: {"version": style.VERSION, "css": style.CSS, "rules": style.RULES, "starter": style.STARTER},
     ),
 )

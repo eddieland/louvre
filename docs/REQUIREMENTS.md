@@ -55,7 +55,9 @@ choose to (2026-10-23). Louvre is the source of it: a versioned stylesheet, dark
 its components (a report's header, figures, callouts, tables) and the rules for using them. Agents get it over the MCP
 server they already reach Louvre by, so nothing is installed and it never lags Louvre; a skill only says when to use
 it. An artifact that opts in names a version, so a later style never restyles a published page. The `style_get` tool
-hands over the stylesheet and its rules, which the artifact inlines; a Markdown artifact is shown in it already.
+hands over the stylesheet, its rules, and a starter page that uses each component, which the artifact inlines; the
+same three are MCP resources a person attaches, and the `style` prompt asks for a page in it. A Markdown artifact is
+shown in it already.
 
 ### U7. What a new version changed, and what became of each thread
 

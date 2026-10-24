@@ -18,6 +18,8 @@ const PADDING = 24
 const DRAG = 4
 /** How far an arrow key moves the canvas, in screen pixels. */
 const PAN_STEP = 80
+/** How long the zoom is still before the frames' pages are drawn again, in milliseconds. */
+const SETTLE = 200
 
 /** One page on a board's canvas, at a screen's size and a place, in CSS pixels. */
 export interface CanvasFrame {
@@ -69,6 +71,13 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
     const pointers = useRef(new Map<number, Point>())
     const pressedAt = useRef<Point | null>(null)
     const dragged = useRef(false)
+    // The moves made since the board was last drawn: a phone sends pointer moves faster than its screen redraws, so
+    // they are drawn together, once a frame.
+    const pending = useRef<((current: View) => View) | null>(null)
+    // Whether the zoom is changing, and when it is still again. Each step of a zoom redraws every frame's page at the
+    // new size, which a phone has not the memory to do many times a second: while it changes, the pages are put away.
+    const [zooming, setZooming] = useState(false)
+    const settling = useRef<ReturnType<typeof setTimeout>>(undefined)
 
     const world = bounds(frames, LABEL_ROOM)
 
@@ -76,13 +85,31 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         const viewport = viewportRef.current
         if (viewport) {
             fitted.current = true
+            pending.current = null
             setView(fit(world, viewport.clientWidth, viewport.clientHeight, PADDING))
         }
     }
 
     const change = (next: (current: View) => View) => {
         fitted.current = false
-        setView((was) => (was ? next(was) : was))
+        const before = pending.current
+        pending.current = before ? (current) => next(before(current)) : next
+        if (!before) {
+            requestAnimationFrame(() => {
+                const moves = pending.current
+                pending.current = null
+                if (moves) {
+                    setView((was) => (was ? moves(was) : was))
+                }
+            })
+        }
+    }
+
+    const zoom = (next: (current: View) => View) => {
+        change(next)
+        setZooming(true)
+        clearTimeout(settling.current)
+        settling.current = setTimeout(() => setZooming(false), SETTLE)
     }
 
     const middle = (): Point => {
@@ -90,7 +117,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         return { x: (viewport?.clientWidth ?? 0) / 2, y: (viewport?.clientHeight ?? 0) / 2 }
     }
 
-    const zoomBy = (factor: number) => change((was) => zoomAt(was, factor, middle()))
+    const zoomBy = (factor: number) => zoom((was) => zoomAt(was, factor, middle()))
 
     const onResize = useEffectEvent(() => {
         if (fitted.current) {
@@ -114,7 +141,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         const at = viewportRef.current?.getBoundingClientRect()
         if (at) {
             const factor = wheelFactor(event.deltaY, event.deltaMode, event.ctrlKey)
-            change((was) => zoomAt(was, factor, { x: event.clientX - at.left, y: event.clientY - at.top }))
+            zoom((was) => zoomAt(was, factor, { x: event.clientX - at.left, y: event.clientY - at.top }))
         }
     })
     useEffect(() => {
@@ -182,7 +209,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
             const before = { at: halfway(was, other), apart: distance(was, other) }
             const after = { at: halfway(now, other), apart: distance(now, other) }
             const factor = before.apart > 0 ? after.apart / before.apart : 1
-            change((current) =>
+            zoom((current) =>
                 zoomAt(panBy(current, after.at.x - before.at.x, after.at.y - before.at.y), factor, after.at),
             )
             return
@@ -253,6 +280,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
                 <div
                     className="world"
                     data-ready={view ? '' : undefined}
+                    data-zooming={zooming ? '' : undefined}
                     style={view ? drawn(view) : { visibility: 'hidden' }}
                 >
                     {frames.map((frame) => (

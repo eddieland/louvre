@@ -1,64 +1,131 @@
-"""Louvre's MCP server: JSON-RPC 2.0 answered one message at a time, which the web app carries over streamable HTTP.
+"""Louvre's MCP server, on the MCP SDK's low-level server (D010): the SDK speaks the protocol, Louvre the tools.
 
-It serves tools and nothing else: the methods `initialize`, `notifications/initialized`, `ping`, `tools/list`, and
-`tools/call`, as canopy's local store does over stdio (packages/canopy-artifacts), whose answering this is. Rejected:
-the `mcp` SDK, a dependency with its own async stack and transports, for these few methods.
-
-A refusal, or arguments a tool's schema refuses, is a tool error, `isError`, whose text is one JSON object,
-`{"code": ..., "message": ...}`.
+The tools are canopy's definitions (louvre.mcp.tools), listed with their schemas as they are, and answered by the
+store each call opens. Louvre's house style is resources and a prompt beside them (louvre.mcp.style), the same for
+every token. A refusal, or arguments a tool's schema refuses, is a tool error, `isError`, whose text is one
+JSON object, `{"code": ..., "message": ...}`. Over HTTP it runs stateless and answers in JSON: each request stands
+alone, so any instance of the app answers any request, and no stream is left open.
 """
 
 import json
 import logging
 from collections.abc import Callable, Mapping
-from typing import Annotated, Literal
+from contextlib import AbstractContextManager
+from importlib import metadata
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, ValidationError
+import anyio
+import mcp_types as types
+from mcp.server.context import ServerRequestContext
+from mcp.server.lowlevel import Server
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+from mcp.server.transport_security import TransportSecuritySettings
+from mcp.shared.exceptions import MCPError
+from pydantic import ValidationError
+from starlette.types import Receive, Scope, Send
 
 from louvre.core.store import Code, Refused, Store
+from louvre.mcp import style
 from louvre.mcp.tools import TOOLS, Tool
 
-#: The protocol versions the server speaks, newest first: a client that asks for one of them is answered in it, and
-#: any other in the newest.
-PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 #: The server's name, as `initialize` gives it.
 NAME = "louvre"
-#: JSON-RPC's error codes for a body that is not JSON, a message that is not a request, a method the server does not
-#: have, parameters it cannot take, and a failure of its own.
-PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
+#: What a client is told the server is for, when it connects: many put it in their model's instructions.
+INSTRUCTIONS = (
+    "Louvre hosts artifacts, pages people read and comment on: publish one with artifact_publish, read its threads "
+    "with thread_list, and answer with comment_reply. Your token reaches one namespace. For an HTML page that looks "
+    "like Louvre's own, call style_get: its stylesheet, rules, and a starter page are resources too, and the style "
+    "prompt writes a page in it."
+)
 
-#: A JSON-RPC response, or None for a notification, which is never answered.
-type Response = dict[str, object] | None
+#: Opens the store a call reaches, from the request's context: the token's scope, in a connection of its own.
+type OpenStore = Callable[[ServerRequestContext[Any, Any]], AbstractContextManager[Store]]
+#: An ASGI application.
+type App = Callable[[Scope, Receive, Send], Any]
 
 _log = logging.getLogger(__name__)
 
 
-def answer(line: bytes, store: Store) -> Response:
-    """Answer one message.
+def server(open_store: OpenStore) -> Server[Any]:
+    """Make the MCP server, whose tool calls reach the store `open_store` opens.
 
     Returns:
-        The response to a request, or None for a notification, which is never answered.
+        The server.
     """
-    try:
-        message = _read(line)
-    except _Failed as e:
-        return _error(e.request_id, e.code, str(e))
-    if message is None:
-        return None
-    method = _METHODS.get(message.method)
-    if method is None:
-        return _error(message.id, METHOD_NOT_FOUND, f"no method {message.method!r}: {NAME} serves tools only")
-    try:
-        result = method(message.params, store)
-    except _Failed as e:
-        return _error(message.id, e.code, str(e))
-    except Exception as e:  # noqa: BLE001  (a bug answers this request, and the server goes on serving)
-        _log.exception("an MCP call failed")
-        return _error(message.id, INTERNAL_ERROR, f"{NAME} failed: {type(e).__name__}")
-    return {"jsonrpc": "2.0", "id": message.id, "result": result}
+
+    async def list_tools(
+        _ctx: ServerRequestContext[Any, Any],
+        _params: types.PaginatedRequestParams | None,
+    ) -> types.ListToolsResult:
+        return types.ListToolsResult(tools=[listed(t) for t in TOOLS])
+
+    async def call_tool(
+        ctx: ServerRequestContext[Any, Any],
+        params: types.CallToolRequestParams,
+    ) -> types.CallToolResult:
+        found = next((t for t in TOOLS if t.name == params.name), None)
+        if found is None:
+            raise MCPError(types.INVALID_PARAMS, f"no tool named {params.name!r}")
+        # The store is synchronous: it runs in a worker thread, as a synchronous route would.
+        return await anyio.to_thread.run_sync(_call, found, params.arguments or {}, ctx, open_store)
+
+    async def list_resources(
+        _ctx: ServerRequestContext[Any, Any],
+        _params: types.PaginatedRequestParams | None,
+    ) -> types.ListResourcesResult:
+        return types.ListResourcesResult(resources=style.resources())
+
+    async def read_resource(
+        _ctx: ServerRequestContext[Any, Any],
+        params: types.ReadResourceRequestParams,
+    ) -> types.ReadResourceResult:
+        return style.read(params.uri)
+
+    async def list_prompts(
+        _ctx: ServerRequestContext[Any, Any],
+        _params: types.PaginatedRequestParams | None,
+    ) -> types.ListPromptsResult:
+        return types.ListPromptsResult(prompts=style.prompts())
+
+    async def get_prompt(
+        _ctx: ServerRequestContext[Any, Any],
+        params: types.GetPromptRequestParams,
+    ) -> types.GetPromptResult:
+        return style.prompt(params.name, params.arguments)
+
+    return Server(
+        NAME,
+        version=metadata.version(NAME),
+        instructions=INSTRUCTIONS,
+        on_list_tools=list_tools,
+        on_call_tool=call_tool,
+        on_list_resources=list_resources,
+        on_read_resource=read_resource,
+        on_list_prompts=list_prompts,
+        on_get_prompt=get_prompt,
+    )
 
 
-def listed(found: Tool) -> dict[str, object]:
+def http(found: Server[Any]) -> App:
+    """Serve `found` over streamable HTTP, stateless, each request answered in JSON.
+
+    Returns:
+        The ASGI app, which takes the request whatever its path.
+    """
+    # Every request carries a bearer token, never a cookie (D009), so a page another site serves gains nothing by
+    # reaching it: the SDK's check of the Host and Origin headers, against DNS rebinding, is off.
+    security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        # A manager runs once and stops with its task group; one a request needs no app lifespan to start it.
+        manager = StreamableHTTPSessionManager(found, json_response=True, stateless=True, security_settings=security)
+        async with manager.run():
+            await manager.handle_request(scope, receive, send)
+
+    return app
+
+
+def listed(found: Tool) -> types.Tool:
     """Describe a tool as `tools/list` lists it.
 
     Returns:
@@ -70,93 +137,19 @@ def listed(found: Tool) -> dict[str, object]:
     whole.pop("description", None)
     definitions = whole.pop("$defs", {})
     schema = _inlined(whole, definitions if isinstance(definitions, dict) else {})
-    return {"name": found.name, "description": found.description, "inputSchema": schema}
+    assert isinstance(schema, dict)  # noqa: S101  (a model's schema is an object)
+    return types.Tool(name=found.name, description=found.description, input_schema=schema)
 
 
-class _Message(BaseModel):
-    """A JSON-RPC 2.0 request, or a notification without its `id`."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    jsonrpc: Literal["2.0"]
-    id: StrictInt | StrictStr | None = None
-    method: StrictStr
-    params: Mapping[str, object] = Field(default_factory=dict[str, object])
-
-
-class _Params(BaseModel):
-    # A method's parameters keep a field a later protocol version adds, such as `_meta`; a tool's arguments do not.
-    model_config = ConfigDict(extra="ignore", frozen=True)
-
-
-class _Initialize(_Params):
-    protocol_version: Annotated[StrictStr, Field(alias="protocolVersion")]
-
-
-class _Call(_Params):
-    name: StrictStr
-    arguments: Mapping[str, object] | None = None
-
-
-class _Failed(Exception):  # noqa: N818  (answered as JSON-RPC's error, not raised past the server)
-    """A message the server cannot answer as asked: `code` is JSON-RPC's for why, and `request_id` the request's."""
-
-    def __init__(self, code: int, message: str, request_id: object = None) -> None:
-        """Say why, with JSON-RPC's code for it, about the request `request_id` names."""
-        super().__init__(message)
-        self.code = code
-        self.request_id = request_id
-
-
-def _read(line: bytes) -> _Message | None:
-    """Read one message.
-
-    Returns:
-        The request, or None for a notification.
-
-    Raises:
-        _Failed: The line is not JSON, or not one JSON-RPC message.
-    """
+def _call(
+    found: Tool,
+    arguments: Mapping[str, object],
+    ctx: ServerRequestContext[Any, Any],
+    open_store: OpenStore,
+) -> types.CallToolResult:
     try:
-        raw: object = json.loads(line)
-    except ValueError:
-        raise _Failed(PARSE_ERROR, "not a JSON message") from None
-    if not isinstance(raw, dict):
-        raise _Failed(INVALID_REQUEST, "a message is one JSON object; batches are not taken")
-    try:
-        message = _Message.model_validate(raw)
-    except ValidationError as e:
-        found = raw.get("id")
-        request_id = found if isinstance(found, int | str) and not isinstance(found, bool) else None
-        raise _Failed(INVALID_REQUEST, _explain(e), request_id) from None
-    return message if "id" in raw else None
-
-
-def _initialize(params: Mapping[str, object], store: Store) -> dict[str, object]:  # noqa: ARG001
-    asked = _parsed(_Initialize, params)
-    version = asked.protocol_version if asked.protocol_version in PROTOCOL_VERSIONS else PROTOCOL_VERSIONS[0]
-    return {
-        "protocolVersion": version,
-        "capabilities": {"tools": {"listChanged": False}},
-        "serverInfo": {"name": NAME, "version": _version()},
-    }
-
-
-def _ping(params: Mapping[str, object], store: Store) -> dict[str, object]:  # noqa: ARG001
-    return {}
-
-
-def _list(params: Mapping[str, object], store: Store) -> dict[str, object]:  # noqa: ARG001  (one page)
-    return {"tools": [listed(t) for t in TOOLS]}
-
-
-def _call(params: Mapping[str, object], store: Store) -> dict[str, object]:
-    asked = _parsed(_Call, params)
-    found = next((t for t in TOOLS if t.name == asked.name), None)
-    if found is None:
-        raise _Failed(INVALID_PARAMS, f"no tool named {asked.name!r}")
-    try:
-        return _said(found.call(asked.arguments or {}, store))
+        with open_store(ctx) as store:
+            return _said(found.call(arguments, store))
     except ValidationError as e:
         return _refused(Code.INVALID, _explain(e))
     except Refused as e:
@@ -164,21 +157,6 @@ def _call(params: Mapping[str, object], store: Store) -> dict[str, object]:
     except OverflowError:
         # Postgres's integers are 64 bits; a JSON number need not be.
         return _refused(Code.INVALID, "a number is past the most the store holds")
-
-
-_METHODS: Mapping[str, Callable[[Mapping[str, object], Store], dict[str, object]]] = {
-    "initialize": _initialize,
-    "ping": _ping,
-    "tools/list": _list,
-    "tools/call": _call,
-}
-
-
-def _parsed[P: _Params](params_model: type[P], params: Mapping[str, object]) -> P:
-    try:
-        return params_model.model_validate(params)
-    except ValidationError as e:
-        raise _Failed(INVALID_PARAMS, _explain(e)) from None
 
 
 def _explain(error: ValidationError) -> str:
@@ -192,23 +170,13 @@ def _explain(error: ValidationError) -> str:
     )
 
 
-def _said(text: str) -> dict[str, object]:
-    return {"content": [{"type": "text", "text": text}], "isError": False}
+def _said(text: str) -> types.CallToolResult:
+    return types.CallToolResult(content=[types.TextContent(type="text", text=text)], is_error=False)
 
 
-def _refused(code: Code, message: str) -> dict[str, object]:
+def _refused(code: Code, message: str) -> types.CallToolResult:
     text = json.dumps({"code": code.value, "message": message}, ensure_ascii=False)
-    return {"content": [{"type": "text", "text": text}], "isError": True}
-
-
-def _error(request_id: object, code: int, message: str) -> dict[str, object]:
-    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
-
-
-def _version() -> str:
-    from importlib import metadata  # noqa: PLC0415  (read once, at initialize)
-
-    return metadata.version(NAME)
+    return types.CallToolResult(content=[types.TextContent(type="text", text=text)], is_error=True)
 
 
 def _inlined(node: object, definitions: Mapping[str, object], *, fields: bool = False) -> object:

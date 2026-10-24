@@ -1,10 +1,11 @@
-"""Louvre's house style for artifacts (REQUIREMENTS U6): a stylesheet an agent may use, and the rules for using it.
+"""Louvre's house style for artifacts (REQUIREMENTS U6): a stylesheet an agent may use, its rules, and a starter page.
 
 It is Annotated's type and color (ui/DESIGN.md) made for a page inside the artifact's frame: dark first, light when the
 reader's system is, every color a custom property. A page cannot load fonts from the network in its sandbox, so it
 names the faces and falls back to the reader's own serif and sans. Louvre wraps every Markdown artifact in it, and the
-`style_get` tool hands it to an agent writing HTML, which inlines it in a `<style>` element. The version is in the
-name: a later style is a new version, and never restyles a page already published.
+`style_get` tool, the MCP server's resources, and its `style` prompt hand it to an agent writing HTML, which inlines
+it in a `<style>` element. The version is in the name: a later style is a new version, and never restyles a page
+already published.
 """
 
 #: The style's name and version, as a page that uses it names it.
@@ -147,6 +148,8 @@ RULES = """Louvre's house style, louvre-1. Optional: use it when a page should l
 - Inline the stylesheet in a <style> element in <head>, and put class="louvre" on <body>. A page in Louvre loads
   nothing from the network: no external stylesheets, fonts, scripts, or images. Images and fonts go inline as data:
   URLs; charts as inline SVG.
+- Start from the starter page, which inlines the stylesheet and uses each component once: replace its words, keep
+  what the page needs, and drop the rest.
 - Put the page's content in <main>. Open with <p class="l-kicker"> (what it is, such as "Report"), an <h1>, and a
   <p class="l-lede"> that says the finding in a sentence or two.
 - Components: <div class="l-kpis"> of <div class="l-kpi"><span>label</span><b>value</b></div>; <figure> with a
@@ -157,3 +160,51 @@ RULES = """Louvre's house style, louvre-1. Optional: use it when a page should l
 - Write for a phone too: nothing wider than the page; tables of a few columns; a number keeps its unit with &nbsp;.
 - People comment on your words: keep each claim in a sentence of its own, so a comment can quote it.
 """
+
+#: A page to start from: the stylesheet inlined, and each component once, its words saying what goes there.
+STARTER = (
+    """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What the page is</title>
+<style>
+"""
+    + CSS
+    + """</style>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Report &middot; Who it is for</p>
+<h1>What the page is</h1>
+<p class="l-lede">The finding, in a sentence or two: what a reader takes away if they read nothing else.</p>
+<div class="l-kpis">
+<div class="l-kpi"><span>A measure</span><b>430&nbsp;ms</b></div>
+<div class="l-kpi"><span>Another, against last week</span><b>&minus;12%</b></div>
+<div class="l-kpi"><span>A count</span><b>212,400</b></div>
+</div>
+<figure>
+<figcaption>What the chart shows, with its unit</figcaption>
+<svg viewBox="0 0 640 160" role="img" aria-label="What the chart says, for a reader who cannot see it">
+<polyline fill="none" stroke="var(--l-accent)" stroke-width="3" points="20,30 160,50 300,100 440,110 600,120"/>
+<line x1="20" y1="140" x2="620" y2="140" stroke="var(--l-rule)"/>
+</svg>
+</figure>
+<h2>A section</h2>
+<p>One claim to a sentence, so a comment can quote it.</p>
+<p>Another claim, with the evidence for it.</p>
+<div class="l-callout">The one thing a reader must not miss.</div>
+<h2>The numbers</h2>
+<table>
+<thead><tr><th>Item</th><th>Measure</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td>First</td><td>410&nbsp;ms</td><td>&minus;8%</td></tr>
+<tr><td>Second</td><td>470&nbsp;ms</td><td>+2%</td></tr>
+</tbody>
+</table>
+</main>
+</body>
+</html>
+"""
+)

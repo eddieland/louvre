@@ -1,8 +1,8 @@
 """An agent's runtime reaching Louvre: the official MCP client, over streamable HTTP, doing what canopy's skill says.
 
-The rest of the server's tests send JSON-RPC by hand; these hold Louvre to a client agents run, so a skill written
-against canopy's local store (`.agents/skills/canopy-artifacts` in canopy) works against Louvre unchanged (M5). Tokens
-are minted on the web and the person comments there, as on a deployment.
+The server's other tests call it in process, or send JSON-RPC by hand; these hold Louvre over HTTP to a client agents
+run, so a skill written against canopy's local store (`.agents/skills/canopy-artifacts` in canopy) works against
+Louvre unchanged (M5). Tokens are minted on the web and the person comments there, as on a deployment.
 """
 
 import asyncio
