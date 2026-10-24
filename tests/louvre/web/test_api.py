@@ -149,7 +149,7 @@ def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> No
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
     assert {a["namespace"] for a in listed} == {"demo"}
-    assert len(listed) == 6
+    assert len(listed) == 8
     assert response.status_code == 403
     assert response.json()["code"] == "read_only"
 

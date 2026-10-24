@@ -106,6 +106,8 @@ SCENES = (
     Scene("artifact-older", "An artifact's older version", "/a/{checkout}?v=1", _artifact_shown),
     Scene("markdown", "A Markdown artifact, in the house style", "/a/{notes}", _artifact_shown),
     Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
+    Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
+    Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
     Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
     Scene(
         "board-frame",
@@ -127,6 +129,8 @@ DEMO = {
     "checkout": "Checkout latency",
     "notes": "Release notes",
     "weekly": "Payments, week",
+    "decision": "Where should checkout cache",
+    "plan": "Stored cards move",
     "gallery": "Direction: Gallery",
 }
 

@@ -158,6 +158,50 @@ Light:
 | --- | --- |
 | ![An HTML artifact in the house style, Phone, 390, light](house-style/phone-light.png) | ![An HTML artifact in the house style, Laptop, 1440, light](house-style/laptop-light.png) |
 
+## A decision in the house style
+
+`/a/{decision}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![A decision in the house style, Small phone, 360, dark](house-style-decision/phone-small-dark.png) | ![A decision in the house style, Phone, 390, dark](house-style-decision/phone-dark.png) | ![A decision in the house style, Tablet, 820, dark](house-style-decision/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![A decision in the house style, Tablet landscape, 1180, dark](house-style-decision/tablet-landscape-dark.png) | ![A decision in the house style, Laptop, 1440, dark](house-style-decision/laptop-dark.png) | ![A decision in the house style, Wide, 1920, dark](house-style-decision/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![A decision in the house style, Phone, 390, light](house-style-decision/phone-light.png) | ![A decision in the house style, Laptop, 1440, light](house-style-decision/laptop-light.png) |
+
+## A plan in the house style
+
+`/a/{plan}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![A plan in the house style, Small phone, 360, dark](house-style-plan/phone-small-dark.png) | ![A plan in the house style, Phone, 390, dark](house-style-plan/phone-dark.png) | ![A plan in the house style, Tablet, 820, dark](house-style-plan/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![A plan in the house style, Tablet landscape, 1180, dark](house-style-plan/tablet-landscape-dark.png) | ![A plan in the house style, Laptop, 1440, dark](house-style-plan/laptop-dark.png) | ![A plan in the house style, Wide, 1920, dark](house-style-plan/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![A plan in the house style, Phone, 390, light](house-style-plan/phone-light.png) | ![A plan in the house style, Laptop, 1440, light](house-style-plan/laptop-light.png) |
+
 ## A board, fitted to the screen
 
 `/b/design-study`

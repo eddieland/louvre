@@ -83,6 +83,8 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
             ({"canopy.ticket": "PAY-142"}, _checkout),
             ({"canopy.ticket": "REL-2026.11"}, _release_notes),
             ({"canopy.report": "weekly"}, _weekly),
+            ({"canopy.ticket": "PAY-151"}, _quote_cache),
+            ({"canopy.ticket": "PAY-160"}, _vault_migration),
         )
         missing = [
             part for marker, part in parts if not agent.overview(origin=marker, namespace=NAMESPACE)["artifacts"]
@@ -193,12 +195,11 @@ def _release_notes(agent: Store, people: dict[str, Store]) -> None:
 
 
 def _weekly(agent: Store, people: dict[str, Store]) -> None:
-    """An HTML page an agent wrote in the house style, from `style_get`."""
-    template = (_FILES / "weekly-metrics.html.tmpl").read_text(encoding="utf-8")
+    """A report an agent wrote in the house style, from `style_get`."""
     made = agent.publish(
         title="Payments, week 43",
         content_type="text/html",
-        content=template.replace("{css}", style.CSS.rstrip()),
+        content=_styled("weekly-metrics.html.tmpl"),
         origin={"canopy.report": "weekly"},
     )
     people["ana"].comment(
@@ -206,3 +207,54 @@ def _weekly(agent: Store, people: dict[str, Store]) -> None:
         Anchor.of("Declines at submit rose from 1.1% to 1.4%"),
         "Within what risk expected. Let's keep this line in next week's too.",
     )
+
+
+def _quote_cache(agent: Store, people: dict[str, Store]) -> None:
+    """A decision in the house style: options side by side, one recommended, a thread answered on its cost."""
+    made = agent.publish(
+        title="Where should checkout cache tax quotes?",
+        content_type="text/html",
+        content=_styled("quote-cache.html.tmpl"),
+        origin={"canopy.ticket": "PAY-151", "canopy.repo": "payments"},
+    )
+    artifact = str(made["artifact_id"])
+    node = people["raj"].comment(
+        artifact,
+        Anchor.of("One small node is enough"),
+        "We already run a Redis for sessions. Could quotes share it?",
+    )
+    agent.reply(
+        str(node["thread_id"]),
+        "They could, but a full cache evicts, and sessions would go with it. I'd keep them apart: the node is small.",
+    )
+    people["ana"].comment(artifact, None, "Redis, agreed. Ship it behind the flag.")
+
+
+def _vault_migration(agent: Store, people: dict[str, Store]) -> None:
+    """A plan in the house style: steps with their status, a risk, and a question a reader answers."""
+    made = agent.publish(
+        title="Stored cards move to the new provider by 15 December",
+        content_type="text/html",
+        content=_styled("vault-migration.html.tmpl"),
+        origin={"canopy.ticket": "PAY-160", "canopy.repo": "payments"},
+    )
+    artifact = str(made["artifact_id"])
+    people["sam"].comment(
+        artifact,
+        Anchor.of("Backfill the 1.2 million stored cards."),
+        "The new provider rate-limits imports to 50 cards a second. Does the plan allow for that?",
+    )
+    people["ana"].comment(
+        artifact,
+        Anchor.of("Does finance need a reconciliation report for each step, or only at the end?"),
+        "For each step: we close the month on the 3rd, and the backfill will straddle it.",
+    )
+
+
+def _styled(name: str) -> str:
+    """Read one of the demo's pages, with the house style inlined where it says `{css}`.
+
+    Returns:
+        The page.
+    """
+    return (_FILES / name).read_text(encoding="utf-8").replace("{css}", style.CSS.rstrip())
