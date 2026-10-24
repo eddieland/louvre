@@ -14,7 +14,7 @@ from enum import StrEnum
 from html.parser import HTMLParser
 from typing import override
 
-from louvre.core.style import CSS, STARTERS
+from louvre.core.style import CSS, FONTS_PATH, STARTERS
 from louvre.core.text import collapse, visible_text
 
 
@@ -85,8 +85,12 @@ _FETCHED_HREF = frozenset({"link", "image", "use", "feimage", "base"})
 #: Scripts' ways out of the sandbox, which it refuses: to the network, and to storage.
 _NETWORK_API = re.compile(r"\b(fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|navigator\.sendBeacon)")
 _STORAGE_API = re.compile(r"\b(localStorage|sessionStorage|indexedDB|document\.cookie)\b")
-#: In CSS: an import, or a URL that is not data or a fragment.
-_CSS_FETCH = re.compile(r"@import\b[^;]*|url\(\s*['\"]?(?!data:|#)[^)]*\)", re.IGNORECASE)
+#: In CSS: an import, or a URL that is not data, a fragment, or one of the house style's fonts, which Louvre serves.
+_CSS_FETCH = re.compile(
+    # The quote is possessive: else it matches nothing, and the lookahead then reads the quote and lets any URL by.
+    rf"@import\b[^;]*|url\(\s*['\"]?+(?!data:|#|{re.escape(FONTS_PATH)})[^)]*\)",
+    re.IGNORECASE,
+)
 #: In CSS: a width, or a minimum width, in pixels.
 _CSS_WIDTH = re.compile(r"(?<![-\w])(?:min-)?width\s*:\s*(\d+(?:\.\d+)?)px", re.IGNORECASE)
 #: A color written out, rather than one of the style's custom properties.

@@ -14,6 +14,7 @@ from collections.abc import Iterator, Sequence
 import pytest
 from playwright.sync_api import Browser, BrowserContext, CDPSession, Page, expect
 
+from louvre.core import style
 from tests.conftest import WRITES
 
 #: Run with the screen matrix: `1` or `update`.
@@ -49,8 +50,8 @@ def context(browser: Browser, live_app: str) -> Iterator[BrowserContext]:
     made.close()
 
 
-def publish(context: BrowserContext) -> str:
-    """Publish PAGE as Ana's agent, through the MCP server with a token she mints, and return its id."""
+def publish(context: BrowserContext, content: str = PAGE) -> str:
+    """Publish `content` as Ana's agent, through the MCP server with a token she mints, and return its id."""
     minted = context.request.post(
         "/api/tokens",
         data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
@@ -64,7 +65,7 @@ def publish(context: BrowserContext) -> str:
             "method": "tools/call",
             "params": {
                 "name": "artifact_publish",
-                "arguments": {"title": "Cache report", "content_type": "text/html", "content": PAGE},
+                "arguments": {"title": "Cache report", "content_type": "text/html", "content": content},
             },
         },
         headers={"Authorization": f"Bearer {minted['secret']}"},
@@ -129,6 +130,23 @@ def test_an_agents_page_shows_its_comment_on_its_passage(context: BrowserContext
     expect(note).to_contain_text("Sharding is the fix I would try first.")
     expect(note).to_contain_text("(Agent, for Ana Ruiz)")
     expect(page.frame_locator("iframe.exhibit").locator("[data-louvre] span")).to_have_text("1")
+
+
+def test_a_page_in_the_house_style_is_set_in_louvres_own_faces(context: BrowserContext) -> None:
+    page = context.new_page()
+    page.goto(f"/a/{publish(context, style.STARTERS[style.Kind.REPORT])}")
+    exhibit = page.locator("iframe.exhibit").element_handle()
+    frame = exhibit.content_frame() if exhibit else None
+    assert frame is not None
+    frame.wait_for_load_state()
+
+    loaded = frame.evaluate(
+        """async () => {
+            await document.fonts.ready;
+            return [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replaceAll('"', ""));
+        }""",
+    )
+    assert {"Fraunces", "Source Serif 4", "Instrument Sans"} <= set(loaded)
 
 
 def test_a_reader_comments_on_words_across_tags_then_replies_resolves_and_undoes(context: BrowserContext) -> None:

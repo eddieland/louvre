@@ -9,8 +9,9 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 
+from louvre.core import style
 from louvre.web import ui
-from louvre.web.app import create, with_bridge
+from louvre.web.app import ARTIFACT_POLICY, create, with_bridge
 from tests.conftest import web_settings
 
 
@@ -126,3 +127,30 @@ def test_the_bridge_is_read_from_the_build(built: Path) -> None:
 def test_a_page_without_a_built_bridge_is_served_as_it_is() -> None:
     assert with_bridge("<p>Hi</p>", None) == "<p>Hi</p>"
     assert re.fullmatch(r"<p>Hi</p>\n<script>x</script>\n", with_bridge("<p>Hi</p>", "x"))
+
+
+def test_the_house_styles_fonts_are_served_to_any_origin_and_kept(client: TestClient) -> None:
+    for name, font in style.FONTS.items():
+        response = client.get(style.FONTS_PATH + name)
+
+        assert response.status_code == 200
+        assert response.content == font
+        assert response.headers["content-type"] == "font/woff2"
+        assert response.headers["access-control-allow-origin"] == "*"
+        assert "immutable" in response.headers["cache-control"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/style/louvre-1/fonts/nope.woff2",
+        "/style/louvre-0/fonts/fraunces.woff2",
+        "/style/louvre-1/fonts/fraunces-OFL.txt",
+    ],
+)
+def test_nothing_but_the_house_styles_fonts_is_served_there(client: TestClient, path: str) -> None:
+    assert client.get(path).status_code == 404
+
+
+def test_an_artifact_loads_fonts_only_from_data_urls_and_louvre() -> None:
+    assert [d for d in ARTIFACT_POLICY.split("; ") if d.startswith("font-src")] == ["font-src data: 'self'"]

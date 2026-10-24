@@ -88,6 +88,8 @@ def test_it_finds_what_goes_against_the_guide(markup: str, rule: Rule, severity:
         "<style>.chart { max-width: 900px; width: 100%; }</style>",
         "<script>let seen = new Set(); document.title</script>",
         '<p class="l-muted">Done</p>',
+        "<div style=\"background: url('data:image/png;base64,iVBORw0KGgo=')\"></div>",
+        '<style>@font-face { font-family: F; src: url("/style/louvre-1/fonts/fraunces.woff2"); }</style>',
     ],
 )
 def test_it_lets_be_what_the_guide_allows(markup: str) -> None:

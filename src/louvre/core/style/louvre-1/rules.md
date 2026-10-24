@@ -157,8 +157,10 @@ People read on phones as well as laptops, at widths from 320 px.
 A page in Louvre loads nothing from the network: its policy refuses every request to another address. No external
 stylesheet, font, script, or image.
 
+- The style's own faces are the one exception: its stylesheet loads them from Louvre, so a page in the style is set as
+  Louvre's own pages are. Shown anywhere else, it falls back to the reader's own serif and sans.
 - An image goes inline: SVG markup, or a `data:` URL. Keep each image small; prefer SVG.
-- A font goes inline as a `data:` URL, or not at all: the style's faces fall back to the reader's own serif and sans.
+- Any other font goes inline as a `data:` URL, or not at all.
 - A link to another page is fine: it opens in a new tab. A link to `#id` moves within the page.
 
 ## Scripts

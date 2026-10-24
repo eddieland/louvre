@@ -179,7 +179,8 @@ To settle before the milestone that needs it:
 - Whether a board is an artifact of its own content type, which grows canopy's contract, and whether a comment may be
   pinned to a point on the canvas rather than to a frame's words (U5, M3).
 - Whether an artifact may load from the network (a CDN's script, a web font, a remote image), or must carry everything
-  inline or in files published with it. For now it may not: its policy allows data: URLs only. Files beside a version
+  inline or in files published with it. For now it may not: its policy allows data: URLs, and fonts from Louvre
+  itself, which serves only the house style's (D008, settled by the operator on 2026-10-24). Files beside a version
   (L8) and a map kit Louvre serves (U9) are planned so that it need not.
 - Whether canopy's `artifact_publish` takes a version's files, or a tool of Louvre's does (L8, D011).
 - Whether canopy's contract takes a content type for geodata, and a place's anchor beside a thread's quote, or a place
@@ -193,4 +194,5 @@ Settled for the MVP (2026-10-23), for the operator to confirm:
 
 - Sign-in is GitHub's, for the logins on an allowlist the deployment names (M5).
 - Every signed-in person reads every namespace; a token reaches its one namespace (M5).
-- An artifact opts into Louvre's style by inlining what `style_get` returns, so its policy stays closed (U6).
+- An artifact opts into Louvre's style by inlining what `style_get` returns, so its policy stays closed but for the
+  style's fonts, which Louvre serves to it (U6).
