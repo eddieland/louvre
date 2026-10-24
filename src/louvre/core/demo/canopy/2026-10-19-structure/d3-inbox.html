@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction 3: Ledger, Inbox</title>
+<style>
+body { margin: 0; }
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+}
+.mock { width: 1440px; min-height: 900px; font-size: 14px; line-height: 1.5; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.mock * { box-sizing: border-box; }
+.mock .fg { color: var(--fg); }
+.mock .mut { color: var(--muted); }
+.mock .s-fail { color: var(--fail); }
+.mock .s-wait { color: var(--wait); }
+.mock .s-rev { color: var(--rev); }
+.mock .s-run { color: var(--run); }
+.mock .s-other { color: var(--muted); }
+.m3 { --mono: 'IBM Plex Mono', ui-monospace, monospace; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+.m3[data-mode="dark"] { --bg: #121110; --surface: #181715; --raised: #221f1b; --line: #2f2b25; --fg: #efe8d8; --text: #d6cfbf; --muted: #8f8877; --accent: #f0a83a; --accent-fg: #121110; --run: #91d071; --wait: #f0a83a; --fail: #ff7a66; --rev: #7cc4d6; }
+.m3[data-mode="light"] { --bg: #f4f2ee; --surface: #fbfaf8; --raised: #e9e5dc; --line: #d8d2c5; --fg: #1f1d19; --text: #2e2b25; --muted: #6c6658; --accent: #985800; --accent-fg: #ffffff; --run: #2d7a30; --wait: #985800; --fail: #b3261e; --rev: #1d6c7d; }
+.m3 .sl { display: flex; justify-content: space-between; align-items: center; padding: 0px 20px; height: 40px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.m3 .sl .l { display: flex; gap: 2px; align-items: center; }
+.m3 .sl .l b { color: var(--fg); margin-right: 18px; font-weight: 600; }
+.m3 .sl .tab { padding: 2px 10px; color: var(--muted); }
+.m3 .sl .tab.on { background: var(--fg); color: var(--bg); }
+.m3 .sl .tab em { font-style: normal; color: var(--accent); }
+.m3 .sl .tab.on em { color: var(--bg); }
+.m3 .sl .r { display: flex; gap: 18px; color: var(--muted); font-size: 12px; }
+.m3 .sl .r .fg { color: var(--fg); }
+.m3 .cols { display: grid; grid-template-columns: 620px minmax(0px, 1fr); flex: 1 1 0%; }
+.m3 .cols > div:first-child { border-right: 1px solid var(--line); }
+.m3 .rule { color: var(--muted); padding: 16px 20px 8px; white-space: pre; overflow: hidden; }
+.m3 .rule b { color: var(--fg); font-weight: 600; }
+.m3 .ln { display: grid; grid-template-columns: 16px 62px 90px minmax(0px, 1fr) 36px; gap: 0px 10px; padding: 6px 20px; }
+.m3 .ln.sel { background: var(--raised); }
+.m3 .ln .cur { color: var(--accent); }
+.m3 .ln .rs { color: var(--muted); }
+.m3 .ln .ag { color: var(--muted); text-align: right; }
+.m3 .ln .t { grid-column: 4 / 6; color: var(--fg); }
+.m3 .ln .x { grid-column: 4 / 6; color: var(--muted); }
+.m3 .ln .k { color: var(--text); }
+.m3 .wl { display: grid; grid-template-columns: 16px 90px minmax(0px, 1fr) 70px 54px; gap: 0px 10px; padding: 3px 20px; }
+.m3 .wl .r { text-align: right; color: var(--muted); }
+.m3 .hd { padding: 16px 24px 12px; border-bottom: 1px solid var(--line); }
+.m3 .hd .t { color: var(--fg); font-weight: 600; font-size: 15px; }
+.m3 .kv { display: flex; flex-wrap: wrap; gap: 4px 22px; color: var(--muted); margin-top: 6px; }
+.m3 .kv span b { color: var(--text); font-weight: 400; }
+.m3 .lg { display: grid; grid-template-columns: 58px 84px 70px minmax(0px, 1fr); gap: 0px 12px; padding: 5px 24px; }
+.m3 .lg .tm { color: var(--muted); }
+.m3 .lg .who { color: var(--muted); }
+.m3 .lg .tg { white-space: nowrap; }
+.m3 .lg .tx { color: var(--text); }
+.m3 .lg.ask { background: color-mix(in srgb, var(--wait) 10%, transparent); }
+.m3 .lg.ask .tx { color: var(--fg); }
+.m3 .lg.msg .tx { color: var(--fg); }
+.m3 .prompt { margin: 14px 24px; border: 1px solid var(--line); padding: 12px 14px; background: var(--surface); }
+.m3 .prompt .p { color: var(--accent); }
+.m3 .prompt .c { display: inline-block; width: 8px; height: 15px; background: var(--accent); vertical-align: -2px; }
+.m3 .prompt .h { color: var(--muted); margin-top: 10px; display: flex; justify-content: space-between; }
+.m3 .bk { color: var(--muted); }
+.m3 .bk b { color: var(--fg); font-weight: 500; }
+.m3 .bk.hot b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="mock m3" data-mode="dark"><div class="sl"><div class="l"><b>canopy</b><span class="tab on">attention <em>6</em></span><span class="tab ">tickets</span><span class="tab ">runs</span><span class="tab ">log</span><span class="tab ">settings</span></div>
+  <div class="r"><span><span class="s-run">●</span> live</span><span>tick <span class="fg">2</span> · next <span class="fg">0:42</span></span><span>slots <span class="fg">2/3</span></span><span>24h <span class="fg">$11.25</span></span><span class="bk"><b>[pause]</b></span></div></div><div class="cols"><div>
+    <div class="rule"><b>needs you</b> ─────────────────────────── 6 · by severity</div>
+    <div class="ln "><span class="cur"></span><span class="s-fail">[ERR ]</span><span class="k">ABC-100</span><span class="rs">worker failed</span><span class="ag">1h</span><span></span><span></span><span></span><span class="t">Fix the flaky checkout test</span><span></span><span></span><span></span><span class="x">Run 40 (resume) ended failed: the worker exited 1 without a result line. It is at its limit, 1 of 1 resume runs.</span></div><div class="ln "><span class="cur"></span><span class="s-wait">[DRFT]</span><span class="k">ABC-099</span><span class="rs">drafts waiting</span><span class="ag">52m</span><span></span><span></span><span></span><span class="t">Debounce search input</span><span></span><span></span><span></span><span class="x">3 review-reply drafts wait on you, for acme/web#88.</span></div><div class="ln sel"><span class="cur">▸</span><span class="s-wait">[ASK ]</span><span class="k">ABC-102</span><span class="rs">awaiting reply</span><span class="ag">34m</span><span></span><span></span><span></span><span class="t">Export reports as CSV</span><span></span><span></span><span></span><span class="x">Should the export button be red or blue? The design doc says red, the toolbar uses blue.</span></div><div class="ln "><span class="cur"></span><span class="s-fail">[ERR ]</span><span class="k">api</span><span class="rs">repo missing</span><span class="ag">3h</span><span></span><span></span><span></span><span class="t">api has no clone</span><span></span><span></span><span></span><span class="x">api is in the workspace map but has no clone; run canopy workspace sync.</span></div><div class="ln "><span class="cur"></span><span class="s-rev">[REV ]</span><span class="k">ABC-099</span><span class="rs">needs reviewer</span><span class="ag">1h</span><span></span><span></span><span></span><span class="t">Debounce search input</span><span></span><span></span><span></span><span class="x">acme/web#88 waits on a reviewer.</span></div><div class="ln "><span class="cur"></span><span class="s-other">[FIND]</span><span class="k">chore:deps</span><span class="rs">finding</span><span class="ag">4h</span><span></span><span></span><span></span><span class="t">lodash-advisory</span><span></span><span></span><span></span><span class="x">lodash 4.17.20 has a prototype pollution advisory.</span></div>
+    <div class="rule"><b>working</b> ──────────────────────────────────── 3</div>
+    <div class="wl"><span class="s-run">●</span><span class="fg">ABC-101</span><span class="mut">run 41 · implement</span><span class="mut" style="text-align:right">30m</span><span class="r">$0.84</span></div><div class="wl"><span class="s-run">●</span><span class="fg">ABC-104</span><span class="mut">run 43 · resume · ci red</span><span class="mut" style="text-align:right">25m</span><span class="r">$0.31</span></div><div class="wl"><span class="s-wait">●</span><span class="fg">ABC-102</span><span class="mut">waiting on you</span><span class="mut" style="text-align:right">34m</span><span class="r">$1.07</span></div>
+  </div><div>
+    <div class="hd"><div class="t">ABC-102  Export reports as CSV</div><div class="kv"><span>web</span><span>private, started</span><span>phase <b class="s-wait">needs human</b></span><span>run <b>42</b> blocked</span><span>cost <b>$1.07</b></span><span>branch <b>agent/ABC-102-export</b></span></div></div>
+    <div style="padding-top:10px"><div class="lg tick"><span class="tm">10:48</span><span class="who">overseer</span><span class="tg">[<span class="mut">TICK</span>]</span><span class="tx">Dispatched implement: started privately; implement the export button.</span></div><div class="lg run"><span class="tm">10:49</span><span class="who">canopy</span><span class="tg">[<span class="s-run">RUN </span>]</span><span class="tx">run 42 started · implement · worktree web/3</span></div><div class="lg msg"><span class="tm">11:26</span><span class="who">worker #4</span><span class="tg">[<span class="fg">MSG </span>]</span><span class="tx">Added the export button and its CSV writer; its color waits on you.</span></div><div class="lg note"><span class="tm">11:26</span><span class="who">worker</span><span class="tg">[<span class="s-rev">NOTE</span>]</span><span class="tx">Noted export-encoding: The CSV writer needs utf-8-sig for Excel to read accented names; plain utf-8 shows mojibake.</span></div><div class="lg ask"><span class="tm">11:26</span><span class="who">worker #5</span><span class="tg">[<span class="s-wait">ASK </span>]</span><span class="tx">Should the export button be red or blue? The design doc says red, the toolbar uses blue.</span></div><div class="lg run"><span class="tm">11:26</span><span class="who">canopy</span><span class="tg">[<span class="s-run">RUN </span>]</span><span class="tx">run 42 ended blocked · 37m · $1.07</span></div><div class="lg tick"><span class="tm">11:30</span><span class="who">overseer</span><span class="tg">[<span class="mut">TICK</span>]</span><span class="tx">Waits: awaiting the operator’s answer to message 5.</span></div></div><div class="prompt"><div><span class="p">reply #5 ›</span> <span class="mut">the next worker reads it as an instruction</span> <span class="c"></span></div>
+  <div class="h"><span>private · nothing reaches the ticket</span><span><span class="bk hot"><b>[send ⏎]</b></span>  <span class="bk"><b>[stop]</b></span>  <span class="bk"><b>[forget]</b></span></span></div></div>
+  </div></div></div><script>if (matchMedia('(prefers-color-scheme: light)').matches) document.querySelector('.mock').dataset.mode = 'light';</script>
+</body>
+</html>

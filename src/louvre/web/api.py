@@ -304,8 +304,8 @@ def house_style(kind: style.Kind = style.Kind.REPORT) -> dict[str, object]:
 
 
 def _boards(found: Database) -> tuple[boards.Board, ...]:
-    """The boards there are: mock data for now, the demo's design study when the demo is on (roadmap M3)."""
-    return (demo.BOARD,) if found.settings.demo else ()
+    """The boards there are: mock data for now, the demo's design studies when the demo is on (roadmap M3)."""
+    return demo.BOARDS if found.settings.demo else ()
 
 
 def _set_apart(found: Database, namespace: str | None) -> frozenset[str]:

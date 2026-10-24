@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mailroom, round four in today’s tokens: Run</title>
+<style>
+body { margin: 0; }
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+h2 { font-size: 21px; line-height: 1.25; margin: 0px; letter-spacing: -0.01em; text-wrap: balance; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+}
+.mock { width: 1440px; min-height: 900px; font-size: 14px; line-height: 1.5; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.mock * { box-sizing: border-box; }
+.mock .mono { font-family: var(--mono); }
+.mock .fg { color: var(--fg); }
+.mock .mut { color: var(--muted); }
+.mock .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentcolor; flex: 0 0 auto; }
+.mock .s-fail { color: var(--fail); }
+.mock .s-wait { color: var(--wait); }
+.mock .s-run { color: var(--run); }
+.mock .s-other { color: var(--muted); }
+.mock .s-done { color: var(--done, var(--muted)); }
+.mock .chip { font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 4px; white-space: nowrap; }
+.mock .chip.s-run { background: color-mix(in srgb, var(--run) 14%, transparent); }
+.m2 { --sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; font-family: var(--sans); display: grid; grid-template-columns: 228px 404px minmax(0px, 1fr); grid-template-rows: minmax(0px, 1fr); height: 900px; }
+.m2 > * { min-height: 0px; overflow: hidden; }
+.m2[data-mode="dark"] { --bg: #0f0f11; --surface: #17171a; --raised: #222226; --line: #2a2a30; --fg: #f2f2f4; --text: #d4d4d8; --muted: #8d8d97; --accent: #8f90ff; --accent-fg: #0f0f11; --run: #3fcf8e; --wait: #f5b544; --fail: #f87171; --rev: #5ccfe6; }
+.m2[data-mode="light"] { --bg: #f4f4f5; --surface: #ffffff; --raised: #f0f0f3; --line: #e4e4e8; --fg: #18181b; --text: #27272a; --muted: #6b6b76; --accent: #4f46e5; --accent-fg: #ffffff; --run: #15803d; --wait: #a16207; --fail: #b91c1c; --rev: #0e7490; }
+.m2 .sd { padding: 18px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); background: var(--bg); }
+.m2 .sd .brand { display: flex; align-items: center; gap: 8px; padding: 2px 10px 16px; font-weight: 600; font-size: 16px; color: var(--fg); }
+.m2 .sd .brand i { width: 18px; height: 18px; border-radius: 6px; background: var(--accent); display: block; }
+.m2 .start { margin: 0px 4px 14px; padding: 9px 12px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font-weight: 500; text-align: center; }
+.m2 .mb { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 8px; color: var(--text); }
+.m2 .mb.on { background: var(--raised); color: var(--fg); font-weight: 500; }
+.m2 .mb .n { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m2 .mb.hot .n { color: var(--accent); font-weight: 500; }
+.m2 .grp { font-size: 11px; color: var(--muted); padding: 18px 10px 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.m2 .sd .foot { margin-top: auto; padding: 12px 10px 0px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+.m2 .sd .foot .lv { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.m2 .lp { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.m2 .lh { padding: 18px 18px 10px; display: flex; justify-content: space-between; align-items: baseline; }
+.m2 .lh h2 { margin: 0px; font-size: 19px; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; }
+.m2 .lh span { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m2 .srch { margin: 0px 14px 10px; padding: 8px 12px; border-radius: 8px; background: var(--raised); color: var(--muted); font-size: 13px; }
+.m2 .row { padding: 12px 18px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 10px minmax(0px, 1fr); gap: 3px 10px; }
+.m2 .row.sel { background: var(--raised); }
+.m2 .row .d { grid-row: 1 / 4; margin-top: 6px; }
+.m2 .row .l1 { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); gap: 8px; }
+.m2 .row .l1 .mono { color: var(--text); }
+.m2 .row .l2 { font-weight: 500; color: var(--fg); }
+.m2 .row .l3 { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.m2 .tp { display: flex; flex-direction: column; background: var(--surface); min-width: 0px; }
+.m2 .tph { padding: 18px 28px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.m2 .tph h2 { margin: 0px; font-size: 21px; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; }
+.m2 .tph .k { font-size: 13px; color: var(--muted); margin-top: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.m2 .tph .k .mono { color: var(--text); }
+.m2 .btns { display: flex; gap: 8px; flex: 0 0 auto; }
+.m2 .btn { padding: 7px 12px; border-radius: 9px; border: 1px solid var(--line); color: var(--fg); font-size: 13px; background: var(--surface); }
+.m2 .body { flex: 1 1 0%; padding: 24px 28px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.m2 .msg { display: flex; gap: 10px; max-width: 660px; }
+.m2 .av { width: 30px; height: 30px; border-radius: 50%; background: var(--raised); color: var(--muted); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; flex: 0 0 auto; }
+.m2 .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.m2 .bub { padding: 10px 14px; border-radius: 4px 16px 16px; background: var(--raised); color: var(--text); }
+.m2 .att { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.m2 .att .ah { padding: 14px 18px; background: var(--raised); display: flex; justify-content: space-between; align-items: center; }
+.m2 .tl { display: grid; grid-template-columns: 56px minmax(0px, 1fr) auto; gap: 12px; padding: 7px 18px; font-size: 13px; border-top: 1px solid var(--line); align-items: baseline; }
+.m2 .tl .t { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m2 .tl .r { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m2 .tl .tool { font-family: var(--mono); font-size: 12px; }
+.m2 .tl.say { color: var(--fg); }
+.m2.today { --sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; }
+.m2.today[data-mode="dark"] { --bg: oklch(0.165 0.024 270); --surface: oklch(0.2 0.03 270); --raised: oklch(0.252 0.038 270); --line: oklch(0.305 0.045 270); --fg: oklch(0.95 0.014 265); --text: oklch(0.88 0.02 266); --muted: oklch(0.71 0.048 266); --accent: oklch(0.76 0.15 278); --accent-fg: oklch(0.165 0.024 270); --run: oklch(0.8 0.18 160); --wait: oklch(0.83 0.16 73); --fail: oklch(0.725 0.17 23); --rev: oklch(0.8 0.13 210); --add: oklch(0.78 0.15 150); --del: oklch(0.72 0.17 20); }
+.m2.today[data-mode="light"] { --bg: oklch(0.948 0.014 275); --surface: oklch(0.995 0.004 275); --raised: oklch(0.962 0.012 275); --line: oklch(0.895 0.022 275); --fg: oklch(0.23 0.028 275); --text: oklch(0.3 0.03 275); --muted: oklch(0.48 0.042 275); --accent: oklch(0.5 0.2 275); --accent-fg: oklch(1 0 0); --run: oklch(0.46 0.105 159); --wait: oklch(0.485 0.11 62); --fail: oklch(0.49 0.19 28); --rev: oklch(0.47 0.08 215); --add: oklch(0.5 0.135 150); --del: oklch(0.535 0.17 20); }
+.m2.today .bub { border-radius: 4px 12px 12px; }
+.m2.today .compose, .m2.today .att { border-radius: 8px; }
+.m2.today .btn, .m2.today .start, .m2.today .srch { border-radius: 8px; }
+.m2[data-mode="dark"] { --add: #4ade80; --del: #f87171; }
+.m2[data-mode="light"] { --add: #15803d; --del: #b91c1c; }
+.m2 .s-done { color: var(--rev); }
+</style>
+</head>
+<body>
+<div class="mock m2 today" data-mode="dark"><div class="sd"><div class="brand"><i></i>canopy</div><div class="start">Start a ticket</div><div class="mb  hot"><span>Needs you</span><span class="n">6</span></div><div class="mb  "><span>Working</span><span class="n">3</span></div><div class="mb  "><span>Waiting on others</span><span class="n">2</span></div><div class="mb  "><span>All tickets</span><span class="n">7</span></div><div class="mb  "><span>Done</span><span class="n">12</span></div><div class="grp">The loop</div><div class="mb on "><span>Runs</span><span class="n"></span></div><div class="mb  "><span>Reviews</span><span class="n">1</span></div><div class="mb  "><span>Chores</span><span class="n"></span></div><div class="mb  "><span>Spend</span><span class="n">$11.25</span></div>
+    <div class="foot"><span class="lv"><span class="dot s-run"></span>Live · tick 2 · next 0:42</span><span>2 of 3 slots busy</span><span class="lk"><span class="">Ticks</span> · <span class="">Worktrees</span> · <span class="">Memory</span> · <span class="">Settings</span></span></div></div><section class="lp"><div class="lh"><h2>Runs</h2><span>newest first</span></div><div class="srch">Filter runs</div>
+    <div class="row "><span class="dot d s-run"></span><div class="l1"><span class="mono">run 43</span><span></span></div><div class="l2">ABC-104 · resume</div><div class="l3">running · 25m</div></div><div class="row "><span class="dot d s-wait"></span><div class="l1"><span class="mono">run 42</span><span></span></div><div class="l2">ABC-102 · implement</div><div class="l3">blocked · $1.07</div></div><div class="row "><span class="dot d s-run"></span><div class="l1"><span class="mono">run 41</span><span></span></div><div class="l2">ABC-101 · implement</div><div class="l3">running · 30m</div></div><div class="row "><span class="dot d s-fail"></span><div class="l1"><span class="mono">run 40</span><span></span></div><div class="l2">ABC-100 · resume</div><div class="l3">failed · $0.18</div></div><div class="row sel"><span class="dot d s-done"></span><div class="l1"><span class="mono">run 39</span><span></span></div><div class="l2">ABC-099 · implement</div><div class="l3">done · $2.31 · acme/web#88</div></div><div class="row "><span class="dot d s-other"></span><div class="l1"><span class="mono">run 38</span><span></span></div><div class="l2">ABC-103 · implement</div><div class="l3">stopped · $0.62</div></div>
+  </section><section class="tp"><div class="tph"><div><h2>Debounce search input</h2><div class="k"><span class="mono">run 39</span>· implement · ABC-099 ·<span class="chip s-run">done</span>· 29m · $2.31</div></div><div class="btns"><span class="btn">Ticket</span><span class="btn">acme/web#88 ↗</span></div></div>
+    <div class="body"><div class="msg" style="max-width:820px"><span class="av">W</span><div><div class="who">Worker’s summary</div><div class="bub">Search now debounces input and cancels stale requests. useSearch waits 250ms after the last key; a new query aborts the one in flight; tests cover both, with fake timers; make check passes. Left the result cache as it was: ABC-112 owns it.</div></div></div>
+      <div class="att"><div class="ah"><span class="fg" style="font-weight:500">Transcript</span><span class="mut" style="font-size:12px">7 tool calls · 1 failed · 3 model calls · 106.3k tokens</span></div>
+      <div class="tl say"><span class="t">+0:00</span><span>I’ll read the ticket, then the search box.</span><span></span></div><div class="tl"><span class="t">+0:06</span><span><span class="tool fg">jira_get_issue</span> <span class="mut">issue_key=ABC-099</span></span><span class="r">1s</span></div><div class="tl"><span class="t">+0:24</span><span><span class="tool fg">read</span> <span class="mut">src/search/SearchBox.tsx</span></span><span class="r">1s</span></div><div class="tl"><span class="t">+0:30</span><span><span class="tool s-fail">read</span> <span class="mut">src/search/useSearch.ts · file not found</span></span><span class="r">1s</span></div><div class="tl"><span class="t">+0:36</span><span><span class="tool mut">model call 1</span> <span class="mut">24.6k in · 3.3k out</span></span><span class="r">$0.82</span></div><div class="tl say"><span class="t">+9:54</span><span>There is no search hook yet. I’ll add one that debounces and aborts the stale request.</span><span></span></div><div class="tl"><span class="t">+10:54</span><span><span class="tool fg">write</span> <span class="mut">src/search/useSearch.ts</span></span><span class="r">1s</span></div><div class="tl"><span class="t">+19:54</span><span><span class="tool fg">bash</span> <span class="mut">npm test -- search</span></span><span class="r">14s</span></div><div class="tl"><span class="t">+20:00</span><span><span class="tool mut">model call 2</span> <span class="mut">25.9k in · 3.9k out</span></span><span class="r">$0.97</span></div><div class="tl"><span class="t">+26:54</span><span><span class="tool fg">bash</span> <span class="mut">git push origin HEAD:refs/heads/agent/ABC-099-search</span></span><span class="r">3s</span></div><div class="tl"><span class="t">+27:54</span><span><span class="tool fg">github_create_pull_request</span> <span class="mut">acme/web · debounce search and cancel stale requests</span></span><span class="r">1s</span></div><div class="tl"><span class="t">+28:54</span><span><span class="tool mut">model call 3</span> <span class="mut">30.2k in · 2.1k out · stop</span></span><span class="r">$0.52</span></div></div></div></section></div><script>if (matchMedia('(prefers-color-scheme: light)').matches) document.querySelector('.mock').dataset.mode = 'light';</script>
+</body>
+</html>

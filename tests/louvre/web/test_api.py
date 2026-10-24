@@ -149,12 +149,15 @@ def test_a_write_without_the_header_is_forbidden(web: MakeWeb, published: str) -
 def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> None:
     client = web(demo=True)
 
-    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
+    first = client.get("/api/artifacts", params=DEMO).json()
+    rest = client.get("/api/artifacts", params={**DEMO, "cursor": first["next_cursor"]}).json()
+    listed = first["artifacts"] + rest["artifacts"]
     artifact = listed[-1]["id"]
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
     assert {a["namespace"] for a in listed} == {"demo"}
-    assert len(listed) == 9
+    assert len(listed) == 55
+    assert rest["next_cursor"] is None
     assert response.status_code == 403
     assert response.json()["code"] == "read_only"
 
@@ -168,7 +171,11 @@ def test_a_list_leaves_the_demo_out_unless_it_names_its_namespace(web: MakeWeb, 
     assert {a["namespace"] for a in ana.get("/api/artifacts", params=DEMO).json()["artifacts"]} == {"demo"}
     assert reader.get("/api/boards").json() == {"boards": []}
     assert ana.get("/api/boards").json() == {"boards": []}
-    assert [b["id"] for b in ana.get("/api/boards", params=DEMO).json()["boards"]] == ["design-study"]
+    assert [b["id"] for b in ana.get("/api/boards", params=DEMO).json()["boards"]] == [
+        "design-study",
+        "canopy-style",
+        "canopy-structure",
+    ]
 
 
 def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb) -> None:
@@ -186,7 +193,7 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
     assert {a["on_behalf_of_name"] for a in agents} == {"Sam Okafor"}
 
 
-def test_the_demos_board_is_listed_and_shown_with_its_frames(web: MakeWeb) -> None:
+def test_the_demos_boards_are_listed_and_shown_with_their_frames(web: MakeWeb) -> None:
     client = web(demo=True)
 
     listed = client.get("/api/boards", params=DEMO).json()["boards"]
@@ -198,6 +205,20 @@ def test_the_demos_board_is_listed_and_shown_with_its_frames(web: MakeWeb) -> No
             "title": "Design study, 2026-10-23",
             "namespace": "demo",
             "frames": 6,
+            "open_threads": 2,
+        },
+        {
+            "id": "canopy-style",
+            "title": "canopy's style study, 2026-10-08",
+            "namespace": "demo",
+            "frames": 9,
+            "open_threads": 2,
+        },
+        {
+            "id": "canopy-structure",
+            "title": "canopy's structure study, 2026-10-19",
+            "namespace": "demo",
+            "frames": 40,
             "open_threads": 2,
         },
     ]

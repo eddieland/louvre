@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction 1: Ops inbox, kept</title>
+<style>
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+main { min-width: 0px; padding-block: 36px 80px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.board { max-width: 1240px; display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--f-muted); }
+h1 { font-size: 36px; line-height: 1.1; letter-spacing: -0.02em; margin: 6px 0px 0px; text-wrap: balance; font-weight: 700; }
+h2 { font-size: 21px; line-height: 1.25; margin: 0px; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0px; }
+.lede { font-size: 18px; max-width: 68ch; color: var(--f-fg); margin: 12px 0px 0px; }
+p { margin: 0px; max-width: 72ch; }
+.panel { background: var(--f-surface); border: 1px solid var(--f-line); border-radius: 12px; padding: 22px 24px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0px, 1fr)); gap: 16px; }
+.facts .panel { padding: 18px 20px; }
+.facts h3 { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--f-muted); font-weight: 500; margin-bottom: 8px; }
+.facts ul { margin: 0px; padding-left: 16px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--f-line); border-radius: 12px; background: var(--f-surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--f-line); vertical-align: top; }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--f-muted); font-weight: 500; background: var(--f-raised); white-space: nowrap; }
+tr:last-child td { border-bottom: 0px; }
+td.k { font-weight: 600; white-space: nowrap; }
+.verdict { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+h1 { font-size: 28px; }
+.cols2, .cols3, .shot-grid, .facts { grid-template-columns: minmax(0px, 1fr); }
+}
+</style>
+</head>
+<body>
+<main><div class="board"><header><div class="eyebrow">Direction 1 · E, as you picked it</div><h1>Ops inbox, kept</h1><p class="lede">Round two’s favorite, redrawn with today’s content and none of what accreted since. Four tabs, four counters, the list beside the open thread. Same palette and type as today, so this board isolates the amount from the look.</p></header>
+    
+    <div class="tbl-wrap"><table><thead><tr><th>Today</th><th>In Ops inbox, kept</th></tr></thead><tbody><tr><td class="k">Attention</td><td>Attention tab, the home page</td></tr><tr><td class="k">Tickets</td><td>Tickets tab; the ticket page is the thread plus a facts column</td></tr><tr><td class="k">Pull requests</td><td>A line in the ticket’s facts, linking out</td></tr><tr><td class="k">Reviews</td><td>An event in the ticket’s thread; findings open from it</td></tr><tr><td class="k">Runs</td><td>Runs tab</td></tr><tr><td class="k">Chores</td><td>Runs tab, a “chores” filter; findings land in Attention</td></tr><tr><td class="k">Spend</td><td>A counter on Attention; the breakdown in Runs</td></tr><tr><td class="k">Ticks</td><td>Runs tab, a “ticks” filter</td></tr><tr><td class="k">Worktrees</td><td>Settings › Pools</td></tr><tr><td class="k">Memory</td><td>Settings › Memory; proposals land in Attention</td></tr><tr><td class="k">Settings</td><td>Settings tab</td></tr><tr><td class="k">Rail: search, Working, spend, Sprig</td><td>Gone. Search in the header, Working under the list</td></tr><tr><td class="k">Header: ticker, aurora, Pause, Tick now</td><td>Gone, but Pause and the tick countdown in the header</td></tr></tbody></table></div>
+    <div class="facts"><div class="panel"><h3>Keeps</h3><ul><li>IBM Plex, the indigo slate, every status token and its contrast tests</li><li>The counters and the list beside the thread</li><li>Monospace readouts for every number</li></ul></div><div class="panel"><h3>Cuts</h3><ul><li>The rail: search moves to the header, Working moves under the list, spend becomes a counter</li><li>Section colors, the aurora, the ticker, odometers</li><li>Uppercase panel labels on every block; a page has one card per idea</li></ul></div><div class="panel"><h3>Costs</h3><p style="font-size:14px">Small to medium. Tokens and type stay. The shell and the nav change; seven sections move inside others.</p></div><div class="panel"><h3>Risk</h3><p style="font-size:14px">It might simply grow back. Nothing in the design stops the next panel.</p></div></div>
+    <div class="panel verdict"><h2>Is it E you stopped liking, or what grew on top of it?</h2>
+    
+    
+    </div></div></main>
+</body>
+</html>
