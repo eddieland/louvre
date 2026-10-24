@@ -10,12 +10,27 @@ import type { Anchor } from './text'
 /** The tag every message carries, with the protocol's version. */
 export const CHANNEL = 'louvre:bridge/1'
 
+/**
+ * A place on a map, as the map kit names one and the page's thread is on it: a feature of the data by its id, or a
+ * point by its longitude and latitude. Words, never pixels (REQUIREMENTS L2).
+ */
+export interface MapPlace {
+    /** A feature, or a point. */
+    kind: 'feature' | 'point'
+    /** The feature's id, as the page's map names it; empty for a point. */
+    id: string
+    /** The point's longitude and latitude; null for a feature. */
+    coordinates: [number, number] | null
+}
+
 /** A thread's passage, or a change's, as the page asks the bridge to mark it. */
 export interface Mark {
     /** The thread's id, a draft's, or a change's. */
     id: string
-    /** The passage. */
+    /** The passage: its words, or for a thread on a map, the place's words. */
     anchor: Anchor
+    /** The place on a map it is on, which the map kit marks in place of the words; null for words. */
+    place: MapPlace | null
     /**
      * Whether it is open, resolved, or a draft not yet sent; the passage a decision's option is about, marked only
      * while its option is hovered or shown, and never a thread the reader can click; or words a later version added or
@@ -70,10 +85,12 @@ export interface Place {
     bottom: number
 }
 
-/** What the reader selected: the passage it quotes, and where it is. */
+/** What the reader selected: the passage it quotes, or the place on a map they tapped, and where it is. */
 export interface Selected {
-    /** The passage, or null when it is longer than an anchor may be. */
+    /** The passage, or null when it is longer than an anchor may be; for a place, its words. */
     anchor: Anchor | null
+    /** The place on a map, or null for words. */
+    place: MapPlace | null
     /** Its first line's top, from the frame document's top. */
     top: number
     /** Its last line's bottom, from the frame document's top. */
@@ -157,11 +174,29 @@ function selectedOf(value: unknown): Selected | null {
     if (typeof value !== 'object' || value === null) {
         return null
     }
-    const { anchor, top, bottom, left, right } = value as Record<string, unknown>
+    const { anchor, place, top, bottom, left, right } = value as Record<string, unknown>
     if (!finite(top) || !finite(bottom) || !finite(left) || !finite(right)) {
         return null
     }
-    return { anchor: anchorOf(anchor), top, bottom, left, right }
+    return { anchor: anchorOf(anchor), place: mapPlaceOf(place), top, bottom, left, right }
+}
+
+/** Read a place on a map as the bridge reports it, or null when it is not one. */
+export function mapPlaceOf(value: unknown): MapPlace | null {
+    if (typeof value !== 'object' || value === null) {
+        return null
+    }
+    const { kind, id, coordinates } = value as Record<string, unknown>
+    if (kind === 'feature' && typeof id === 'string' && id) {
+        return { kind, id, coordinates: null }
+    }
+    if (kind === 'point' && Array.isArray(coordinates)) {
+        const [lon, lat] = coordinates as unknown[]
+        if (finite(lon) && finite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90) {
+            return { kind, id: '', coordinates: [lon, lat] }
+        }
+    }
+    return null
 }
 
 function anchorOf(value: unknown): Anchor | null {

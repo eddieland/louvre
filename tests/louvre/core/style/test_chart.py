@@ -3,7 +3,7 @@
 import re
 
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 from syrupy.assertion import SnapshotAssertion
 
@@ -186,6 +186,8 @@ def test_data_it_cannot_draw_is_refused(chart: Chart, says: str) -> None:
         ),
     ),
 )
+# A range a quarter of which rounds to nothing.
+@example(drawing=(Kind.LINE, [[0.0, 5e-324]]))
 def test_every_mark_is_inside_the_chart_and_every_line_fits(drawing: tuple[Kind, list[list[float]]]) -> None:
     kind, values = drawing
     labels = [f"label {i}" for i in range(len(values[0]))]

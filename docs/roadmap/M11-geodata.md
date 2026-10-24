@@ -14,4 +14,7 @@ REQUIREMENTS U9, U4, L2. An agent publishes data, and Louvre draws it as a map, 
 Accept: an agent publishes a GeoJSON layer, and the operator, on a phone and a laptop, taps a feature, reads its
 properties, and comments on them; a new version keeps the thread.
 
-Status: not started.
+Status: built, for the operator to accept. The content type is Louvre's own for now, published by `map_publish`
+beside the contract (D011), until canopy settles it (REQUIREMENTS, Open). A version holds at most 2,000 features and
+Louvre's 2 MB of content. The style declares a label, a focus, a ramp, and a key; the kit's popup shows a tapped
+feature's properties, its words drawn by CSS so a thread's passage is always found in the feature's row.

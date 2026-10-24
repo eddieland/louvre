@@ -187,6 +187,7 @@ SCENES = (
     Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
     Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
     Scene("house-style-map", "A map in the house style, drawn by the map kit", "/a/{map}", _map_drawn),
+    Scene("geodata", "GeoJSON, drawn by Louvre as a map", "/a/{poles}", _map_drawn),
     Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
     Scene(
         "board-frame",
@@ -212,6 +213,7 @@ DEMO = {
     "decision": "Where should checkout cache",
     "plan": "Stored cards move",
     "map": "Declines at submit",
+    "poles": "Three Baixa street poles",
     "gallery": "Direction: Gallery",
 }
 

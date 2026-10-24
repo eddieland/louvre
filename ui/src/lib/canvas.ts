@@ -16,12 +16,10 @@ export const ZOOM_STEP = 1.25
 /** The longest a phone's screen is on its shorter side, in screen pixels, as ui/DESIGN.md has it. */
 export const PHONE = 600
 /**
- * How many frames' pages a phone draws live at most, and the least zoom it draws one at: six pages at once are more
- * than its browser has the memory for, and one smaller than this cannot be read.
+ * How many frames' pages a phone draws live at most, at any zoom: six pages at once are more than its browser has the
+ * memory for. Two zoomed out cost less than two zoomed in, as each is drawn at the zoom times the screen's density.
  */
 export const LIVE_COUNT = 2
-/** See LIVE_COUNT. */
-export const LIVE_SCALE = 0.25
 
 /** How the canvas is drawn on the screen: its offset, and its scale. */
 export interface View {
@@ -89,22 +87,22 @@ export function panBy(view: View, dx: number, dy: number): View {
 }
 
 /**
- * The boxes whose pages are drawn live at a view, on a screen `width` by `height`: on a phone's, only those on the
- * screen at LIVE_SCALE or more, LIVE_COUNT at most, the most of each shown first; on any other, every one.
+ * The boxes whose pages are drawn live at a view, on a screen `width` by `height`: on a phone's, the LIVE_COUNT the
+ * screen shows the most of, the most shown first and the board's order between equals; on any other, every one.
  */
 export function live<T extends Box>(boxes: readonly T[], view: View, width: number, height: number): T[] {
     if (Math.min(width, height) > PHONE) {
         return [...boxes]
     }
-    if (view.scale < LIVE_SCALE) {
-        return []
-    }
-    return boxes
-        .map((box) => ({ box, shown: shownArea(box, view, width, height) }))
-        .filter(({ shown }) => shown > 0)
-        .toSorted((a, b) => b.shown - a.shown)
-        .slice(0, LIVE_COUNT)
-        .map(({ box }) => box)
+    return (
+        boxes
+            // Rounded, so frames the screen shows alike keep the board's order rather than a rounding error's.
+            .map((box) => ({ box, shown: Math.round(shownArea(box, view, width, height)) }))
+            .filter(({ shown }) => shown > 0)
+            .toSorted((a, b) => b.shown - a.shown)
+            .slice(0, LIVE_COUNT)
+            .map(({ box }) => box)
+    )
 }
 
 /** How much a wheel's turn zooms: in for a turn up, out for one down; a trackpad's pinch, with ctrl, more finely. */

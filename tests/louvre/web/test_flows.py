@@ -10,6 +10,7 @@ import os
 import re
 import time
 from collections.abc import Iterator, Sequence
+from typing import Any
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, CDPSession, ConsoleMessage, Page, expect
@@ -610,10 +611,11 @@ def test_on_a_tablet_a_pinch_puts_the_pages_away_until_it_stops_without_reloadin
         context.close()
 
 
-def test_on_a_phone_a_board_draws_a_page_only_zoomed_in_to_it_and_two_at_most(browser: Browser, live_app: str) -> None:
-    """Fitted to a phone, a board draws its frames' sheets alone; zoomed in, the pages it shows most of, two at most.
+def test_on_a_phone_a_board_draws_the_two_pages_it_shows_most_of(browser: Browser, live_app: str) -> None:
+    """On a phone, fitted or zoomed in, a board draws the pages it shows the most of, two at most.
 
-    Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded.
+    Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded. Drawing none
+    until the reader zoomed in left a fitted board blank.
     """
     context = browser.new_context(
         viewport={"width": 390, "height": 844},
@@ -625,15 +627,16 @@ def test_on_a_phone_a_board_draws_a_page_only_zoomed_in_to_it_and_two_at_most(br
     try:
         page = context.new_page()
         board(page)
-        expect(page.locator(".board-frame iframe")).to_have_count(0)
+        expect(page.locator(".board-frame[data-live] iframe")).to_have_count(LIVE_COUNT)
 
         for _ in range(3):
             page.get_by_role("button", name="Zoom in").tap()
+        expect(page.locator(".world[data-zooming]")).to_have_count(0)
         expect(page.locator(".board-frame[data-live] iframe").first).to_be_visible()
         assert 1 <= page.locator(".board-frame iframe").count() <= LIVE_COUNT
 
         page.get_by_role("button", name="Fit to screen").tap()
-        expect(page.locator(".board-frame iframe")).to_have_count(0)
+        expect(page.locator(".board-frame[data-live] iframe")).to_have_count(LIVE_COUNT)
     finally:
         context.close()
 
@@ -750,3 +753,119 @@ def test_a_person_answers_an_agents_decision_and_the_agent_reads_it_back(context
 
     page.goto("/decisions")
     expect(page.locator(".entry", has_text="Shard the cache now?")).to_contain_text("Answered")
+
+
+def test_a_reader_taps_a_feature_of_geojson_reads_it_and_comments_and_a_new_version_keeps_it(
+    context: BrowserContext,
+) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish"]},
+        headers=WRITES,
+    ).json()["secret"]
+
+    def pole(name: str, status: str, lon: float) -> dict[str, object]:
+        geometry = {"type": "Point", "coordinates": [lon, 38.71]}
+        return {"type": "Feature", "properties": {"name": name, "status": status}, "geometry": geometry}
+
+    def poles(*statuses: str) -> dict[str, object]:
+        features = [pole(f"P-{101 + i}", s, -9.14 + 0.001 * i) for i, s in enumerate(statuses)]
+        return {"type": "FeatureCollection", "features": features}
+
+    made = json.loads(call(context, secret, "map_publish", title="Poles", data=poles("working", "lamp out")))
+    page = context.new_page()
+    page.goto(f"/a/{made['artifact_id']}")
+    frame = page.frame_locator("iframe.exhibit")
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+
+    # A tap on the second pole shows its properties.
+    x, y = frame.locator("#map").evaluate("(e) => Object.values(e.louvreMap.project([-9.139, 38.71]))")
+    frame.locator("#map").click(position={"x": x, "y": y})
+    # Its words are drawn by its stylesheet, from data-text, so no thread's passage is found in it.
+    card = frame.locator(".louvre-popup")
+    card.wait_for()
+    assert card.evaluate("(e) => [...e.querySelectorAll('[data-text]')].map((t) => t.dataset.text)") == [
+        "P-102",
+        "status",
+        "lamp out",
+    ]
+    assert card.evaluate("(e) => e.textContent") == ""
+
+    # Its row under the map is words, which a reader comments on.
+    select(page, "P-102", "lamp out")
+    page.click("button.add")
+    page.fill(".thread[data-id=draft] textarea", "Which crew?")
+    page.keyboard.press("Control+Enter")
+    expect(page.locator(".thread.is-active .comments")).to_contain_text("Which crew?")
+
+    call(
+        context,
+        secret,
+        "map_publish",
+        title="Poles",
+        data=poles("working", "lamp out", "working"),
+        artifact_id=made["artifact_id"],
+    )
+    threads = context.request.get(f"/api/artifacts/{made['artifact_id']}/threads", params={"version": 2}).json()
+    [kept] = threads["threads"]
+    assert kept["anchor"]["exact"] == "P-102 status lamp out"
+    assert kept["comments"][0]["body"] == "Which crew?"
+
+
+def test_a_reader_comments_on_a_feature_and_a_point_and_the_feature_goes_with_a_new_version(
+    context: BrowserContext,
+) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
+        headers=WRITES,
+    ).json()["secret"]
+
+    def poles(*numbers: int) -> dict[str, object]:
+        features = [
+            {
+                "type": "Feature",
+                "id": f"pole-{n}",
+                "properties": {"name": f"P-{n}"},
+                "geometry": {"type": "Point", "coordinates": [-9.14 + 0.001 * (n - 101), 38.71]},
+            }
+            for n in numbers
+        ]
+        return {"type": "FeatureCollection", "features": features}
+
+    made = json.loads(call(context, secret, "map_publish", title="Poles", data=poles(101, 102)))
+    artifact = made["artifact_id"]
+    page = context.new_page()
+    page.goto(f"/a/{artifact}")
+    frame = page.frame_locator("iframe.exhibit")
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+
+    def comment_at(lon: float, lat: float, body: str) -> None:
+        x, y = frame.locator("#map").evaluate(f"(e) => Object.values(e.louvreMap.project([{lon}, {lat}]))")
+        frame.locator("#map").click(position={"x": x, "y": y})
+        page.click("button.add")
+        page.fill(".thread[data-id=draft] textarea", body)
+        page.keyboard.press("Control+Enter")
+        expect(page.locator(".thread.is-active .comments")).to_contain_text(body)
+
+    comment_at(-9.139, 38.71, "Lamp out?")
+    comment_at(-9.1395, 38.7101, "A pole is missing here.")
+
+    # Both are marked on the map, numbered as the margin numbers them, once the map has drawn them.
+    numbered = "(e) => e.louvreMap.queryRenderedFeatures({ layers: ['thread-numbers'] }).map((f) => f.properties.n)"
+    deadline = time.monotonic() + DEADLINE
+    while sorted(frame.locator("#map").evaluate(numbered)) != ["1", "2"]:
+        assert time.monotonic() < deadline, frame.locator("#map").evaluate(numbered)
+        page.wait_for_timeout(50)
+
+    def threads() -> list[Any]:
+        return json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"]
+
+    on_feature, on_point = threads()
+    assert on_feature["anchor"]["exact"] == "P-102"
+    assert on_feature["place"]["id"] == "pole-102"
+    assert on_point["anchor"]["exact"].startswith("38.710")
+    assert on_point["place"]["kind"] == "point"
+
+    call(context, secret, "map_publish", title="Poles", data=poles(101), artifact_id=artifact)
+    assert [t["anchor_status"] for t in threads()] == ["passage_gone", "found"]

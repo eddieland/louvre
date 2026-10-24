@@ -409,7 +409,8 @@ def _ticks(low: float, high: float) -> list[float]:
     Returns:
         The values, lowest first, a round step apart; zero among them when the range spans it.
     """
-    if high == low:
+    # A range a quarter of which rounds to nothing, such as 0 to 5e-324, is drawn as flat.
+    if (high - low) / 4 <= 0:
         high = low + 1
     raw = (high - low) / 4
     power = 10 ** math.floor(math.log10(raw))

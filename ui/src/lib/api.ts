@@ -4,6 +4,7 @@
 
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import type { MapPlace } from '@/bridge/protocol'
 import type { Anchor } from '@/bridge/text'
 
 /** Who wrote a comment: a person, or an agent writing for one. */
@@ -44,8 +45,10 @@ export interface Comment {
 export interface Thread {
     /** Its id. */
     id: string
-    /** The passage it is on, or null for the whole artifact. */
+    /** The passage it is on, or null for the whole artifact; for a place on a map, the place's words. */
     anchor: Anchor | null
+    /** The place on a map it is on, or null for words or the whole artifact. */
+    place: ThreadPlace | null
     /** The version it was started on. */
     anchored_version: number
     /** Open, or resolved. */
@@ -56,6 +59,18 @@ export interface Thread {
     comments: Comment[]
     /** Whether it has news for the signed-in person: a comment by another, or a resolving, since they last read it. */
     unread: boolean
+}
+
+/** A thread's place on a map, as the server keeps it: a feature by its layer and id, or a point. */
+export interface ThreadPlace {
+    /** A feature, or a point. */
+    kind: 'feature' | 'point'
+    /** The feature's id; absent for a point. */
+    id?: string
+    /** The feature's label when the thread was opened; absent for a point. */
+    label?: string
+    /** The feature's geometry, or the point's, as GeoJSON. */
+    geometry: { type: string; coordinates?: unknown } | null
 }
 
 /** An artifact, as a list or its page shows it. */
@@ -91,7 +106,7 @@ export interface Version {
     /** Its number, from 1. */
     n: number
     /** What it is written in. */
-    content_type: 'text/html' | 'text/markdown'
+    content_type: 'text/html' | 'text/markdown' | 'application/geo+json'
     /** When it was published. */
     created_at: string
 }
@@ -579,7 +594,7 @@ export function useThreadWrites(artifactId: string) {
     const id = encodeURIComponent(artifactId)
     return {
         start: useMutation({
-            mutationFn: (given: { anchor: Anchor | null; body: string }) =>
+            mutationFn: (given: { anchor: Anchor | null; place: MapPlace | null; body: string }) =>
                 request<{ thread_id: string }>('POST', `/api/artifacts/${id}/threads`, given),
             onSettled: settle,
         }),

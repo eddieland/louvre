@@ -83,6 +83,10 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
   with its quote struck through and the version it was on. It never moves to other words.
 - **Starting one.** Selecting words shows "comment" in the margin level with them (above them on a phone); it, or the
   `c` key, opens a new thread there.
+- **On a map.** On GeoJSON Louvre draws, a tap on a feature, or off every feature on a point, is a selection too, and
+  shows "comment" level with it. A place's thread is marked on the map by a disc ringed in `accent` with its number,
+  filled `accent` while hovered or active, `muted` when resolved, and its note sits level with the disc. Its quote is
+  the feature's label or the point's latitude and longitude.
 - **Keyboard.** `j` and `k` move between threads in page order, Escape closes one, `c` comments on a selection.
 
 ## Chrome
@@ -157,10 +161,9 @@ but the canvas, to the screen's edges, under one hairline.
   `paper` with the frame's shadow. Above it, a label in Instrument Sans: the artifact's title in `ink`, the frame's
   size in `muted`, its open threads in `accent`. Labels and outlines keep one size on the screen at any zoom, and a
   label never runs past its frame's width: what does not fit ends in an ellipsis.
-- **On a phone** (600 px and below on the screen's shorter side), a frame's page is drawn only while the frame is on
-  the screen at 25% or more, and two pages at most, those the screen shows the most of: six pages at once are more than
-  a phone has the memory for. Fitted to a phone, the board shows its frames' sheets and labels, and a frame's page
-  fills in as the reader zooms into it.
+- **On a phone** (600 px and below on the screen's shorter side), two frames' pages are drawn at most, at any zoom:
+  those the screen shows the most of. Six pages at once are more than a phone has the memory for. The rest show their
+  sheets and labels, and a frame's page fills in as the reader pans or zooms to it.
 - **Moving.** Drag to pan, by pointer or by touch; pinch, the wheel, or the toolbar's zoom control (`−`, the zoom in
   percent, `+`, Fit) to zoom, about the cursor or the pinch's middle, from 5% to 100%: a frame's page at its own size,
   as a reader opens the frame to read it closer. The board opens fitted to the screen, and fits again on a resize until
@@ -235,6 +238,12 @@ Past a city's scale Natural Earth fades out, its coast a kilometre out there, an
 water in `bg`, buildings a step darker than the ground, roads a step above `rule` widening as the map zooms in, rail
 and paths dashed, street names in Noto Sans italic. A page's own `context` is drawn as the roads are. Both are always
 quieter than the data, whose lines widen with them.
+
+**GeoJSON** an agent publishes is drawn by Louvre as a page in the house style (`louvre.core.geodata`): a kicker
+counting its features, the title, the lede, the map with its key, then "Each feature", a numbered list of each
+feature's label in bold and its properties flowing after it, each name small and muted before its value. Those are
+the page's words, which threads are on. A tap on a feature opens a card with the same, its label linking to its row;
+its words are drawn by CSS so that no passage is ever found in the card.
 
 ## Not decided yet
 

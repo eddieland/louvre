@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from louvre.core import accounts, boards, demo, explorations, inbox, style
+from louvre.core import accounts, boards, demo, explorations, geodata, inbox, style
 from louvre.core.decisions import MAX_OPTIONS, Decisions
 from louvre.core.store import MAX_BODY, MAX_EXACT, iso
 from louvre.core.text import CONTEXT, Anchor
@@ -32,10 +32,21 @@ class AnchorBody(_Body):
     suffix: Annotated[str, Field(max_length=CONTEXT)] = ""
 
 
+class PlaceBody(_Body):
+    """A place on a map, as the kit reports a tap on it: a feature by its id, or a point by its coordinates."""
+
+    kind: geodata.PlaceKind
+    #: The feature's id, as the page's map names it.
+    id: Annotated[str, Field(max_length=MAX_EXACT)] = ""
+    #: The point's longitude and latitude.
+    coordinates: Annotated[tuple[float, float] | None, Field()] = None
+
+
 class ThreadBody(_Body):
-    """A new thread: its first comment, on a passage or on the whole artifact."""
+    """A new thread: its first comment, on a passage, on a place on a map, or on the whole artifact."""
 
     anchor: AnchorBody | None = None
+    place: PlaceBody | None = None
     body: Annotated[str, Field(max_length=MAX_BODY)]
 
 
@@ -163,9 +174,11 @@ def compare(
 
 @router.post("/artifacts/{artifact_id}/threads", status_code=201)
 def create_thread(store: Reader, artifact_id: str, given: ThreadBody) -> dict[str, object]:
-    """Start a thread on an artifact's latest version."""
+    """Start a thread on an artifact's latest version: on a passage, a place on its map, or the whole of it."""
     anchor = None if given.anchor is None else Anchor.of(given.anchor.exact, given.anchor.prefix, given.anchor.suffix)
-    return store.comment(artifact_id, anchor, given.body)
+    place = given.place
+    pick = None if place is None else geodata.Pick(place.kind, place.id, place.coordinates or ())
+    return store.comment(artifact_id, anchor, given.body, pick=pick)
 
 
 @router.delete("/artifacts/{artifact_id}")

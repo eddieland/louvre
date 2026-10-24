@@ -11,7 +11,7 @@ indent_style = space
 indent_size = 4
 max_line_length = 120
 
-[*.{toml,yml,yaml,json}]
+[*.{toml,yml,yaml,json,geojson}]
 indent_size = 2
 
 # Helm templates, which render YAML.

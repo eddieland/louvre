@@ -35,7 +35,16 @@ function comment(created_at: string, deleted = false): Comment {
 }
 
 function thread(state: Thread['state'], comments: Comment[]): Thread {
-    return { id: 't1', anchor: null, anchored_version: 1, state, anchor_status: null, comments, unread: false }
+    return {
+        id: 't1',
+        anchor: null,
+        anchored_version: 1,
+        state,
+        anchor_status: null,
+        comments,
+        unread: false,
+        place: null,
+    }
 }
 
 describe('changes', () => {
@@ -44,8 +53,8 @@ describe('changes', () => {
 
         expect(notes.map((n) => n.id)).toEqual(['change-1', 'change-2', 'change-3'])
         expect(changeMarks(notes)).toEqual([
-            { id: 'change-1', anchor: COMPARISON.changes[0]?.anchor, state: 'change', n: null },
-            { id: 'change-2', anchor: COMPARISON.changes[1]?.anchor, state: 'removed', n: null },
+            { id: 'change-1', anchor: COMPARISON.changes[0]?.anchor, place: null, state: 'change', n: null },
+            { id: 'change-2', anchor: COMPARISON.changes[1]?.anchor, place: null, state: 'removed', n: null },
         ])
         expect(notes.map((n) => kindOf(n))).toEqual(['Rewritten', 'Removed', 'Added'])
     })

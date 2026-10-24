@@ -1,3 +1,4 @@
+import json
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -8,6 +9,7 @@ from psycopg.sql import SQL
 
 from louvre.core import accounts, db
 from louvre.core.db import Connection
+from louvre.core.geodata import Pick, PlaceKind
 from louvre.core.store import Code, Refused, Scope, Store, Via
 from louvre.core.text import Anchor
 from tests.conftest import BASE_URL, MakeAgent, person
@@ -405,3 +407,56 @@ def elsewhere(database_url: str, scope: Scope, *, wait: str = "1s") -> Iterator[
     with db.connect(database_url) as other:
         other.execute(SQL("SET lock_timeout = {}").format(wait))
         yield Store(other, scope, base_url=BASE_URL)
+
+
+def test_a_thread_on_a_feature_is_gone_with_it_and_one_on_a_point_stays(agent: MakeAgent, ana: Store) -> None:
+    def poles(*names: str) -> str:
+        features = [
+            {"type": "Feature", "id": f"pole-{n[2:]}", "properties": {"name": n}, "geometry": None} for n in names
+        ]
+        return json.dumps({"type": "FeatureCollection", "features": features})
+
+    sam = agent()
+    made = sam.publish(title="Poles", content_type="application/geo+json", content=poles("P-101", "P-102"))
+    artifact = str(made["artifact_id"])
+    on_feature = ana.comment(artifact, None, "Lamp out?", pick=Pick(PlaceKind.FEATURE, "pole-102"))
+    on_point = ana.comment(
+        artifact,
+        None,
+        "A pole is missing here.",
+        pick=Pick(PlaceKind.POINT, coordinates=(-9.14, 38.71)),
+    )
+    sam.publish(title="Poles", content_type="application/geo+json", content=poles("P-101"), artifact_id=artifact)
+
+    first = {t["id"]: t for t in sam.threads(artifact, version=1)["threads"]}  # type: ignore[union-attr]
+    latest = {t["id"]: t for t in sam.threads(artifact)["threads"]}  # type: ignore[union-attr]
+    feature, point = latest[on_feature["thread_id"]], latest[on_point["thread_id"]]
+
+    assert feature["anchor"] == {"exact": "P-102", "prefix": "", "suffix": ""}
+    assert feature["place"] == {
+        "kind": "feature",
+        "layer": "data",
+        "id": "pole-102",
+        "label": "P-102",
+        "geometry": None,
+    }
+    assert point["anchor"]["exact"] == "38.71000° N, 9.14000° W"  # type: ignore[index]
+    assert point["place"] == {"kind": "point", "geometry": {"type": "Point", "coordinates": [-9.14, 38.71]}}
+    assert [first[t]["anchor_status"] for t in (on_feature["thread_id"], on_point["thread_id"])] == ["found", "found"]
+    assert (feature["anchor_status"], point["anchor_status"]) == ("passage_gone", "found")
+    assert [c["anchor_status"] for c in sam.feed()[:-1]] == ["passage_gone", "found"]
+
+
+def test_a_place_is_a_feature_the_map_has_or_a_point_on_the_earth_of_a_map(agent: MakeAgent, ana: Store) -> None:
+    content = json.dumps({"type": "Feature", "properties": {"name": "P-101"}, "geometry": None})
+    sam = agent()
+    on_map = str(sam.publish(title="Pole", content_type="application/geo+json", content=content)["artifact_id"])
+    page = str(sam.publish(title="Page", content_type="text/html", content="<p>P-101</p>")["artifact_id"])
+
+    named = ana.comment(on_map, None, "This one.", pick=Pick(PlaceKind.FEATURE, "P-101"))
+
+    assert ana.threads(on_map)["threads"][0]["place"]["id"] == "P-101"  # type: ignore[index]
+    assert named["thread_id"]
+    refused(Code.ANCHOR_NOT_FOUND, lambda: ana.comment(on_map, None, "?", pick=Pick(PlaceKind.FEATURE, "P-999")))
+    refused(Code.INVALID, lambda: ana.comment(on_map, None, "?", pick=Pick(PlaceKind.POINT, coordinates=(0, 91))))
+    refused(Code.INVALID, lambda: ana.comment(page, None, "?", pick=Pick(PlaceKind.POINT, coordinates=(0, 0))))

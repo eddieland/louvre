@@ -1,4 +1,6 @@
-"""The tools agents call: the contract's eight, and Louvre's own: the style's, the decisions' five, and `files_publish`.
+"""The tools agents call: the contract's eight, and Louvre's own beside them.
+
+Louvre's own are the style's, the decisions' five, `files_publish`, and `map_publish`.
 
 Each is a request and what the store does with it. A tool's arguments are validated against its request, whose JSON
 schema is its input schema; the store then does the call, held to its scope. What a tool returns is JSON: one object,
@@ -17,12 +19,12 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
 from louvre.core import files as version_files
-from louvre.core import style
+from louvre.core import geodata, style
 from louvre.core.decisions import MAX_ASKED, MAX_DETAIL, MAX_LABEL, MAX_OPTIONS, MAX_QUESTION, MIN_OPTIONS, Decisions
 from louvre.core.decisions import Option as DecisionOption
 from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Code, Refused, Store
 from louvre.core.style import chart, check
-from louvre.core.text import CONTEXT, Anchor, ContentType
+from louvre.core.text import CONTEXT, Anchor, PageType
 
 #: Origin pairs, by key, set when an artifact is made. Plain aliases, not `type` statements: pydantic leaves out the
 #: description of a field whose type is a `type` alias.
@@ -78,7 +80,7 @@ class Publish(_Request):
     """Make an artifact, or add a version to one."""
 
     title: Annotated[StrictStr, Field(description="What the page is, in a few words.")]
-    content_type: Annotated[ContentType, Field(description="text/html or text/markdown.")]
+    content_type: Annotated[PageType, Field(description="text/html or text/markdown.")]
     content: Annotated[StrictStr, Field(description="The page, whole.")]
     origin: Origin = None
     artifact_id: Annotated[
@@ -116,6 +118,28 @@ class PublishWithFiles(Publish):
             f"{version_files.MAX_FILES:,} bytes together.",
         ),
     ]
+
+
+class MapPublish(_Request):
+    """Make an artifact of GeoJSON, which Louvre draws as a map, or add a version to one."""
+
+    title: Annotated[StrictStr, Field(description="The finding, in a few words, as the map's title.")]
+    data: Annotated[
+        dict[str, object],
+        Field(
+            description="A GeoJSON FeatureCollection, or one Feature (RFC 7946: [longitude, latitude], WGS 84), at "
+            f"most {geodata.MAX_FEATURES:,} features. Each feature's properties are shown under the map and on a tap. "
+            'An optional member "louvre" says how it is drawn: {"description": the finding in a sentence, "label": '
+            'the property naming each feature (default "name"), "focus": {"property": P, "equals": [values]} for the '
+            'features the map is about, in the accent, "ramp": {"property": a numeric P, "unit": "ms"} to color '
+            'every feature by its value, "key": {"focus": what the accent marks, "rest": what the others are}}.',
+        ),
+    ]
+    origin: Origin = None
+    artifact_id: Annotated[
+        StrictStr | None,
+        Field(description="To add a version to this artifact, which keeps its origin and its threads."),
+    ] = None
 
 
 class Read(_Request):
@@ -487,6 +511,22 @@ TOOLS = (
             origin=r.origin,
             artifact_id=r.artifact_id,
             files=[version_files.File(f.path, f.content_type, _decoded(f.data, f.path)) for f in r.files],
+        ),
+    ),
+    tool(
+        "map_publish",
+        "Publish GeoJSON, which Louvre draws as a map in its house style: the features, on a basemap from the whole "
+        "earth down to a few streets, and under the map each feature's label and properties, which people read, tap "
+        "on the map, and comment on. A revision is a new version with the same artifact_id; a thread on a feature's "
+        "words stays on them while they hold. For a page with a map among other things, write HTML with the map kit "
+        "instead (style_get, kind map).",
+        MapPublish,
+        lambda store, r: store.publish(
+            title=r.title,
+            content_type="application/geo+json",
+            content=json.dumps(r.data, ensure_ascii=False, separators=(",", ":")),
+            origin=r.origin,
+            artifact_id=r.artifact_id,
         ),
     ),
 )

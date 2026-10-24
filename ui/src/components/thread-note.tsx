@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { Composer } from '@/components/composer'
 import { SignInLink } from '@/components/sign-in'
+import type { MapPlace } from '@/bridge/protocol'
 import type { Account, Comment, Thread } from '@/lib/api'
 import { ago, roman } from '@/lib/format'
 
@@ -45,8 +46,10 @@ export interface ThreadNoteProps {
 export interface Draft {
     /** Always `draft`. */
     id: 'draft'
-    /** The passage, or null for the whole artifact. */
+    /** The passage, or null for the whole artifact; for a place on a map, the place's words. */
     anchor: Thread['anchor']
+    /** The place on a map, or null for words or the whole artifact. */
+    place: MapPlace | null
     /** Always `draft`. */
     state: 'draft'
 }

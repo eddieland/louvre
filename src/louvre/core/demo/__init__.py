@@ -178,6 +178,7 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
             ({"canopy.ticket": "PAY-151"}, _quote_cache),
             ({"canopy.ticket": "PAY-160"}, _vault_migration),
             ({"canopy.ticket": "PAY-163"}, _declines_map),
+            ({"canopy.ticket": "OPS-88"}, _poles),
         )
         missing = [
             part for marker, part in parts if not agent.overview(origin=marker, namespace=NAMESPACE)["artifacts"]
@@ -472,6 +473,21 @@ def _declines_map(agent: Store, people: dict[str, Store]) -> None:
         str(made["artifact_id"]),
         Anchor.of("we send 3-D Secure up front on charges over R$\N{NO-BREAK SPACE}200"),
         "Up front adds a step for every customer over R$ 200. Could we only do it for the issuers that ask?",
+    )
+
+
+def _poles(agent: Store, people: dict[str, Store]) -> None:
+    """GeoJSON that Louvre draws as a map: street poles, three needing a crew, and a thread on one pole's words."""
+    made = agent.publish(
+        title="Three Baixa street poles need a crew",
+        content_type="application/geo+json",
+        content=(_FILES / "baixa-poles.geojson").read_text(encoding="utf-8"),
+        origin={"canopy.ticket": "OPS-88", "canopy.repo": "street-ops"},
+    )
+    people["raj"].comment(
+        str(made["artifact_id"]),
+        Anchor.of("Leaning about 8 degrees toward the road after a delivery truck hit it."),
+        "This one first: it is over the bus lane. Can the crew go tonight?",
     )
 
 

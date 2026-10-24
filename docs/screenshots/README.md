@@ -334,6 +334,28 @@ Light:
 | --- | --- |
 | ![A map in the house style, drawn by the map kit, Phone, 390, light](house-style-map/phone-light.png) | ![A map in the house style, drawn by the map kit, Laptop, 1440, light](house-style-map/laptop-light.png) |
 
+## GeoJSON, drawn by Louvre as a map
+
+`/a/{poles}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![GeoJSON, drawn by Louvre as a map, Small phone, 360, dark](geodata/phone-small-dark.png) | ![GeoJSON, drawn by Louvre as a map, Phone, 390, dark](geodata/phone-dark.png) | ![GeoJSON, drawn by Louvre as a map, Tablet, 820, dark](geodata/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![GeoJSON, drawn by Louvre as a map, Tablet landscape, 1180, dark](geodata/tablet-landscape-dark.png) | ![GeoJSON, drawn by Louvre as a map, Laptop, 1440, dark](geodata/laptop-dark.png) | ![GeoJSON, drawn by Louvre as a map, Wide, 1920, dark](geodata/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![GeoJSON, drawn by Louvre as a map, Phone, 390, light](geodata/phone-light.png) | ![GeoJSON, drawn by Louvre as a map, Laptop, 1440, light](geodata/laptop-light.png) |
+
 ## A board, fitted to the screen
 
 `/b/design-study`

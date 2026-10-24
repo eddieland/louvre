@@ -1,0 +1,378 @@
+{
+  "type": "FeatureCollection",
+  "louvre": {
+    "description": "Three of the Baixa's 21 street poles need a crew: two lamps are out, and one leans.",
+    "focus": {
+      "property": "status",
+      "equals": [
+        "lamp out",
+        "leaning"
+      ]
+    },
+    "key": {
+      "focus": "Needs a crew",
+      "rest": "Working"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-101",
+        "street": "Rua Augusta",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-04"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1366,
+          38.70815
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-102",
+        "street": "Rua Augusta",
+        "status": "working",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-05"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13701,
+          38.70902
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-103",
+        "street": "Rua Augusta",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-06"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13742,
+          38.70988
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-104",
+        "street": "Rua Augusta",
+        "status": "lamp out",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-07",
+        "note": "Lamp out since 19 October; reported by a shop on the corner."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13782,
+          38.71075
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-105",
+        "street": "Rua Augusta",
+        "status": "working",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-08"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13823,
+          38.71162
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-106",
+        "street": "Rua Augusta",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-09"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13864,
+          38.71248
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-107",
+        "street": "Rua Augusta",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-10"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13905,
+          38.71335
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-108",
+        "street": "Rua do Ouro",
+        "status": "working",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-11"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1382,
+          38.70855
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-109",
+        "street": "Rua do Ouro",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-12"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13853,
+          38.70932
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-110",
+        "street": "Rua do Ouro",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-13"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13887,
+          38.71008
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-111",
+        "street": "Rua do Ouro",
+        "status": "working",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-14"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1392,
+          38.71085
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-112",
+        "street": "Rua do Ouro",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-15"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13953,
+          38.71162
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-113",
+        "street": "Rua do Ouro",
+        "status": "leaning",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-16",
+        "note": "Leaning about 8 degrees toward the road after a delivery truck hit it."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.13987,
+          38.71238
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-114",
+        "street": "Rua do Ouro",
+        "status": "working",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-17"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1402,
+          38.71315
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-115",
+        "street": "Rua da Prata",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-18"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1353,
+          38.7086
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-116",
+        "street": "Rua da Prata",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-19"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1357,
+          38.70938
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-117",
+        "street": "Rua da Prata",
+        "status": "lamp out",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-20"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1361,
+          38.71017
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-118",
+        "street": "Rua da Prata",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-21"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1365,
+          38.71095
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-119",
+        "street": "Rua da Prata",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-22"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1369,
+          38.71173
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-120",
+        "street": "Rua da Prata",
+        "status": "working",
+        "lamp": "Sodium 100 W",
+        "inspected": "2026-09-03"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1373,
+          38.71252
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "P-121",
+        "street": "Rua da Prata",
+        "status": "working",
+        "lamp": "LED 60 W",
+        "inspected": "2026-09-04"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -9.1377,
+          38.7133
+        ]
+      }
+    }
+  ]
+}

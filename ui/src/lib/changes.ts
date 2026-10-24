@@ -31,11 +31,15 @@ export function notesOf(comparison: Comparison): MarkedChange[] {
 
 /** The marks the bridge is asked for: words added or rewritten are painted; a removal is only found, to place it. */
 export function changeMarks(notes: readonly MarkedChange[]): Mark[] {
-    return notes.flatMap((note): Mark[] =>
-        note.anchor
-            ? [{ id: note.id, anchor: note.anchor, state: note.kind === 'removed' ? 'removed' : 'change', n: null }]
-            : [],
-    )
+    const marks: Mark[] = []
+    for (const note of notes) {
+        if (note.anchor) {
+            // A change is in a version's words, never at a place on a map.
+            const state = note.kind === 'removed' ? 'removed' : 'change'
+            marks.push({ id: note.id, anchor: note.anchor, place: null, state, n: null })
+        }
+    }
+    return marks
 }
 
 /** What the margin calls a change, such as "Rewritten". */

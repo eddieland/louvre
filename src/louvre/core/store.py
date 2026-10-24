@@ -22,11 +22,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Self
 
 from psycopg.pq import TransactionStatus
 
-from louvre.core import compare, render
+from louvre.core import compare, geodata, render
 from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.files import File, FilesError, new_key
 from louvre.core.files import check as check_files
@@ -178,6 +178,11 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             raise Refused(Code.INVALID, "an artifact's title must not be blank")
         bounded("title", title, MAX_TITLE)
         bounded("content", content, MAX_CONTENT)
+        if content_type == geodata.GEOJSON:
+            try:
+                geodata.check(content)
+            except geodata.GeodataError as e:
+                raise Refused(Code.INVALID, f"the GeoJSON: {e}") from None
         if artifact_id is not None and origin:
             raise Refused(Code.INVALID, "an artifact's origin is set when it is made; omit it to add a version")
         try:
@@ -332,8 +337,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         with self.reading():
             artifact = self.artifact_row(artifact_id)
             found = self._version(artifact, version)
-        content_type: ContentType = "text/markdown" if found["content_type"] == "text/markdown" else "text/html"
-        return render.page(content_type, str(found["content"]), str(artifact["title"]))
+        return render.page(_content_type(found["content_type"]), str(found["content"]), str(artifact["title"]))
 
     def threads(
         self,
@@ -353,7 +357,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         """
         with self.reading():
             artifact = self.artifact_row(artifact_id)
-            text = str(self._version(artifact, version)["text"])
+            shown = _Shown.of(self._version(artifact, version))
             threads = self._conn.execute(
                 "SELECT * FROM threads WHERE artifact_id = %s AND (%s::text IS NULL OR state = %s) ORDER BY n",
                 (artifact_id, state, state),
@@ -364,17 +368,14 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 " WHERE t.artifact_id = %s ORDER BY c.n",
                 (artifact_id,),
             ).fetchall()
-        listed: list[dict[str, object]] = []
-        for thread in threads:
-            anchor = _anchor(thread)
-            found = None if anchor is None else "found" if locate(text, anchor) is not None else "passage_gone"
-            listed.append(
-                {
-                    **_thread_json(thread),
-                    "anchor_status": found,
-                    "comments": [_comment_json(c) for c in comments if c["thread_id"] == thread["id"]],
-                },
-            )
+        listed = [
+            {
+                **_thread_json(thread),
+                "anchor_status": shown.status(thread),
+                "comments": [_comment_json(c) for c in comments if c["thread_id"] == thread["id"]],
+            }
+            for thread in threads
+        ]
         return {"artifact_id": artifact_id, "version": version or artifact["latest_version"], "threads": listed}
 
     def compare(self, artifact_id: str, base: int, head: int | None = None) -> dict[str, object]:
@@ -467,7 +468,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             newest = int(str(row["newest"])) if row else 0
             rows = self._conn.execute(
                 "SELECT ch.seq, ch.kind, ch.at, ch.via AS change_via, a.id AS artifact_id, a.origin,"
-                " t.id AS thread_id, t.exact, t.prefix, t.suffix, t.anchored_version, t.state,"
+                " t.id AS thread_id, t.exact, t.prefix, t.suffix, t.place, t.anchored_version, t.state,"
                 " c.id AS comment_id, c.body, c.created_at, c.edited_at, c.deleted_at,"
                 " w.id AS author_id, w.display_name, w.kind AS author_kind, w.on_behalf_of"
                 " FROM changes ch JOIN threads t ON t.id = ch.thread_id JOIN artifacts a ON a.id = t.artifact_id"
@@ -478,9 +479,9 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 {"since": since, "newest": newest, "filter": json.dumps(dict(origin or {})), "limit": limit}
                 | self.reach(),
             ).fetchall()
-            latest = self._latest_texts({str(row["artifact_id"]) for row in rows})
+            latest = self._latest({str(row["artifact_id"]) for row in rows})
         through = int(str(rows[-1]["seq"])) if len(rows) == limit else max(newest, since)
-        changes = [{**_change_json(row), "anchor_status": _status(latest, row)} for row in rows]
+        changes = [{**_change_json(row), "anchor_status": latest[str(row["artifact_id"])].status(row)} for row in rows]
         return [*changes, {"kind": "end", "through": through}]
 
     def reply(self, thread_id: str, body: str) -> dict[str, object]:
@@ -500,16 +501,26 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             comment_id, seq = self._comment(thread_id, body)
         return {"comment_id": comment_id, "seq": seq}
 
-    def comment(self, artifact_id: str, anchor: Anchor | None, body: str) -> dict[str, object]:
+    def comment(
+        self,
+        artifact_id: str,
+        anchor: Anchor | None,
+        body: str,
+        *,
+        pick: geodata.Pick | None = None,
+    ) -> dict[str, object]:
         """Open a thread on a passage of an artifact's latest version, or with no anchor on the whole artifact.
+
+        With `pick`, the thread is on a place on a GeoJSON version's map instead (louvre.core.geodata), and its anchor
+        is the place's words: the feature's label, or the point's coordinates.
 
         Returns:
             The thread's id, its first comment's, and that comment's `seq`.
 
         Raises:
-            Refused: `read_only` without comment; `invalid` or `too_long` for the body or the anchor; `not_found` or
-                `out_of_scope` for the artifact; `anchor_not_found` when the anchor's words are not in its latest
-                version.
+            Refused: `read_only` without comment; `invalid` or `too_long` for the body or the anchor, or a place on
+                what is not a map; `not_found` or `out_of_scope` for the artifact; `anchor_not_found` when the
+                anchor's words, or the picked feature, are not in its latest version.
         """
         self.require(Permission.COMMENT)
         check_body(body)
@@ -518,18 +529,22 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         with self.writing():
             artifact = self.artifact_row(artifact_id)
             latest = self._version(artifact, None)
-            if anchor is not None and locate(str(latest["text"]), anchor) is None:
+            place = None if pick is None else _place(latest, pick)
+            if place is not None:
+                anchor = Anchor.of(place.quote())
+            elif anchor is not None and locate(str(latest["text"]), anchor) is None:
                 raise Refused(Code.ANCHOR_NOT_FOUND, f"the passage is not in version {latest['n']} of {artifact_id}")
             thread_id = _id("t")
             self._conn.execute(
-                "INSERT INTO threads (id, artifact_id, exact, prefix, suffix, anchored_version, state, created_at)"
-                " VALUES (%s, %s, %s, %s, %s, %s, 'open', %s)",
+                "INSERT INTO threads (id, artifact_id, exact, prefix, suffix, place, anchored_version, state,"
+                " created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, 'open', %s)",
                 (
                     thread_id,
                     artifact_id,
                     None if anchor is None else anchor.exact,
                     None if anchor is None else anchor.prefix,
                     None if anchor is None else anchor.suffix,
+                    None if place is None else json.dumps(place.json()),
                     latest["n"],
                     _now(),
                 ),
@@ -782,13 +797,13 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             ).fetchall()
         return rows[:LIST_PAGE], len(rows) > LIST_PAGE
 
-    def _latest_texts(self, artifact_ids: AbstractSet[str]) -> dict[str, str]:
+    def _latest(self, artifact_ids: AbstractSet[str]) -> dict[str, "_Shown"]:
         rows = self._conn.execute(
-            "SELECT a.id, v.text FROM artifacts a JOIN versions v ON v.artifact_id = a.id AND v.n = a.latest_version"
-            " WHERE a.id = ANY(%s)",
+            "SELECT a.id, v.text, v.content_type, v.content FROM artifacts a"
+            " JOIN versions v ON v.artifact_id = a.id AND v.n = a.latest_version WHERE a.id = ANY(%s)",
             (sorted(artifact_ids),),
         ).fetchall()
-        return {str(row["id"]): str(row["text"]) for row in rows}
+        return {str(row["id"]): _Shown.of(row) for row in rows}
 
     def _version(self, artifact: Row, n: int | None) -> Row:
         """Find a version of `artifact`, its latest when `n` is None.
@@ -943,11 +958,57 @@ def _anchor(thread: Row) -> Anchor | None:
     return None if exact is None else Anchor(str(exact), str(thread["prefix"]), str(thread["suffix"]))
 
 
-def _status(texts: Mapping[str, str], row: Row) -> str | None:
-    anchor = _anchor(row)
-    if anchor is None:
-        return None
-    return "found" if locate(texts[str(row["artifact_id"])], anchor) is not None else "passage_gone"
+@dataclass(frozen=True)
+class _Shown:
+    """A version as a thread's anchor is looked for in it: its text, and its GeoJSON if it is a map."""
+
+    text: str
+    #: Its content, when it is GeoJSON; empty otherwise.
+    geojson: str = ""
+
+    @classmethod
+    def of(cls, version: Row) -> Self:
+        """Read a version's row.
+
+        Returns:
+            What its anchors are looked for in.
+        """
+        is_map = version["content_type"] == geodata.GEOJSON
+        return cls(str(version["text"]), str(version["content"]) if is_map else "")
+
+    def status(self, thread: Row) -> str | None:
+        """Look for a thread's anchor here: its place, on a map, or its words.
+
+        Returns:
+            `found`, `passage_gone`, or None for a thread on the whole artifact.
+        """
+        stored = thread["place"]
+        if isinstance(stored, dict):
+            on_map = bool(self.geojson) and geodata.found(self.geojson, geodata.place_from(stored))
+            return "found" if on_map else "passage_gone"
+        anchor = _anchor(thread)
+        if anchor is None:
+            return None
+        return "found" if locate(self.text, anchor) is not None else "passage_gone"
+
+
+def _place(version: Row, pick: geodata.Pick) -> geodata.Place:
+    """Find what a reader picked on a version's map.
+
+    Returns:
+        The place.
+
+    Raises:
+        Refused: `invalid` for a version that is no map or a point off the earth; `anchor_not_found` for a feature
+            the version does not have.
+    """
+    if version["content_type"] != geodata.GEOJSON:
+        raise Refused(Code.INVALID, "a place is on a map: only a GeoJSON version has one")
+    try:
+        return geodata.place_on(str(version["content"]), pick)
+    except geodata.GeodataError as e:
+        code = Code.ANCHOR_NOT_FOUND if pick.kind == geodata.PlaceKind.FEATURE else Code.INVALID
+        raise Refused(code, str(e)) from None
 
 
 def _anchor_json(row: Row) -> dict[str, str] | None:
@@ -966,6 +1027,21 @@ def _artifact_json(row: Row) -> dict[str, object]:
     }
 
 
+def _content_type(stored: object) -> ContentType:
+    """Read a version's content type as the database holds it, which its check keeps to `ContentType`'s.
+
+    Returns:
+        The content type.
+    """
+    match stored:
+        case "text/markdown":
+            return "text/markdown"
+        case "application/geo+json":
+            return "application/geo+json"
+        case _:
+            return "text/html"
+
+
 def _version_json(row: Row) -> dict[str, object]:
     return {
         "artifact_id": row["artifact_id"],
@@ -981,6 +1057,7 @@ def _thread_json(row: Row) -> dict[str, object]:
         "id": row["id"],
         "artifact_id": row["artifact_id"],
         "anchor": _anchor_json(row),
+        "place": row["place"],
         "anchored_version": row["anchored_version"],
         "state": row["state"],
     }
@@ -1018,6 +1095,7 @@ def _change_json(row: Row) -> dict[str, object]:
         "origin": row["origin"],
         "thread_id": row["thread_id"],
         "anchor": _anchor_json(row),
+        "place": row["place"],
         "anchored_version": row["anchored_version"],
         "state": row["state"],
         "comment_id": row["comment_id"],
