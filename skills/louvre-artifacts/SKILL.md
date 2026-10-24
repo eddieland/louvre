@@ -45,6 +45,9 @@ lags it.
 
 ## Publish, then answer
 
+- A page's images, fonts, and data go beside it: publish with `files_publish`, `artifact_publish`'s arguments and the
+  files, and name each in the page by its path. Check the page first with `style_check`, giving it the files' paths.
+  Only Louvre serves files: a page with files shows them only there.
 - `artifact_publish` with a `title` that says the finding, the `content_type`, and the `content`. It returns a `url`:
   give it to whoever asked for the page.
 - A revision is a new version of the same artifact: publish with its `artifact_id`. Keep a passage's words where they

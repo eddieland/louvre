@@ -117,3 +117,19 @@ def test_a_fragment_lacks_its_head_and_its_title() -> None:
 @given(st.text())
 def test_any_text_is_checked_without_raising(page: str) -> None:
     assert all(f.severity in Severity for f in check(page))
+
+
+def test_a_page_names_its_files_by_their_paths_and_every_file_is_named() -> None:
+    named = '<img src="p95.png" alt="p95"><a href="./data/regions.csv?v=1#top">The data</a>'
+    loaded_from_files = '<script src="app.js"></script><link rel="stylesheet" href="style.css">'
+
+    assert found(named) == {(Rule.FILE, Severity.ERROR)}
+    assert check(PAGE.replace("{}", named), frozenset({"p95.png", "data/regions.csv"})) == []
+    assert {
+        (f.rule, f.severity, f.excerpt)
+        for f in check(PAGE.replace("{}", named), frozenset({"p95.png", "data/regions.csv", "spare.png"}))
+    } == {
+        (Rule.FILE, Severity.WARNING, "spare.png"),
+    }
+    assert found(loaded_from_files) == {(Rule.NETWORK, Severity.ERROR)}
+    assert found('<script>fetch("data/regions.csv")</script>') == set()

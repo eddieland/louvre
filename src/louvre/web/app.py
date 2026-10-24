@@ -28,22 +28,25 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.routing import Route
 
 from louvre.core import accounts, explorations
+from louvre.core import files as version_files
 from louvre.core.store import Code, Refused, Scope, Store
 from louvre.mcp import server
 from louvre.web import api, auth, ui
-from louvre.web.caller import Database, Reader
+from louvre.web.caller import Conn, Database, Reader
 from louvre.web.settings import Settings
 
 #: Where Louvre's own server-made pages live, beside this module.
 PAGES = files("louvre.web") / "pages"
 #: An artifact's own policy: an opaque origin, scripts and styles inline, images and fonts inline or from data URLs,
-#: no network, and framed only by Louvre. Whether an artifact may load from the network is an open question
-#: (REQUIREMENTS).
+#: no network, and framed only by Louvre. A version with files may also load them, and nothing else (`files_policy`).
+#: Whether an artifact may load from the network is an open question (REQUIREMENTS).
 ARTIFACT_POLICY = (
     "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; "
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "img-src data:; font-src data:; media-src data:; frame-ancestors 'self'"
 )
+#: A version's file's own policy, opened alone: a sandbox, so an SVG runs no script, and nothing it may load.
+FILE_POLICY = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
 #: The explorations' pages: their own files only, and fonts from Google, as the design study was made. Framed only by
 #: Louvre, as the design study's board frames them.
 PAGE_POLICY = (
@@ -88,14 +91,7 @@ def create(settings: Settings | None = None) -> FastAPI:
     app.include_router(api.router)
     app.include_router(auth.router)
 
-    @app.get("/content/{artifact_id}/{n}", response_class=HTMLResponse)
-    def content(store: Reader, artifact_id: str, n: int) -> HTMLResponse:
-        """A version's page, as its author wrote it with the bridge added, under the sandbox policy."""
-        page = with_bridge(store.page(artifact_id, n), ui.bridge())
-        return HTMLResponse(
-            page,
-            headers={"Content-Security-Policy": ARTIFACT_POLICY, "Cache-Control": "private, no-cache", **_NO_SNIFF},
-        )
+    _content(app)
 
     # The MCP server, over streamable HTTP, for a request with a token: an ASGI app of the SDK's (louvre.mcp.server).
     app.router.routes.append(Route("/mcp", _Mcp(app.state.database), methods=["POST"]))
@@ -129,6 +125,30 @@ def create(settings: Settings | None = None) -> FastAPI:
     return app
 
 
+def files_policy(here: str) -> str:
+    """Make the policy of a version's page beside its files: the artifact policy, and its files at `here`.
+
+    Returns:
+        The policy, letting the page load images, fonts, and media from `here`, and read data there, and nothing else.
+    """
+    return (
+        ARTIFACT_POLICY.replace("img-src data:", f"img-src data: {here}")
+        .replace(
+            "font-src data:",
+            f"font-src data: {here}",
+        )
+        .replace("media-src data:", f"media-src data: {here}; connect-src {here}")
+    )
+
+
+def _version_page(store: Store, artifact_id: str, n: int, policy: str) -> HTMLResponse:
+    page = with_bridge(store.page(artifact_id, n), ui.bridge())
+    return HTMLResponse(
+        page,
+        headers={"Content-Security-Policy": policy, "Cache-Control": "private, no-cache", **_NO_SNIFF},
+    )
+
+
 def with_bridge(page: str, bridge: str | None) -> str:
     """Add the bridge to a version's page, as a script at its end, which the page's text does not include.
 
@@ -140,6 +160,50 @@ def with_bridge(page: str, bridge: str | None) -> str:
     # A script's text ends at the first `</script`, whatever case, so the bridge must not hold one.
     safe = bridge.replace("</", "<\\/")
     return f"{page}\n<script>{safe}</script>\n"
+
+
+def _content(app: FastAPI) -> None:
+    """Serve versions' pages, sandboxed (D008), and their files beside them (louvre.core.files)."""
+
+    @app.get("/content/{artifact_id}/{n}", response_class=HTMLResponse)
+    def content(store: Reader, artifact_id: str, n: int) -> Response:
+        """A version's page, as its author wrote it with the bridge added, under the sandbox policy.
+
+        A version with files is served under its files' key instead, so the page names them relative to itself.
+        """
+        key = store.files_key(artifact_id, n)
+        if key is not None:
+            return RedirectResponse(f"/content/{artifact_id}/{n}/{key}/", 307, headers=_NO_SNIFF)
+        return _version_page(store, artifact_id, n, ARTIFACT_POLICY)
+
+    @app.get("/content/{artifact_id}/{n}/{key}/", response_class=HTMLResponse)
+    def content_with_files(request: Request, store: Reader, artifact_id: str, n: int, key: str) -> Response:
+        """A version's page beside its files, under a policy that lets it load them, and nothing else."""
+        if store.files_key(artifact_id, n) != key:
+            raise HTTPException(status_code=404, detail="Not found.")
+        here = f"{str(request.base_url).rstrip('/')}/content/{artifact_id}/{n}/{key}/"
+        return _version_page(store, artifact_id, n, files_policy(here))
+
+    @app.get("/content/{artifact_id}/{n}/{key}/{path:path}", include_in_schema=False)
+    def version_file(conn: Conn, artifact_id: str, n: int, key: str, path: str) -> Response:
+        """One of a version's files, to whoever has its key (D012): a sandboxed page's request carries no session.
+
+        CORS lets the page, on its opaque origin, load a font or read data from it.
+        """
+        found = version_files.served(conn, artifact_id, n, key, path)
+        if found is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        content_type, data = found
+        return Response(
+            data,
+            media_type=content_type.value,
+            headers={
+                "Content-Security-Policy": FILE_POLICY,
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "private, max-age=31536000, immutable",
+                **_NO_SNIFF,
+            },
+        )
 
 
 def _design_study(app: FastAPI) -> None:

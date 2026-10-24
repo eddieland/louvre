@@ -23,6 +23,9 @@ from typing import Literal
 
 from louvre.core import render
 from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.files import File, FilesError, new_key
+from louvre.core.files import check as check_files
+from louvre.core.files import insert as insert_files
 from louvre.core.text import CONTEXT, Anchor, ContentType, locate
 
 #: The most characters of an artifact's title, a version's content, and a comment's body.
@@ -145,16 +148,19 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         content: str,
         origin: Mapping[str, str] | None = None,
         artifact_id: str | None = None,
+        files: Sequence[File] = (),
     ) -> dict[str, object]:
         """Make an artifact in the scope's home namespace, or with `artifact_id`, add a version to one.
+
+        A version published with `files` carries them beside its content (louvre.core.files).
 
         Returns:
             Its id, the new version's number, and the url of its page.
 
         Raises:
-            Refused: `read_only` without publish; `too_long` for a title, content, or origin over its bound;
-                `invalid` for a blank title, or an origin given with `artifact_id`; `not_found` or `out_of_scope` for
-                `artifact_id`.
+            Refused: `read_only` without publish; `too_long` for a title, content, origin, or files over its bound;
+                `invalid` for a blank title, an origin given with `artifact_id`, or a file whose path or type is
+                wrong; `not_found` or `out_of_scope` for `artifact_id`.
         """
         self.require(Permission.PUBLISH)
         if self.scope.home is None:
@@ -165,6 +171,10 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         bounded("content", content, MAX_CONTENT)
         if artifact_id is not None and origin:
             raise Refused(Code.INVALID, "an artifact's origin is set when it is made; omit it to add a version")
+        try:
+            check_files(files)
+        except FilesError as e:
+            raise Refused(Code.TOO_LONG if e.too_long else Code.INVALID, str(e)) from None
         pairs = _origin({**(origin or {}), **self.scope.origin}) if artifact_id is None else {}
         text = render.text_of(content_type, content)
         digest = hashlib.sha256(content.encode()).hexdigest()
@@ -184,10 +194,11 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                     (version, title, now, artifact_id),
                 )
             self._conn.execute(
-                "INSERT INTO versions (artifact_id, n, content_type, sha256, content, text, created_at)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (artifact_id, version, content_type, digest, content, text, now),
+                "INSERT INTO versions (artifact_id, n, content_type, sha256, content, text, created_at, files_key)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (artifact_id, version, content_type, digest, content, text, now, new_key() if files else None),
             )
+            insert_files(self._conn, artifact_id, version, files)
         return {"artifact_id": artifact_id, "version": version, "url": self.url(artifact_id, version)}
 
     def read(self, artifact_id: str, version: int | None = None) -> dict[str, object]:
@@ -272,6 +283,26 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             "versions": [_version_json(row) for row in rows],
             "owned": self.scope.account_id is not None and artifact["owner_id"] == self.scope.account_id,
         }
+
+    def files_key(self, artifact_id: str, version: int) -> str | None:
+        """Find the key a version's page and files are served under, for a reader who may read it.
+
+        Returns:
+            The key, or None for a version without files, which is served without one.
+
+        Raises:
+            Refused: `not_found` or `out_of_scope` for the artifact, `not_found` for the version.
+        """
+        with self.reading():
+            self.artifact_row(artifact_id)
+            row = self._conn.execute(
+                "SELECT files_key FROM versions WHERE artifact_id = %s AND n = %s",
+                (artifact_id, version),
+            ).fetchone()
+        if row is None:
+            raise Refused(Code.NOT_FOUND, f"{artifact_id} has no version {version}")
+        key = row["files_key"]
+        return None if key is None else str(key)
 
     def page(self, artifact_id: str, version: int) -> str:
         """Make the page a version is shown as (louvre.core.render).

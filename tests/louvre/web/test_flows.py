@@ -25,6 +25,9 @@ PAGE = (
     "<p>We should shard it.</p><p>Then measure again.</p></main></body></html>"
 )
 
+#: Two PNGs, one pixel wide and two, base64-encoded as an agent publishes them.
+ONE_WIDE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+TWO_WIDE = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAC0lEQVR4nGNggAIAAAkAAftSuKkAAAAASUVORK5CYII="
 #: How close two of a board's views are to be the same: the browser keeps a transform to a few decimal places.
 CLOSE = 0.001
 #: How long a board may take to be drawn as a test expects, in seconds.
@@ -129,6 +132,50 @@ def test_an_agents_page_shows_its_comment_on_its_passage(context: BrowserContext
     expect(note).to_contain_text("Sharding is the fix I would try first.")
     expect(note).to_contain_text("(Agent, for Ana Ruiz)")
     expect(page.frame_locator("iframe.exhibit").locator("[data-louvre] span")).to_have_text("1")
+
+
+def test_each_version_shows_its_own_files_from_its_sandbox(context: BrowserContext) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish"]},
+        headers=WRITES,
+    ).json()["secret"]
+
+    def publish_chart(data: str, artifact_id: str | None = None) -> str:
+        arguments = {
+            "title": "Chart",
+            "content_type": "text/html",
+            "content": '<!doctype html><h1>Chart</h1><img id="chart" src="chart.png" alt="A chart">',
+            "files": [{"path": "chart.png", "content_type": "image/png", "data": data}],
+            **({"artifact_id": artifact_id} if artifact_id else {}),
+        }
+        answered = context.request.post(
+            "/mcp",
+            data={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "files_publish", "arguments": arguments},
+            },
+            headers={"Authorization": f"Bearer {secret}"},
+        ).json()
+        return str(json.loads(answered["result"]["content"][0]["text"])["artifact_id"])
+
+    artifact = publish_chart(ONE_WIDE)
+    publish_chart(TWO_WIDE, artifact)
+
+    def width(version: int) -> int:
+        page = context.new_page()
+        page.goto(f"/a/{artifact}?v={version}")
+        exhibit = page.locator("iframe.exhibit").element_handle()
+        frame = exhibit.content_frame() if exhibit else None
+        assert frame is not None
+        frame.wait_for_load_state()
+        # The frame's request for the image carries no session: the version's key in its path is what it needs.
+        return int(frame.evaluate("document.getElementById('chart').naturalWidth"))
+
+    assert width(1) == 1
+    assert width(2) == 2
 
 
 def test_a_reader_comments_on_words_across_tags_then_replies_resolves_and_undoes(context: BrowserContext) -> None:

@@ -100,7 +100,19 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 ## D011. Louvre's own tools are added beside the contract's, and change none of them
 
 - The contract's eight tools, their results, and `comment_feed`'s kinds are canopy's (REQUIREMENTS L1). A tool of
-  Louvre's own (the `style_` and `decision_` tools) is a new name; what it records that a reader follows gets a feed
-  of its own (`decision_feed`), never a new kind in `comment_feed`, which canopy's loop reads.
+  Louvre's own (the `style_` and `decision_` tools, and `files_publish`) is a new name; what it records that a reader
+  follows gets a feed of its own (`decision_feed`), never a new kind in `comment_feed`, which canopy's loop reads.
 - Rejected: decisions' events in `comment_feed` (a reader written against the contract meets kinds it does not know).
 - Revisit: when canopy's contract takes a tool of Louvre's, which then follows the contract's word.
+
+## D012. A version's files are served under a key in their path, never behind a session
+
+- A version with files is served at `/content/<artifact>/<n>/<key>/`, its files under it, the key 128 random bits. A
+  page runs on an opaque origin (D008), so its requests for its files carry no cookie; the key, which only a person
+  who may read the version learns, by being sent to it, is what a request for a file needs.
+- The page's policy lets it load files from that path and nowhere else, so it reads its own version's files, never
+  another's.
+- Rejected: files behind a session (a sandboxed page's requests carry none); a key in the frame's URL that the UI
+  asks for (`/content/<artifact>/<n>` answers a signed-in person with a redirect to it, so no frame changes); files
+  across an artifact or a namespace (a version would not keep its own).
+- Revisit: if a file must be taken back from someone who already has its path.

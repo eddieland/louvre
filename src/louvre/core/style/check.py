@@ -9,6 +9,7 @@ parser and never runs it, so what a script draws it cannot see, and a page it pa
 
 import re
 from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from enum import StrEnum
 from html.parser import HTMLParser
@@ -32,6 +33,8 @@ class Rule(StrEnum):
 
     #: Something the page loads, which the sandbox refuses.
     NETWORK = "network"
+    #: A file the page names that is not beside it, or one beside it that nothing names (louvre.core.files).
+    FILE = "file"
     #: The browser's storage, which the sandbox refuses.
     STORAGE = "storage"
     #: The style's classes without its stylesheet.
@@ -80,13 +83,23 @@ PHONE = 360
 EXCERPT = 80
 #: Attributes whose value is fetched, on any element.
 _FETCHED = frozenset({"src", "srcset", "poster", "data", "background", "xlink:href"})
+#: Elements the policy loads from nowhere, inline or not at all: a script, a stylesheet, a frame, and a page's base.
+_NEVER_LOADED = frozenset({"script", "link", "iframe", "frame", "object", "embed", "base"})
 #: Elements whose `href` is fetched; a link's (`a`, `area`) is followed only when a reader clicks it.
 _FETCHED_HREF = frozenset({"link", "image", "use", "feimage", "base"})
-#: Scripts' ways out of the sandbox, which it refuses: to the network, and to storage.
-_NETWORK_API = re.compile(r"\b(fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|navigator\.sendBeacon)")
+#: Scripts' ways out of the sandbox, which it refuses: a fetch from elsewhere than the page's own files, a socket, a
+#: stream, and a beacon. A fetch of a relative path reads one of the page's files.
+_NETWORK_API = re.compile(
+    r"\bfetch\s*\(\s*['\"`](?:[a-z][a-z0-9+.-]*:|/)|\b(?:WebSocket|EventSource|navigator\.sendBeacon)\b",
+    re.IGNORECASE,
+)
 _STORAGE_API = re.compile(r"\b(localStorage|sessionStorage|indexedDB|document\.cookie)\b")
-#: In CSS: an import, or a URL that is not data or a fragment.
-_CSS_FETCH = re.compile(r"@import\b[^;]*|url\(\s*['\"]?(?!data:|#)[^)]*\)", re.IGNORECASE)
+#: In CSS: a URL, and an import, which loads a stylesheet from elsewhere.
+_CSS_URL = re.compile(r"url\(\s*['\"]?([^'\")]*)['\"]?\s*\)", re.IGNORECASE)
+_CSS_IMPORT = re.compile(r"@import\b[^;]*", re.IGNORECASE)
+#: A URL's scheme, as `https:` or `mailto:`, and the schemes that load from the page itself.
+_SCHEME = re.compile(r"[a-z][a-z0-9+.-]*:", re.IGNORECASE)
+_INLINE = ("data:", "blob:")
 #: In CSS: a width, or a minimum width, in pixels.
 _CSS_WIDTH = re.compile(r"(?<![-\w])(?:min-)?width\s*:\s*(\d+(?:\.\d+)?)px", re.IGNORECASE)
 #: A color written out, rather than one of the style's custom properties.
@@ -97,8 +110,8 @@ _COLOR_ATTRIBUTES = frozenset({"fill", "stroke", "color", "stop-color", "flood-c
 _PLACEHOLDER_LENGTH = 16
 
 
-def check(page: str) -> list[Finding]:
-    """Check an HTML page against the house style's guide.
+def check(page: str, files: AbstractSet[str] = frozenset()) -> list[Finding]:
+    """Check an HTML page against the house style's guide, with `files`, the paths of the files published beside it.
 
     Returns:
         What it should change, errors first, each in the order the page has them.
@@ -107,8 +120,10 @@ def check(page: str) -> list[Finding]:
     read.feed(page)
     read.close()
     styles = [_authored(text) for text in read.styles]
+    named = list(_named(read, styles))
     findings = [
-        *_network(read, styles),
+        *_network(named, read),
+        *_files(named, files),
         *_storage(read),
         *_stylesheet(read),
         *_placeholders(page),
@@ -119,6 +134,45 @@ def check(page: str) -> list[Finding]:
         *_colors(read, styles),
     ]
     return sorted(findings, key=lambda f: f.severity != Severity.ERROR)
+
+
+@dataclass(frozen=True)
+class _Url:
+    """A URL a page names."""
+
+    url: str
+    #: The markup or CSS it is in, cut short.
+    excerpt: str
+    #: Whether the page loads it, or only links to it.
+    loaded: bool = True
+    #: Whether the policy lets it load from the page's files: an image, a font, media, or data may; a script, a
+    #: stylesheet, or a frame may not, from anywhere.
+    from_files: bool = True
+
+    def elsewhere(self) -> bool:
+        """Tell whether it is somewhere other than the page and its files: a scheme's, or a path from the root.
+
+        Returns:
+            Whether it is.
+        """
+        inline = self.url.lower().startswith(_INLINE)
+        return self.url.startswith("/") or (bool(_SCHEME.match(self.url)) and not inline)
+
+    def relative(self) -> bool:
+        """Tell whether it names one of the page's files: a path relative to the page.
+
+        Returns:
+            Whether it does.
+        """
+        return bool(self.url) and not self.url.startswith(("#", "/")) and not _SCHEME.match(self.url)
+
+    def path(self) -> str:
+        """Name the file it is: its path, without a query or a fragment.
+
+        Returns:
+            The path.
+        """
+        return self.url.split("#")[0].split("?")[0].removeprefix("./")
 
 
 @dataclass(frozen=True)
@@ -225,27 +279,60 @@ def _authored(style: str) -> str:
     return style.replace(CSS.rstrip(), "")
 
 
-def _network(page: _Page, styles: Sequence[str]) -> Iterator[Finding]:
-    message = (
-        "Louvre's sandbox loads nothing: this request is refused. Put it in the page: an image as SVG markup or a "
-        "data: URL, a script or stylesheet inline."
-    )
+def _named(page: _Page, styles: Sequence[str]) -> Iterator[_Url]:
+    """Find every URL the page loads, or links to: in its tags' attributes, and in its CSS.
+
+    Yields:
+        Each URL, where it is, and whether the page loads it.
+    """
     for tag in page.tags:
         for name, value in tag.attrs.items():
-            fetched = name in _FETCHED or (name == "href" and tag.name in _FETCHED_HREF)
-            if fetched and value and not value.lstrip().startswith(("data:", "#")):
-                yield Finding(Rule.NETWORK, Severity.ERROR, message, _cut(tag.markup))
+            if name == "srcset":
+                yield from (_Url(url.split()[0], _cut(tag.markup)) for url in value.split(",") if url.split())
+            elif name in _FETCHED or (name == "href" and tag.name in _FETCHED_HREF):
+                yield _Url(value.strip(), _cut(tag.markup), from_files=tag.name not in _NEVER_LOADED)
+            elif name == "href" and tag.name in {"a", "area"}:
+                yield _Url(value.strip(), _cut(tag.markup), loaded=False)
     for css in [*styles, *(tag.attrs["style"] for tag in page.tags if "style" in tag.attrs)]:
-        for found in _CSS_FETCH.finditer(css):
-            yield Finding(Rule.NETWORK, Severity.ERROR, message, _cut(found.group()))
+        for found in _CSS_URL.finditer(css):
+            yield _Url(found.group(1), _cut(found.group()))
+        for found in _CSS_IMPORT.finditer(css):
+            # An import loads a stylesheet from elsewhere, whatever its URL says.
+            yield _Url("//", _cut(found.group()))
+
+
+def _network(named: Sequence[_Url], page: _Page) -> Iterator[Finding]:
+    message = (
+        "Louvre's sandbox loads nothing from elsewhere: this request is refused. Publish the file beside the page "
+        "with files_publish and name it by its path, or put it in the page: an image as SVG markup or a data: URL, a "
+        "script or stylesheet inline."
+    )
+    for named_url in named:
+        if named_url.loaded and (named_url.elsewhere() or not named_url.from_files):
+            yield Finding(Rule.NETWORK, Severity.ERROR, message, named_url.excerpt)
     for script in page.scripts:
         for found in _NETWORK_API.finditer(script):
             yield Finding(
                 Rule.NETWORK,
                 Severity.ERROR,
-                "Louvre's sandbox has no network: a script cannot fetch. Put the data in the page.",
+                "Louvre's sandbox has no network: a script reads only the files published beside its page.",
                 _cut(found.group()),
             )
+
+
+def _files(named: Sequence[_Url], files: AbstractSet[str]) -> Iterator[Finding]:
+    relative = [n for n in named if n.relative() and n.from_files]
+    for n in relative:
+        if n.path() not in files:
+            yield Finding(
+                Rule.FILE,
+                Severity.ERROR,
+                f"The page names {n.path()}, which is not among the files published beside it: publish it with "
+                "files_publish, or name a file that is.",
+                n.excerpt,
+            )
+    for path in sorted(files - {n.path() for n in relative}):
+        yield Finding(Rule.FILE, Severity.WARNING, "A file published beside the page that nothing names.", path)
 
 
 def _storage(page: _Page) -> Iterator[Finding]:

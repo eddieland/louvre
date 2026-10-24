@@ -56,7 +56,8 @@ The server speaks MCP's streamable HTTP at `/mcp`, one JSON-RPC message a reques
 canopy's artifacts contract's eight, so canopy's `canopy-artifacts` skill works against it unchanged, and
 `style_get`, Louvre's house style for HTML an agent wants to look like Louvre's own pages, with a starter page for a
 report, a decision, or a plan; `style_chart`, which draws a chart in it from data; and `style_check`, which checks a
-page against the style's guide before it is published. The style is also resources, its stylesheet, its guide, and
+page against the style's guide before it is published; and `files_publish`, which publishes a page with its images
+and data beside it. The style is also resources, its stylesheet, its guide, and
 each starter page (`louvre://style/louvre-1/...`, which Claude Code attaches with `@`), and a prompt, `style`, that
 asks for a page of a kind in it (`/mcp__louvre__style` in Claude Code).
 
