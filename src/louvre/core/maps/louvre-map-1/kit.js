@@ -14,6 +14,8 @@
     const EAST = "louvre:east";
     /** The property holding the label the kit gives each feature's anchor. */
     const LABEL = "louvre:label";
+    /** The property holding each feature's id as a place on a map names it, which Louvre gives the GeoJSON it draws. */
+    const PLACE_ID = "louvre:id";
     /** The property holding each feature's place in the data, from 1, as its row under a map Louvre draws is named. */
     const INDEX = "louvre:index";
     /** How near a tap must be to a feature to pick it, in CSS pixels: a fingertip's reach. */
@@ -186,6 +188,7 @@
                 context: { type: "geojson", data: entry.context },
                 data: { type: "geojson", data: entry.data },
                 anchors: { type: "geojson", data: entry.anchors },
+                threads: { type: "geojson", data: entry.threads },
             },
             layers: [
                 { id: "water", type: "background", paint: { "background-color": fade(c.bg, ground) } },
@@ -318,6 +321,32 @@
                     },
                     paint: { "text-color": c.accent, "text-halo-color": c.card, "text-halo-width": 1.5 },
                 },
+                // Each thread on a place, as Louvre numbers its threads: a disc in the accent's ring, filled while
+                // it is active or hovered; a draft's ring empty.
+                {
+                    id: "thread-marks",
+                    type: "circle",
+                    source: "threads",
+                    paint: {
+                        "circle-radius": 9,
+                        "circle-color": ["case", ["get", "lit"], c.accent, c.card],
+                        "circle-stroke-color": ["case", ["==", ["get", "state"], "resolved"], c.muted, c.accent],
+                        "circle-stroke-width": 1.5,
+                    },
+                },
+                {
+                    id: "thread-numbers",
+                    type: "symbol",
+                    source: "threads",
+                    layout: {
+                        "text-field": ["get", "n"],
+                        "text-font": font,
+                        "text-size": 11,
+                        "text-allow-overlap": true,
+                        "text-ignore-placement": true,
+                    },
+                    paint: { "text-color": ["case", ["get", "lit"], c.card, c.accent] },
+                },
             ],
         };
     };
@@ -402,7 +431,11 @@
         });
         map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 96 }), "bottom-left");
-        if (settings.popups) pickable(map, entry);
+        if (settings.popups || settings.places) pickable(map, entry);
+        if (settings.places) {
+            map.on("moveend", () => reportSpots(entry));
+            map.once("idle", () => markThreads(entry));
+        }
         if (!entry.view && settings.bounds) {
             map.fitBounds(settings.bounds, { padding: 48, maxZoom: settings.maxZoom ?? MAX_ZOOM, duration: 0 });
         }
@@ -490,7 +523,13 @@
                 [x - REACH, y - REACH],
                 [x + REACH, y + REACH],
             ];
+            const [thread] = entry.settings.places ? map.queryRenderedFeatures(box, { layers: ["thread-marks"] }) : [];
+            if (thread) {
+                document.dispatchEvent(new CustomEvent("louvre:click", { detail: { id: thread.properties.id } }));
+                return;
+            }
             const [hit] = map.queryRenderedFeatures(box, { layers });
+            if (entry.settings.places) pick(entry, event, hit);
             if (!hit) return;
             const index = hit.properties[INDEX];
             const feature = entry.data.features[index - 1];
@@ -525,6 +564,66 @@
         }
     };
 
+    /** Tells the bridge what a reader tapped, a feature or a point, to comment on, and where on the page it is. */
+    const pick = (entry, event, hit) => {
+        const box = entry.element.getBoundingClientRect();
+        const { x, y } = event.point;
+        const at = { top: box.top + scrollY + y - REACH, bottom: box.top + scrollY + y + REACH };
+        const side = { left: box.left + x - REACH, right: box.left + x + REACH };
+        // A feature is named by the id Louvre gave it; a tap off every feature is a point.
+        const id = hit?.properties[PLACE_ID];
+        const label = entry.settings.label ?? "name";
+        const place = id
+            ? { kind: "feature", id, coordinates: null }
+            : { kind: "point", id: "", coordinates: [event.lngLat.lng, event.lngLat.lat] };
+        const words = id ? String(hit.properties[label] ?? id) : pointWords(event.lngLat);
+        const detail = { place, words, ...at, ...side };
+        document.dispatchEvent(new CustomEvent("louvre:pick", { detail }));
+    };
+
+    /** Says a point as Louvre quotes one: its latitude, then its longitude, to five places. */
+    const pointWords = ({ lng, lat }) =>
+        `${Math.abs(lat).toFixed(5)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lng).toFixed(5)}° ${lng >= 0 ? "E" : "W"}`;
+
+    /** Marks each thread on a place on a map that takes them, as the bridge last asked, and says where each sits. */
+    const markThreads = (entry) => {
+        const at = new Map(entry.anchors.features.map((a) => [a.properties[PLACE_ID], a.geometry.coordinates]));
+        const features = [];
+        for (const mark of threadMarks) {
+            const coordinates = mark.place.kind === "point" ? mark.place.coordinates : at.get(mark.place.id);
+            if (!coordinates) continue;
+            const n = mark.n === null ? "" : String(mark.n);
+            const properties = { id: mark.id, n, state: mark.state, lit: mark.lit };
+            features.push({ type: "Feature", properties, geometry: { type: "Point", coordinates } });
+        }
+        entry.threads = { type: "FeatureCollection", features };
+        entry.map?.getSource("threads")?.setData(entry.threads);
+        reportSpots(entry);
+    };
+
+    /** Tells the bridge where each thread on this map sits, from the map's top, while it is on the map in view. */
+    const reportSpots = (entry) => {
+        if (!entry.map) return;
+        const height = entry.element.clientHeight;
+        const width = entry.element.clientWidth;
+        const spots = {};
+        for (const thread of entry.threads.features) {
+            const p = entry.map.project(thread.geometry.coordinates);
+            if (p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
+                spots[thread.properties.id] = { top: p.y - REACH, bottom: p.y + REACH };
+            }
+        }
+        document.dispatchEvent(new CustomEvent("louvre:spots", { detail: { map: entry.element, spots } }));
+    };
+
+    /** The threads on places the bridge last asked the maps to mark. */
+    let threadMarks = [];
+    document.addEventListener("louvre:marks", (event) => {
+        const marks = event.detail?.marks;
+        threadMarks = Array.isArray(marks) ? marks : [];
+        for (const entry of all) if (entry.settings.places) markThreads(entry);
+    });
+
     /** Draws `options.data` in `where` once it is in view; resolves to its MapLibre map, the first time it is drawn. */
     const draw = async (where, options = {}) => {
         const element = typeof where === "string" ? document.getElementById(where) : where;
@@ -550,6 +649,7 @@
                 element,
                 data: { type: "FeatureCollection", features },
                 anchors: { type: "FeatureCollection", features: anchors },
+                threads: { type: "FeatureCollection", features: [] },
                 context,
                 settings: { ...options, focusAll, bounds },
                 map: null,

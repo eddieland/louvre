@@ -84,6 +84,9 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - The street tiles are the one thing Louvre's server fetches from another site for a page: OpenStreetMap's, from
   OpenFreeMap (picked by the operator, 2026-10-24, over hosting tiles ourselves), passed on at the kit's path, so a
   page still reaches nothing but Louvre. `LOUVRE_STREETS` names another source, or none.
+- On a map, the map kit is the bridge's half: it reports a tap as the bridge reports a selection, a feature by the id
+  Louvre gave it (`louvre:id`, from `louvre.core.geodata`) or a point by its coordinates, and Louvre takes nothing else
+  of it: a place's label, geometry, and words are the version's own, read by the server.
 - Anchors are read the same way on both sides: `louvre.core.text` and `ui/src/bridge/text.ts` answer
   `tests/fixtures/anchors.json` alike; a change to one changes the other.
 - Rejected: a second origin for content (a domain to run); marks as `<mark>` elements in the artifact's markup (the
@@ -113,6 +116,8 @@ the log reads as what is true now; the old text is in git history. Numbers are n
   loop reads.
 - So does a content type of Louvre's own: `artifact_publish` takes the contract's two, and only `map_publish` writes
   `application/geo+json`, which `artifact_read` returns as it is for the versions it wrote.
+- A thread on a place on a map carries `place` beside its `anchor`, whose `exact` holds the place's words, so a reader
+  of `thread_list` or `comment_feed` that knows only words reads it unchanged.
 - Rejected: decisions' events in `comment_feed` (a reader written against the contract meets kinds it does not know).
 - Revisit: when canopy's contract takes a tool of Louvre's, which then follows the contract's word.
 

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { FromBridge, Mark, Place, Selected } from '@/bridge/protocol'
+import type { FromBridge, MapPlace, Mark, Place, Selected } from '@/bridge/protocol'
 import type { Anchor } from '@/bridge/text'
 import { DecisionCard } from '@/components/decision'
 import { Frame } from '@/components/frame'
@@ -36,6 +36,19 @@ const UNDO_MS = 5000
 
 function isGone(thread: Thread): boolean {
     return thread.anchor_status === 'passage_gone'
+}
+
+/** A thread's place on a map, as the map kit names it: a feature by its id, or a point by its coordinates. */
+function mapPlace(thread: Thread): MapPlace | null {
+    const kept = thread.place
+    if (kept?.kind === 'feature' && kept.id) {
+        return { kind: 'feature', id: kept.id, coordinates: null }
+    }
+    const at = kept?.kind === 'point' ? kept.geometry?.coordinates : null
+    if (Array.isArray(at) && typeof at[0] === 'number' && typeof at[1] === 'number') {
+        return { kind: 'point', id: '', coordinates: [at[0], at[1]] }
+    }
+    return null
 }
 
 /** Find a thread's note in the margin. */
@@ -166,16 +179,18 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const freshIds = threads.filter((t) => fresh.has(t.id)).map((t) => t.id)
 
     const marks: Mark[] = threads.flatMap((t): Mark[] =>
-        t.anchor && !isGone(t) ? [{ id: t.id, anchor: t.anchor, state: t.state, n: numbers.get(t.id) ?? null }] : [],
+        t.anchor && !isGone(t)
+            ? [{ id: t.id, anchor: t.anchor, place: mapPlace(t), state: t.state, n: numbers.get(t.id) ?? null }]
+            : [],
     )
     if (draft?.anchor) {
-        marks.push({ id: 'draft', anchor: draft.anchor, state: 'draft', n: null })
+        marks.push({ id: 'draft', anchor: draft.anchor, place: draft.place, state: 'draft', n: null })
     }
     // Each option's passage, lit only while its option is hovered or shown.
     for (const d of decisions) {
         for (const o of d.options) {
             if (o.anchor) {
-                marks.push({ id: passageId(d, o), anchor: o.anchor, state: 'passage', n: null })
+                marks.push({ id: passageId(d, o), anchor: o.anchor, place: null, state: 'passage', n: null })
             }
         }
     }
@@ -224,11 +239,11 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         }
     }
 
-    const startDraft = (anchor: Anchor | null) => {
+    const startDraft = (anchor: Anchor | null, onMap: MapPlace | null = null) => {
         if (!writable) {
             return
         }
-        setDraft({ id: 'draft', anchor, state: 'draft' })
+        setDraft({ id: 'draft', anchor, place: onMap, state: 'draft' })
         setActive('draft')
         setSelection(null)
     }
@@ -242,7 +257,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         if (key === 'Escape') {
             close()
         } else if (key === 'c' && selection?.selected.anchor) {
-            startDraft(selection.selected.anchor)
+            startDraft(selection.selected.anchor, selection.selected.place)
         } else if (key === 'j') {
             step(1)
         } else if (key === 'k') {
@@ -462,7 +477,10 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                 onClose={close}
                 onReply={async (body) => {
                     if (thread.state === 'draft') {
-                        const made = await writes.start.mutateAsync({ anchor: thread.anchor, body })
+                        // A place's words are the server's to say, from the version: the page sends the place alone.
+                        const onMap = thread.place
+                        const anchor = onMap ? null : thread.anchor
+                        const made = await writes.start.mutateAsync({ anchor, place: onMap, body })
                         clearSelection(frameRef.current)
                         setDraft(null)
                         setActive(made.thread_id)
@@ -690,7 +708,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                         if (selection.selected.anchor) {
-                            startDraft(selection.selected.anchor)
+                            startDraft(selection.selected.anchor, selection.selected.place)
                         } else {
                             setToast({ text: 'That passage is too long to comment on; select less.' })
                         }

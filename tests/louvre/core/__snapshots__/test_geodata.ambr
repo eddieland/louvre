@@ -383,7 +383,7 @@
   </ol>
   </main>
   <script>
-  LouvreMap.draw("map", {"data":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"P-101","lux":12,"focus":false},"geometry":{"type":"Point","coordinates":[-9.1,38.7]}},{"type":"Feature","properties":{"name":"P-102","status":"lamp out","lux":0,"note":"\u003c/script\u003e\u003cb\u003ehi\u003c/b\u003e","focus":true},"geometry":{"type":"LineString","coordinates":[[-9.1,38.7],[-9.2,38.8]]}},{"type":"Feature","properties":{"lux":30.5,"parts":[1,2],"lit":true,"focus":false},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}}]},"label":"name","popups":true,"ramp":{"property":"lux","min":0.0,"max":30.5}});
+  LouvreMap.draw("map", {"data":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"P-101","lux":12,"focus":false,"louvre:id":"P-101"},"geometry":{"type":"Point","coordinates":[-9.1,38.7]}},{"type":"Feature","properties":{"name":"P-102","status":"lamp out","lux":0,"note":"\u003c/script\u003e\u003cb\u003ehi\u003c/b\u003e","focus":true,"louvre:id":"P-102"},"geometry":{"type":"LineString","coordinates":[[-9.1,38.7],[-9.2,38.8]]}},{"type":"Feature","properties":{"lux":30.5,"parts":[1,2],"lit":true,"focus":false,"louvre:id":""},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}}]},"label":"name","popups":true,"places":true,"ramp":{"property":"lux","min":0.0,"max":30.5}});
   </script>
   </body>
   </html>
