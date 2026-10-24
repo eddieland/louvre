@@ -4,14 +4,14 @@ from unittest import mock
 
 import pytest
 
-from louvre.core import accounts
+from louvre.core import accounts, db, store
 from louvre.core.db import Connection
 from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
 from louvre.core.text import Anchor
 from louvre.web import ui
 from louvre.web.app import FILE_POLICY, artifact_policy
-from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, sign_in
+from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, lock_held, sign_in
 
 #: The query that lists the demo's namespace, which a list leaves out unless it names it.
 DEMO = {"namespace": "demo"}
@@ -493,3 +493,15 @@ def test_a_reader_of_the_demo_has_no_news(web: MakeWeb) -> None:
 
     assert shown["through"] is None
     assert {t["unread"] for t in shown["threads"]} <= {False}
+
+
+def test_a_write_kept_waiting_past_its_limit_is_answered_busy(web: MakeWeb, published: str, database_url: str) -> None:
+    client = web()
+    sign_in(client, "ana")
+
+    with lock_held(database_url, store.WRITE_LOCK), mock.patch.object(db, "LOCK_TIMEOUT", "100ms"):
+        response = client.post(f"/api/artifacts/{published}/threads", json={"body": "Hi."}, headers=WRITES)
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "5"
+    assert response.json() == {"code": "busy", "message": db.BUSY_MESSAGE}

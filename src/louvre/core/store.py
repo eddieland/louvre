@@ -24,7 +24,7 @@ from typing import Literal
 from psycopg.pq import TransactionStatus
 
 from louvre.core import render
-from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.files import File, FilesError, new_key
 from louvre.core.files import check as check_files
 from louvre.core.files import insert as insert_files
@@ -565,6 +565,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         with self._conn.transaction():
             if not outer:
                 self._conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            limited(self._conn)
             yield
 
     @contextmanager
@@ -575,6 +576,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             Inside the transaction, which commits when the block ends and rolls back when it raises.
         """
         with self._conn.transaction():
+            limited(self._conn)
             self._conn.execute("SELECT pg_advisory_xact_lock(%s)", (WRITE_LOCK,))
             yield
 

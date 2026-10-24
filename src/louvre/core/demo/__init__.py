@@ -18,7 +18,7 @@ from importlib.resources import files
 from louvre.core import explorations, style
 from louvre.core.accounts import Account, person_scope, upsert_account
 from louvre.core.boards import Board, Frame
-from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.decisions import Decisions, Option
 from louvre.core.store import Author, Permission, Scope, Store, Via
 from louvre.core.text import Anchor
@@ -76,6 +76,7 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         Whether it was published now.
     """
     with conn.transaction():
+        limited(conn)
         conn.execute("SELECT pg_advisory_xact_lock(%s)", (SEED_LOCK,))
         for account in PEOPLE.values():
             upsert_account(conn, account)

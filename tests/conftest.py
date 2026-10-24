@@ -11,7 +11,7 @@ import os
 import threading
 import time
 from collections.abc import Callable, Iterator
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 
 import psycopg
 import pytest
@@ -158,6 +158,14 @@ def web_settings(database_url: str | None) -> Settings:
         # No street tiles: a test reaches no other site, and a map's streets are drawn empty.
         streets="",
     )
+
+
+@contextmanager
+def lock_held(database_url: str, key: int) -> Iterator[None]:
+    """Hold the advisory lock `key` from a connection of another process's, as a slow writer elsewhere would."""
+    with db.connect(database_url) as other, other.transaction():
+        other.execute("SELECT pg_advisory_xact_lock(%s)", (key,))
+        yield
 
 
 def sign_in(client: TestClient, login: str, name: str | None = None) -> None:
