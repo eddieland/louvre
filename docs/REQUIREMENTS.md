@@ -75,9 +75,9 @@ decisions.
 
 ### U8. Comparing versions
 
-Planned (M8). The operator's ask (2026-10-24): an agent revises a page to answer its comments, so a reader's first
-question of a new version is what changed. A reader picks two versions of an artifact and sees what changed in its
-visible words, and each thread's fate between them: replied to, resolved, or `passage_gone`.
+Planned (M8), built in #30. The operator's ask (2026-10-24): an agent revises a page to answer its comments, so a
+reader's first question of a new version is what changed. A reader picks two versions of an artifact and sees what
+changed in its visible words, and what became of each thread between them.
 
 ### U9. Maps, drawn with what Louvre serves
 
@@ -96,8 +96,8 @@ person may comment where they stand.
 
 ### U11. A person hears what waits on them
 
-Gap. A reply to their comment, or a decision that asks them, reaches a person away from Louvre. C1 binds Louvre's
-readers of the feed, not people.
+Gap; the half inside Louvre, an inbox, is built in #26. A reply to their comment, or a decision that asks them,
+reaches a person away from Louvre. C1 binds Louvre's readers of the feed, not people.
 
 ### U12. Search across artifacts
 

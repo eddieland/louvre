@@ -31,7 +31,7 @@ interaction first, over mock data, then the store under them, at the operator's 
 - [M6. Deployed for the organization](M06-deploy.md): not started. The preview runs the whole app.
 - [M7. Decisions](M07-decisions.md): in progress: built; waiting on the operator's word, and on canopy's for its
   contract.
-- [M8. Comparing versions](M08-compare.md): not started.
+- [M8. Comparing versions](M08-compare.md): in progress: built in #30, not yet merged.
 - [M9. Files beside a version](M09-files.md): not started.
 - [M10. A map kit, served by Louvre](M10-map-kit.md): not started.
 - [M11. Geodata as an artifact](M11-geodata.md): not started.
