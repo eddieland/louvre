@@ -110,6 +110,15 @@ def test_a_path_out_of_the_build_serves_the_index_not_the_file(client: TestClien
     assert "not for the web" not in response.text
 
 
+def test_every_icon_the_page_links_is_built_from_ui_public() -> None:
+    """Vite copies ui/public to the build's root, where the app serves each icon by its path."""
+    ui_dir = Path(__file__).resolve().parents[3] / "ui"
+    linked = re.findall(r'<link rel="(?:icon|apple-touch-icon)" href="/([^"]+)"', (ui_dir / "index.html").read_text())
+
+    assert set(linked) == {"favicon.ico", "favicon.svg", "apple-touch-icon.png"}
+    assert all((ui_dir / "public" / name).is_file() for name in linked)
+
+
 def test_the_app_says_so_when_it_is_not_built(client: TestClient) -> None:
     with mock.patch.object(ui, "_CANDIDATES", ()):
         response = client.get("/")
