@@ -7,6 +7,7 @@
     "^ui/dist/",
     "^ui/coverage/",
     "package-lock\\.json$",
-    "\\.gen\\.ts$"
+    "\\.gen\\.ts$",
+    "-OFL\\.txt$"
   ]
 }

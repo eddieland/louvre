@@ -27,7 +27,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.routing import Route
 
-from louvre.core import accounts, explorations
+from louvre.core import accounts, explorations, style
 from louvre.core import files as version_files
 from louvre.core.store import Code, Refused, Scope, Store
 from louvre.mcp import server
@@ -37,13 +37,14 @@ from louvre.web.settings import Settings
 
 #: Where Louvre's own server-made pages live, beside this module.
 PAGES = files("louvre.web") / "pages"
-#: An artifact's own policy: an opaque origin, scripts and styles inline, images and fonts inline or from data URLs,
-#: no network, and framed only by Louvre. A version with files may also load them, and nothing else (`files_policy`).
+#: An artifact's own policy: an opaque origin, scripts and styles inline, images inline or from data URLs, fonts from
+#: data URLs or Louvre itself, which serves only the house style's (D008), no network, and framed only by Louvre. A
+#: version with files may also load them, and nothing else (`files_policy`).
 #: Whether an artifact may load from the network is an open question (REQUIREMENTS).
 ARTIFACT_POLICY = (
     "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; "
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-    "img-src data:; font-src data:; media-src data:; frame-ancestors 'self'"
+    "img-src data:; font-src data: 'self'; media-src data:; frame-ancestors 'self'"
 )
 #: A version's file's own policy, opened alone: a sandbox, so an SVG runs no script, and nothing it may load.
 FILE_POLICY = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
@@ -73,7 +74,7 @@ STATUS = {
 #: Headers every response carries: no guessing a type, and no referrer leaving with a link out of an artifact.
 _NO_SNIFF = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}
 #: Paths the web UI never answers, so a mistyped API route is a 404, not the UI's page.
-_NOT_UI = ("api/", "auth/", "content/", "mcp", "directions")
+_NOT_UI = ("api/", "auth/", "content/", "mcp", "directions", "style/")
 
 
 def create(settings: Settings | None = None) -> FastAPI:
@@ -92,6 +93,22 @@ def create(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
 
     _content(app)
+
+    @app.get("/style/{version}/fonts/{name}", include_in_schema=False)
+    def font(version: str, name: str) -> Response:
+        """One of the house style's fonts, which an artifact's page loads from its opaque origin, so with CORS."""
+        found = style.FONTS.get(name) if version == style.VERSION else None
+        if found is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        return Response(
+            found,
+            media_type="font/woff2",
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=31536000, immutable",
+                **_NO_SNIFF,
+            },
+        )
 
     # The MCP server, over streamable HTTP, for a request with a token: an ASGI app of the SDK's (louvre.mcp.server).
     app.router.routes.append(Route("/mcp", _Mcp(app.state.database), methods=["POST"]))

@@ -1,14 +1,16 @@
 """Louvre's house style for artifacts (REQUIREMENTS U6): a stylesheet an agent may use, its guide, and starter pages.
 
 It is Annotated's type and color (ui/DESIGN.md) made for a page inside the artifact's frame: dark first, light when the
-reader's system is, every color a custom property. A page cannot load fonts from the network in its sandbox, so it
-names the faces and falls back to the reader's own serif and sans. Louvre wraps every Markdown artifact in it, and the
+reader's system is, every color a custom property. Its faces are Louvre's own, which Louvre serves at `FONTS_PATH`, the
+one thing an artifact's sandbox lets it load; elsewhere, such as in canopy's local store, they fall back to the
+reader's own serif and sans. Louvre wraps every Markdown artifact in it, and the
 `style_get` tool, the MCP server's resources, and its `style` prompt hand it to an agent writing HTML, which inlines
 it in a `<style>` element. The version is in the name: a later style is a new version, and never restyles a page
 already published.
 
-The style's files sit in a directory named for its version, beside this module: `style.css`, `rules.md`, the guide,
-and a starter page for each kind of artifact, which holds the line `/* style.css */` where the stylesheet goes.
+The style's files sit in a directory named for its version, beside this module: `style.css`, `rules.md`, the guide, a
+starter page for each kind of artifact, which holds the line `/* style.css */` where the stylesheet goes, and `fonts/`,
+each face's variable WOFF2 (Latin, from Fontsource) beside its Open Font License.
 """
 
 from collections.abc import Mapping
@@ -17,6 +19,8 @@ from importlib.resources import files
 
 #: The style's name and version, as a page that uses it names it.
 VERSION = "louvre-1"
+#: Where Louvre serves the style's fonts, which its stylesheet's `@font-face` rules name.
+FONTS_PATH = f"/style/{VERSION}/fonts/"
 
 
 class Kind(StrEnum):
@@ -43,6 +47,12 @@ KINDS: Mapping[Kind, str] = {
     Kind.REPORT: "Findings, with the numbers behind them: a measurement, an investigation, a weekly review.",
     Kind.DECISION: "A choice between options, side by side, and the one recommended: a design or a vendor to pick.",
     Kind.PLAN: "What will be done, in steps, with its risks and open questions: a proposal, a migration, a rollout.",
+}
+#: The style's fonts, by file name: the faces its stylesheet names.
+FONTS: Mapping[str, bytes] = {
+    f.name: f.read_bytes()
+    for f in sorted((_FILES / "fonts").iterdir(), key=lambda f: f.name)
+    if f.name.endswith(".woff2")
 }
 #: A page to start from, by kind: the stylesheet inlined, and the components that kind uses, their words saying what
 #: goes there.

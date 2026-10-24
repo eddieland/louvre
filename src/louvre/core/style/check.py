@@ -15,7 +15,7 @@ from enum import StrEnum
 from html.parser import HTMLParser
 from typing import override
 
-from louvre.core.style import CSS, STARTERS
+from louvre.core.style import CSS, FONTS_PATH, STARTERS
 from louvre.core.text import collapse, visible_text
 
 
@@ -155,6 +155,9 @@ class _Url:
         Returns:
             Whether it is.
         """
+        if self.url.startswith(FONTS_PATH):
+            # The house style's fonts, which Louvre serves to every page (D008).
+            return False
         inline = self.url.lower().startswith(_INLINE)
         return self.url.startswith("/") or (bool(_SCHEME.match(self.url)) and not inline)
 

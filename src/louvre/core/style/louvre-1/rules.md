@@ -157,12 +157,13 @@ People read on phones as well as laptops, at widths from 320 px.
 A page in Louvre loads nothing from the network: its policy refuses every request to another address. No external
 stylesheet, font, script, or image.
 
+- The style's own faces load from Louvre, so a page in the style is set as Louvre's own pages are. Shown anywhere
+  else, it falls back to the reader's own serif and sans.
 - An image, a font, or the data behind a chart is a file beside the page: publish the page with `files_publish`, its
   files with it, and name each by its path, as `<img src="p95.png">`, a CSS `url(p95.png)`, a link, or a script's
   `fetch("data/regions.csv")`. A page loads its own version's files and nothing else. A small image may instead go
   inline: SVG markup, or a `data:` URL.
-- A font is a file beside the page, or goes inline as a `data:` URL: the style's faces fall back to the reader's own
-  serif and sans.
+- Any other font is a file beside the page, or goes inline as a `data:` URL.
 - A link to another page is fine: it opens in a new tab. A link to `#id` moves within the page.
 
 ## Scripts
