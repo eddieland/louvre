@@ -73,6 +73,36 @@ asked reads the answers back over MCP, whole or as a feed in the comment feed's 
 naming the option decided on. Each person sees what waits on them: in the header, the catalogue, and a page of
 decisions.
 
+### U8. Comparing versions
+
+Planned (M8). The operator's ask (2026-10-24): an agent revises a page to answer its comments, so a reader's first
+question of a new version is what changed. A reader picks two versions of an artifact and sees what changed in its
+visible words, and each thread's fate between them: replied to, resolved, or `passage_gone`.
+
+### U9. Maps, drawn with what Louvre serves
+
+Planned (M10, M11). The operator works in a geospatial field (2026-10-24), so agents will publish maps. An artifact
+draws one from a map kit Louvre serves at a version, a map library and a basemap's tiles, so its policy stays closed
+to the network (L7). An agent may also publish the data alone, as GeoJSON, which Louvre draws in its style, as it
+shows Markdown.
+
+### U10. Comments and decisions on places
+
+Planned (M12, M13). A thread is anchored on a map's feature, a point, or an area, as on a passage's words. L2 holds
+on a map: a feature's id and a place's coordinates are its words, and a pixel is a position. A feature found nowhere
+in a new version reads `passage_gone` and never moves to its neighbour; a point stays where it is on the earth. Two
+versions of a map compare as any artifact's do (U8), a decision's option may point at a place (U7), and on a phone a
+person may comment where they stand.
+
+### U11. A person hears what waits on them
+
+Gap. A reply to their comment, or a decision that asks them, reaches a person away from Louvre. C1 binds Louvre's
+readers of the feed, not people.
+
+### U12. Search across artifacts
+
+Gap. A reader finds an artifact, a passage, or a comment by its words, across every namespace they read.
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP
@@ -100,6 +130,12 @@ comments gone. Filtered by origin keys the publisher set, which Louvre keeps and
 Built. Each comment's author is an id Louvre authenticated, stable for the life of the account. A comment
 written with a token is `kind: agent`, on behalf of the person who minted it; only one written through the web by a
 signed-in person is `kind: person`. Louvre states the fact; whether a comment carries authority is its reader's call.
+
+### L8. Files beside a version
+
+Planned (M9). A version carries files beside its content, images, data, and fonts, published with it, immutable as
+it is, and served beside it under the artifact policy (L7), so a page loads what it needs without the network. One
+`content` string per version is canopy's contract, so this grows it, or is a tool of Louvre's beside it (D011).
 
 ## Tokens and scope
 
@@ -143,8 +179,13 @@ To settle before the milestone that needs it:
 - Whether a board is an artifact of its own content type, which grows canopy's contract, and whether a comment may be
   pinned to a point on the canvas rather than to a frame's words (U5, M3).
 - Whether an artifact may load from the network (a CDN's script, a web font, a remote image), or must carry everything
-  inline or in files published with it. For now it may not: its policy allows data: URLs only. The contract has one
-  `content` string per version, so files beside it would grow canopy's contract too (U3).
+  inline or in files published with it. For now it may not: its policy allows data: URLs only. Files beside a version
+  (L8) and a map kit Louvre serves (U9) are planned so that it need not.
+- Whether canopy's `artifact_publish` takes a version's files, or a tool of Louvre's does (L8, D011).
+- Whether canopy's contract takes a content type for geodata, and a place's anchor beside a thread's quote, or a place
+  is carried as a quote alone (U9, U10).
+- Where the map kit's basemap tiles live, and what they cover: the whole earth to a low zoom, or a region in detail;
+  and which formats larger geodata takes beside GeoJSON, such as FlatGeobuf or PMTiles (U9).
 - From canopy's open list: whether Louvre's design system is public on npm or internal; what Louvre keeps of an
   artifact whose ticket canopy forgets; and whether Louvre is the name.
 

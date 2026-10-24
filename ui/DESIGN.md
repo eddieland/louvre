@@ -175,3 +175,5 @@ for a chart, the accent first, then blue (`#7fa7d9`, `#2f5f94`), ochre (`#d2b15c
 
 - A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).
 - A decision across a board's frames, each frame an option (REQUIREMENTS, Open).
+- How two versions compare on a page, and on a phone (REQUIREMENTS U8).
+- A map's page in the kit, and how a thread on a place shows on the map and in the margin (REQUIREMENTS U9, U10).
