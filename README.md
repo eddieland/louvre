@@ -11,11 +11,14 @@ operator shares an artifact with, serving the same MCP tools, so a skill written
 - **Agents** reach Louvre over MCP's streamable HTTP, with a token a person minted, bound to their account and one
   namespace.
 - **People** sign in on the web, read an artifact's versions, and comment on its passages.
+- **Decisions** are questions an agent asks people on an artifact, to answer by choosing; the agent reads the answers
+  back over MCP, and each person sees what waits on them.
 - **Readers of comments**, such as canopy's loop, pull the comment feed; Louvre never calls them.
 
 What Louvre must do, and where it stands on each, is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). The order it is
 built in is [docs/roadmap/](docs/roadmap/README.md). Deploying it, and connecting an agent, is
-[docs/DEPLOY.md](docs/DEPLOY.md). How every page looks at every screen size is [docs/screenshots/](docs/screenshots/).
+[docs/DEPLOY.md](docs/DEPLOY.md), and the skill that tells an agent how to build a page people read is in
+[skills/](skills/README.md). How every page looks at every screen size is [docs/screenshots/](docs/screenshots/).
 
 ## Develop
 
@@ -31,6 +34,6 @@ make ui-build    # the web UI, which `louvre serve` serves
 DATABASE_URL=$LOUVRE_TEST_DATABASE_URL LOUVRE_DEMO=1 LOUVRE_DEV_SIGN_IN=1 uv run louvre serve
 ```
 
-The last line serves the app on <http://127.0.0.1:8000> with the demo's artifacts, and sign-in by name.
+The last line serves the app on <http://127.0.0.1:8000> with the demo's artifacts at `/demo`, and sign-in by name.
 
 `make` alone lists every target. [AGENTS.md](AGENTS.md) holds the rules for humans and agents alike.

@@ -83,9 +83,8 @@ def _changes_shown(page: Page) -> None:
 
 
 def _board_shown(page: Page) -> None:
-    """Wait until the board is fitted to the screen and every frame's page has loaded."""
-    page.wait_for_selector(".world[data-ready]", state="attached")
-    page.wait_for_function("document.querySelectorAll('.board-frame iframe').length === 6")
+    """Wait until the board is fitted to the screen and the pages it draws have loaded."""
+    page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
     for frame in page.frames[1:]:
         frame.wait_for_load_state("load")
 
@@ -96,6 +95,25 @@ def _report_open(page: Page) -> None:
     page.frame_locator("iframe.exhibit").locator("svg rect").first.wait_for()
     page.keyboard.press("j")
     page.wait_for_selector(".thread.is-active", state="visible")
+
+
+def _decision_waiting(page: Page) -> None:
+    """The artifact drawn, with the decision that waits on the reader above it."""
+    _artifact_shown(page)
+    page.wait_for_selector(".decision[data-awaiting] .options", state="visible")
+
+
+def _decided(page: Page) -> None:
+    """The artifact drawn, and its decided decision opened to its answers."""
+    _artifact_shown(page)
+    page.click(".decision-toggle")
+    page.wait_for_selector(".decision .answers", state="visible")
+    page.mouse.move(0, 0)
+
+
+def _decisions_listed(page: Page) -> None:
+    """Every group of the list of decisions drawn."""
+    page.wait_for_selector("#decisions-decided", state="visible")
 
 
 #: Every screen, dark first; light at one phone and one laptop size.
@@ -111,14 +129,20 @@ SCREENS = (
 )
 #: Every page the web app serves, each in the state worth looking at.
 SCENES = (
-    Scene("catalogue", "The catalogue, signed in", "/"),
-    Scene("reader", "The catalogue, reading the demo without signing in", "/", signed_in=False),
+    Scene("front-door", "The catalogue, before signing in", "/", signed_in=False),
+    Scene("catalogue", "The demo, signed in", "/demo"),
+    Scene("reader", "The demo, read without signing in", "/demo", signed_in=False),
     Scene("sign-in", "Signing in", "/sign-in", signed_in=False),
     Scene("artifact", "An artifact, a thread open", "/a/{checkout}", _report_open),
     Scene("artifact-older", "An artifact's older version", "/a/{checkout}?v=1", _artifact_shown),
     Scene("changes", "An artifact's changes since its first version", "/a/{checkout}?changes=1", _changes_shown),
     Scene("markdown", "A Markdown artifact, in the house style", "/a/{notes}", _artifact_shown),
+    Scene("decision", "An artifact, a decision waiting on the reader", "/a/{checkout}", _decision_waiting),
+    Scene("decided", "An artifact, its decision decided and opened", "/a/{notes}", _decided),
+    Scene("decisions", "Decisions, waiting on the reader, open, and decided", "/decisions", _decisions_listed),
     Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
+    Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
+    Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
     Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
     Scene(
         "board-frame",
@@ -140,6 +164,8 @@ DEMO = {
     "checkout": "Checkout latency",
     "notes": "Release notes",
     "weekly": "Payments, week",
+    "decision": "Where should checkout cache",
+    "plan": "Stored cards move",
     "gallery": "Direction: Gallery",
 }
 
@@ -164,7 +190,7 @@ def test_the_gallery_lists_every_screenshot() -> None:
 @pytest.fixture(scope="module")
 def demo(live_app: str) -> dict[str, str]:
     """The demo's artifacts' ids, by the names scenes' paths give them."""
-    with urllib.request.urlopen(f"{live_app}/api/artifacts") as response:  # noqa: S310  (the test's own server)
+    with urllib.request.urlopen(f"{live_app}/api/artifacts?namespace=demo") as response:  # noqa: S310  (the test's own server)
         listed = json.load(response)["artifacts"]
     return {name: next(a["id"] for a in listed if a["title"].startswith(t)) for name, t in DEMO.items()}
 

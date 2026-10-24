@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DecisionsRouteImport } from './routes/decisions'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as TokensRouteImport } from './routes/tokens'
 import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
@@ -19,6 +21,16 @@ import { Route as DirectionsBoardRouteImport } from './routes/directions.board'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DecisionsRoute = DecisionsRouteImport.update({
+  id: '/decisions',
+  path: '/decisions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -49,6 +61,8 @@ const DirectionsBoardRoute = DirectionsBoardRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/decisions': typeof DecisionsRoute
+  '/demo': typeof DemoRoute
   '/sign-in': typeof SignInRoute
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
@@ -57,6 +71,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/decisions': typeof DecisionsRoute
+  '/demo': typeof DemoRoute
   '/sign-in': typeof SignInRoute
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
@@ -66,6 +82,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/decisions': typeof DecisionsRoute
+  '/demo': typeof DemoRoute
   '/sign-in': typeof SignInRoute
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
@@ -76,6 +94,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/decisions'
+    | '/demo'
     | '/sign-in'
     | '/tokens'
     | '/a/$artifactId'
@@ -84,6 +104,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/decisions'
+    | '/demo'
     | '/sign-in'
     | '/tokens'
     | '/a/$artifactId'
@@ -92,6 +114,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/decisions'
+    | '/demo'
     | '/sign-in'
     | '/tokens'
     | '/a/$artifactId'
@@ -101,6 +125,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DecisionsRoute: typeof DecisionsRoute
+  DemoRoute: typeof DemoRoute
   SignInRoute: typeof SignInRoute
   TokensRoute: typeof TokensRoute
   AArtifactIdRoute: typeof AArtifactIdRoute
@@ -115,6 +141,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/decisions': {
+      id: '/decisions'
+      path: '/decisions'
+      fullPath: '/decisions'
+      preLoaderRoute: typeof DecisionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -157,6 +197,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DecisionsRoute: DecisionsRoute,
+  DemoRoute: DemoRoute,
   SignInRoute: SignInRoute,
   TokensRoute: TokensRoute,
   AArtifactIdRoute: AArtifactIdRoute,

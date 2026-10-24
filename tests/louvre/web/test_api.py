@@ -6,10 +6,15 @@ import pytest
 
 from louvre.core import accounts
 from louvre.core.db import Connection
+from louvre.core.decisions import Decisions, Option
+from louvre.core.files import File, Type
+from louvre.core.text import Anchor
 from louvre.web import ui
-from louvre.web.app import ARTIFACT_POLICY
-from tests.conftest import WRITES, MakeAgent, MakeWeb, sign_in
+from louvre.web.app import ARTIFACT_POLICY, FILE_POLICY
+from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, sign_in
 
+#: The query that lists the demo's namespace, which a list leaves out unless it names it.
+DEMO = {"namespace": "demo"}
 #: A report, and the passage a thread is on.
 REPORT = "<h1>Report</h1><p>We will retry the fraud check twice before declining.</p>"
 
@@ -144,19 +149,32 @@ def test_a_write_without_the_header_is_forbidden(web: MakeWeb, published: str) -
 def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> None:
     client = web(demo=True)
 
-    listed = client.get("/api/artifacts").json()["artifacts"]
+    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
     artifact = listed[-1]["id"]
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
     assert {a["namespace"] for a in listed} == {"demo"}
-    assert len(listed) == 6
+    assert len(listed) == 8
     assert response.status_code == 403
     assert response.json()["code"] == "read_only"
 
 
+def test_a_list_leaves_the_demo_out_unless_it_names_its_namespace(web: MakeWeb, published: str) -> None:
+    reader, ana = web(demo=True), web(demo=True)
+    sign_in(ana, "ana")
+
+    assert reader.get("/api/artifacts").json()["artifacts"] == []
+    assert [a["id"] for a in ana.get("/api/artifacts").json()["artifacts"]] == [published]
+    assert {a["namespace"] for a in ana.get("/api/artifacts", params=DEMO).json()["artifacts"]} == {"demo"}
+    assert reader.get("/api/boards").json() == {"boards": []}
+    assert ana.get("/api/boards").json() == {"boards": []}
+    assert [b["id"] for b in ana.get("/api/boards", params=DEMO).json()["boards"]] == ["design-study"]
+
+
 def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb) -> None:
     client = web(demo=True)
-    report = next(a for a in client.get("/api/artifacts").json()["artifacts"] if a["latest_version"] == 2)["id"]
+    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
+    report = next(a for a in listed if a["latest_version"] == 2)["id"]
 
     threads = client.get(f"/api/artifacts/{report}/threads").json()["threads"]
     first = client.get(f"/api/artifacts/{report}/threads", params={"version": 1}).json()["threads"]
@@ -170,7 +188,8 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
 
 def test_the_demos_report_compares_its_versions(web: MakeWeb) -> None:
     client = web(demo=True)
-    report = next(a for a in client.get("/api/artifacts").json()["artifacts"] if a["latest_version"] == 2)["id"]
+    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
+    report = next(a for a in listed if a["latest_version"] == 2)["id"]
 
     compared = client.get(f"/api/artifacts/{report}/compare", params={"base": 1}).json()
 
@@ -196,7 +215,8 @@ def test_a_comparison_that_cannot_be_made_says_why(
     code: str,
 ) -> None:
     client = web(demo=True)
-    report = next(a for a in client.get("/api/artifacts").json()["artifacts"] if a["latest_version"] == 2)["id"]
+    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
+    report = next(a for a in listed if a["latest_version"] == 2)["id"]
 
     response = client.get(f"/api/artifacts/{report}/compare", params=params)
 
@@ -206,7 +226,7 @@ def test_a_comparison_that_cannot_be_made_says_why(
 def test_the_demos_board_is_listed_and_shown_with_its_frames(web: MakeWeb) -> None:
     client = web(demo=True)
 
-    listed = client.get("/api/boards").json()["boards"]
+    listed = client.get("/api/boards", params=DEMO).json()["boards"]
     shown = client.get("/api/boards/design-study").json()
 
     assert listed == [
@@ -314,7 +334,11 @@ def test_a_markdown_version_is_shown_in_the_house_style(web: MakeWeb, agent: Mak
 
 
 def test_the_house_style_is_public(web: MakeWeb) -> None:
-    assert web().get("/api/style").json()["version"] == "louvre-1"
+    client = web()
+
+    assert client.get("/api/style").json()["version"] == "louvre-1"
+    assert client.get("/api/style", params={"kind": "plan"}).json()["kind"] == "plan"
+    assert client.get("/api/style", params={"kind": "essay"}).status_code == 422
 
 
 def test_an_unknown_api_route_is_json_not_the_ui(web: MakeWeb) -> None:
@@ -322,3 +346,110 @@ def test_an_unknown_api_route_is_json_not_the_ui(web: MakeWeb) -> None:
 
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
+
+
+def test_a_person_answers_an_agents_decision_on_the_web(web: MakeWeb, agent: MakeAgent, published: str) -> None:
+    asked = Decisions(agent()).ask(
+        published,
+        "Retry twice, or once?",
+        (Option("Twice", anchor=Anchor.of("retry the fraud check twice")), Option("Once")),
+        asked=["ana"],
+    )
+    decision = asked["decision_id"]
+    client = web()
+    sign_in(client, "ana", "Ana Ruiz")
+
+    [shown] = client.get(f"/api/artifacts/{published}/decisions").json()["decisions"]
+    before = client.get("/api/decisions").json()
+    unheaded = client.post(f"/api/decisions/{decision}/answer", json={"choices": ["o2"]})
+    answered = client.post(
+        f"/api/decisions/{decision}/answer",
+        json={"choices": ["o2"], "note": "Once."},
+        headers=WRITES,
+    )
+    after = client.get("/api/decisions", params={"state": "open"}).json()
+    [listed] = client.get("/api/artifacts").json()["artifacts"]
+    refused = client.post(f"/api/decisions/{decision}/close", json={"outcome": "o2"}, headers=WRITES)
+
+    assert shown["question"] == "Retry twice, or once?"
+    assert shown["author"]["on_behalf_of_name"] == "Sam Okafor"
+    assert (shown["awaits_me"], before["awaiting"]) == (True, 1)
+    assert unheaded.status_code == 403
+    assert answered.status_code == 200
+    assert after["awaiting"] == 0
+    assert after["decisions"][0]["mine"] == {"choices": ["o2"], "note": "Once."}
+    assert (listed["open_decisions"], listed["awaiting"]) == (1, 0)
+    assert (refused.status_code, refused.json()["code"]) == (403, "out_of_scope")
+
+
+def test_the_person_an_agent_asked_for_closes_its_decision_on_the_web(
+    web: MakeWeb,
+    agent: MakeAgent,
+    published: str,
+) -> None:
+    decision = Decisions(agent()).ask(published, "Ship it?", (Option("Yes"), Option("No")))["decision_id"]
+    client = web()
+    sign_in(client, "sam", "Sam Okafor")
+
+    closed = client.post(f"/api/decisions/{decision}/close", json={"outcome": "o1", "note": "Shipped."}, headers=WRITES)
+    late = client.post(f"/api/decisions/{decision}/answer", json={"choices": ["o2"]}, headers=WRITES)
+    bad = client.post(f"/api/decisions/{decision}/answer", json={"choices": []}, headers=WRITES)
+
+    assert closed.json() == {"state": "closed", "seq": closed.json()["seq"]}
+    assert (late.status_code, late.json()["code"]) == (409, "closed")
+    assert (bad.status_code, bad.json()["code"]) == (422, "invalid")
+    assert client.get("/api/decisions", params={"state": "closed"}).json()["decisions"][0]["outcome"] == "o1"
+
+
+def test_a_version_with_files_is_served_beside_them_under_a_policy_for_them_alone(
+    web: MakeWeb,
+    agent: MakeAgent,
+) -> None:
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    page = '<h1>Chart</h1><img src="chart.svg" alt="A chart">'
+    store = agent()
+    made = store.publish(
+        title="Chart",
+        content_type="text/html",
+        content=page,
+        files=[File("chart.svg", Type.SVG, svg)],
+    )
+    artifact = str(made["artifact_id"])
+    key = store.files_key(artifact, 1)
+    here = f"/content/{artifact}/1/{key}/"
+    reader = web()
+    sign_in(reader, "ana")
+
+    moved = reader.get(f"/content/{artifact}/1", follow_redirects=False)
+    shown = reader.get(here)
+    policy = shown.headers["content-security-policy"]
+    drawn = web().get(f"{here}chart.svg")
+
+    assert moved.status_code == 307
+    assert moved.headers["location"] == here
+    assert shown.status_code == 200
+    assert shown.text.startswith(page)
+    assert f"img-src data: {BASE_URL}{here};" in policy
+    assert f"connect-src {BASE_URL}{here};" in policy
+    assert "allow-same-origin" not in policy
+    assert web().get(here).status_code == 401
+    assert reader.get(f"/content/{artifact}/1/not-its-key/").status_code == 404
+    # A file needs no session, as a sandboxed page's request for it carries none, but it needs the version's key.
+    assert drawn.status_code == 200
+    assert drawn.content == svg
+    assert drawn.headers["content-type"] == "image/svg+xml"
+    assert drawn.headers["content-security-policy"] == FILE_POLICY
+    assert drawn.headers["access-control-allow-origin"] == "*"
+    assert web().get(f"/content/{artifact}/1/not-its-key/chart.svg").status_code == 404
+    assert web().get(f"{here}other.svg").status_code == 404
+
+
+def test_a_version_without_files_is_served_where_it_was(web: MakeWeb, agent: MakeAgent) -> None:
+    made = agent().publish(title="Plain", content_type="text/html", content="<h1>Plain</h1>")
+    reader = web()
+    sign_in(reader, "ana")
+
+    shown = reader.get(f"/content/{made['artifact_id']}/1", follow_redirects=False)
+
+    assert shown.status_code == 200
+    assert shown.headers["content-security-policy"] == ARTIFACT_POLICY

@@ -14,6 +14,7 @@ from collections.abc import Iterator, Sequence
 import pytest
 from playwright.sync_api import Browser, BrowserContext, CDPSession, Page, expect
 
+from louvre.core import style
 from tests.conftest import WRITES
 
 #: Run with the screen matrix: `1` or `update`.
@@ -25,12 +26,17 @@ PAGE = (
     "<p>We should shard it.</p><p>Then measure again.</p></main></body></html>"
 )
 
+#: Two PNGs, one pixel wide and two, base64-encoded as an agent publishes them.
+ONE_WIDE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+TWO_WIDE = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAC0lEQVR4nGNggAIAAAkAAftSuKkAAAAASUVORK5CYII="
 #: How close two of a board's views are to be the same: the browser keeps a transform to a few decimal places.
 CLOSE = 0.001
 #: How long a board may take to be drawn as a test expects, in seconds.
 DEADLINE = 5.0
 #: The board's least zoom (ui/src/lib/canvas.ts, MIN_SCALE).
 MIN_SCALE = 0.05
+#: How many frames' pages a phone draws live at most (ui/src/lib/canvas.ts, LIVE_COUNT).
+LIVE_COUNT = 2
 #: How far past its frame a frame's shadows may reach on the canvas, in canvas pixels: the sheet's shadow's reach.
 SHADOW_REACH = 48
 
@@ -47,8 +53,8 @@ def context(browser: Browser, live_app: str) -> Iterator[BrowserContext]:
     made.close()
 
 
-def publish(context: BrowserContext) -> str:
-    """Publish PAGE as Ana's agent, through the MCP server with a token she mints, and return its id."""
+def publish(context: BrowserContext, content: str = PAGE) -> str:
+    """Publish `content` as Ana's agent, through the MCP server with a token she mints, and return its id."""
     minted = context.request.post(
         "/api/tokens",
         data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
@@ -62,7 +68,7 @@ def publish(context: BrowserContext) -> str:
             "method": "tools/call",
             "params": {
                 "name": "artifact_publish",
-                "arguments": {"title": "Cache report", "content_type": "text/html", "content": PAGE},
+                "arguments": {"title": "Cache report", "content_type": "text/html", "content": content},
             },
         },
         headers={"Authorization": f"Bearer {minted['secret']}"},
@@ -129,6 +135,67 @@ def test_an_agents_page_shows_its_comment_on_its_passage(context: BrowserContext
     expect(page.frame_locator("iframe.exhibit").locator("[data-louvre] span")).to_have_text("1")
 
 
+def test_each_version_shows_its_own_files_from_its_sandbox(context: BrowserContext) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish"]},
+        headers=WRITES,
+    ).json()["secret"]
+
+    def publish_chart(data: str, artifact_id: str | None = None) -> str:
+        arguments = {
+            "title": "Chart",
+            "content_type": "text/html",
+            "content": '<!doctype html><h1>Chart</h1><img id="chart" src="chart.png" alt="A chart">',
+            "files": [{"path": "chart.png", "content_type": "image/png", "data": data}],
+            **({"artifact_id": artifact_id} if artifact_id else {}),
+        }
+        answered = context.request.post(
+            "/mcp",
+            data={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "files_publish", "arguments": arguments},
+            },
+            headers={"Authorization": f"Bearer {secret}"},
+        ).json()
+        return str(json.loads(answered["result"]["content"][0]["text"])["artifact_id"])
+
+    artifact = publish_chart(ONE_WIDE)
+    publish_chart(TWO_WIDE, artifact)
+
+    def width(version: int) -> int:
+        page = context.new_page()
+        page.goto(f"/a/{artifact}?v={version}")
+        exhibit = page.locator("iframe.exhibit").element_handle()
+        frame = exhibit.content_frame() if exhibit else None
+        assert frame is not None
+        frame.wait_for_load_state()
+        # The frame's request for the image carries no session: the version's key in its path is what it needs.
+        return int(frame.evaluate("document.getElementById('chart').naturalWidth"))
+
+    assert width(1) == 1
+    assert width(2) == 2
+
+
+def test_a_page_in_the_house_style_is_set_in_louvres_own_faces(context: BrowserContext) -> None:
+    page = context.new_page()
+    page.goto(f"/a/{publish(context, style.STARTERS[style.Kind.REPORT])}")
+    exhibit = page.locator("iframe.exhibit").element_handle()
+    frame = exhibit.content_frame() if exhibit else None
+    assert frame is not None
+    frame.wait_for_load_state()
+
+    loaded = frame.evaluate(
+        """async () => {
+            await document.fonts.ready;
+            return [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replaceAll('"', ""));
+        }""",
+    )
+    assert {"Fraunces", "Source Serif 4", "Instrument Sans"} <= set(loaded)
+
+
 def test_a_reader_comments_on_words_across_tags_then_replies_resolves_and_undoes(context: BrowserContext) -> None:
     artifact = publish(context)
     page = context.new_page()
@@ -191,6 +258,9 @@ def test_a_reader_of_the_demo_is_asked_to_sign_in_to_reply(browser: Browser, liv
     page = context.new_page()
     try:
         page.goto("/")
+        expect(page.locator("h1")).to_have_text("Sign in to read")
+        page.click("a:text-is('demo')")
+        expect(page).to_have_url(re.compile(r"/demo$"))
         page.click("text=Checkout latency")
         shown(page)
         page.keyboard.press("j")
@@ -203,7 +273,7 @@ def test_a_reader_of_the_demo_is_asked_to_sign_in_to_reply(browser: Browser, liv
 
 def changes_shown(page: Page) -> None:
     """Open the demo's report, compare its versions, and wait until the bridge has marked what changed."""
-    page.goto("/")
+    page.goto("/demo")
     page.click("text=Checkout latency")
     shown(page)
     page.get_by_role("button", name="Changes", exact=True).click()
@@ -267,10 +337,12 @@ def test_on_a_phone_the_comparison_opens_in_the_sheet_and_leaves_for_a_thread(br
 
 
 def board(page: Page) -> None:
-    """Open the demo's board, and wait until it is fitted to the screen and its frames' pages have loaded."""
+    """Open the demo's board, and wait until it is fitted to the screen and the pages it draws have loaded."""
     page.goto("/b/design-study")
-    page.wait_for_selector(".world[data-ready]", state="attached")
-    expect(page.locator(".board-frame iframe")).to_have_count(6)
+    page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
+    expect(page.locator(".board-frame")).to_have_count(6)
+    for frame in page.frames[1:]:
+        frame.wait_for_load_state()
 
 
 def view(page: Page) -> tuple[float, float, float]:
@@ -391,16 +463,17 @@ def test_on_a_phone_a_board_zoomed_out_paints_little_past_its_frames(browser: Br
         context.close()
 
 
-def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading_them(
+def test_on_a_tablet_a_pinch_puts_the_pages_away_until_it_stops_without_reloading_them(
     browser: Browser,
     live_app: str,
 ) -> None:
     """While a pinch zooms, a frame is its sheet alone; once it stops, each page is drawn again as it was, not reloaded.
 
-    Each step of a zoom redrew all six pages at the new size, and a phone's browser ran out of memory doing it.
+    Each step of a zoom redrew all six pages at the new size, and a phone's browser ran out of memory doing it. A
+    tablet draws all six, where a phone draws two at most.
     """
     context = browser.new_context(
-        viewport={"width": 390, "height": 844},
+        viewport={"width": 820, "height": 1180},
         color_scheme="dark",
         is_mobile=True,
         has_touch=True,
@@ -409,8 +482,7 @@ def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading
     try:
         page = context.new_page()
         board(page)
-        for frame in page.frames:
-            frame.wait_for_load_state()
+        expect(page.locator(".board-frame iframe")).to_have_count(6)
         page.evaluate(
             "() => { window.loads = 0; window.hid = false;"
             " for (const f of document.querySelectorAll('.board-frame iframe'))"
@@ -428,6 +500,34 @@ def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading
         expect(page.locator(".world[data-zooming]")).to_have_count(0)
         expect(page.locator(".board-frame iframe").first).to_be_visible()
         assert page.evaluate("window.loads") == 0, "a page was loaded again"
+    finally:
+        context.close()
+
+
+def test_on_a_phone_a_board_draws_a_page_only_zoomed_in_to_it_and_two_at_most(browser: Browser, live_app: str) -> None:
+    """Fitted to a phone, a board draws its frames' sheets alone; zoomed in, the pages it shows most of, two at most.
+
+    Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded.
+    """
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        expect(page.locator(".board-frame iframe")).to_have_count(0)
+
+        for _ in range(3):
+            page.get_by_role("button", name="Zoom in").tap()
+        expect(page.locator(".board-frame[data-live] iframe").first).to_be_visible()
+        assert 1 <= page.locator(".board-frame iframe").count() <= LIVE_COUNT
+
+        page.get_by_role("button", name="Fit to screen").tap()
+        expect(page.locator(".board-frame iframe")).to_have_count(0)
     finally:
         context.close()
 
@@ -479,3 +579,68 @@ def fingers(session: CDPSession, steps: Sequence[Sequence[tuple[int, int]]]) -> 
             {"type": "touchStart" if i == 0 else "touchMove", "touchPoints": points},
         )
     session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+
+
+def call(context: BrowserContext, secret: str, name: str, **arguments: object) -> str:
+    """Call a tool through the MCP server with a token's secret, and return its text."""
+    called = context.request.post(
+        "/mcp",
+        data={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}},
+        headers={"Authorization": f"Bearer {secret}"},
+    ).json()
+    assert called["result"]["isError"] is False, called
+    return str(called["result"]["content"][0]["text"])
+
+
+def test_a_person_answers_an_agents_decision_and_the_agent_reads_it_back(context: BrowserContext) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
+        headers=WRITES,
+    ).json()["secret"]
+    artifact = json.loads(
+        call(context, secret, "artifact_publish", title="Cache", content_type="text/html", content=PAGE),
+    )
+    asked = json.loads(
+        call(
+            context,
+            secret,
+            "decision_create",
+            artifact_id=artifact["artifact_id"],
+            question="Shard the cache now?",
+            options=[
+                {"label": "Shard it", "anchor": {"exact": "We should shard it."}},
+                {"label": "Measure first", "detail": "A week of data.", "anchor": {"exact": "Then measure again."}},
+            ],
+            asked=["ana"],
+        ),
+    )
+    waiting = context.request.get("/api/decisions").json()["awaiting"]
+    page = context.new_page()
+    page.goto(f"/a/{artifact['artifact_id']}?decision={asked['decision_id']}")
+    expect(page.frame_locator("iframe.exhibit").locator("h1")).to_have_text("Cache report")
+    card = page.locator(f"#decision-{asked['decision_id']}")
+    frame = next(f for f in page.frames if "/content/" in f.url)
+
+    expect(card).to_contain_text("Your answer is wanted")
+    expect(card).to_contain_text("(Agent, for Ana Ruiz)")
+    expect(page.locator(".masthead .awaiting")).to_have_text(str(waiting))
+    card.locator(".option", has_text="Measure first").hover()
+    frame.wait_for_function("CSS.highlights.get('louvre-strong')?.size === 1")
+    card.get_by_role("radio", name="Shard it").check()
+    card.locator("textarea").fill("Before the sale.")
+    card.locator("button:text-is('Answer')").click()
+
+    expect(card).to_contain_text("your choice")
+    expect(card.locator(".answers")).to_contain_text("Ana Ruiz chose Shard it")
+    expect(card.locator(".answer-note")).to_have_text("Before the sale.")
+    expect(page.locator(".masthead .awaiting")).to_have_count(1 if waiting > 1 else 0)
+    events = [json.loads(line) for line in call(context, secret, "decision_feed").splitlines()]
+    mine = [e for e in events if e.get("decision_id") == asked["decision_id"]]
+    assert [(e["kind"], e["choices"], e["note"], e["author"]["kind"]) for e in mine] == [
+        ("decision_asked", [], "", "agent"),
+        ("decision_answered", ["o1"], "Before the sale.", "person"),
+    ]
+
+    page.goto("/decisions")
+    expect(page.locator(".entry", has_text="Shard the cache now?")).to_contain_text("Answered")

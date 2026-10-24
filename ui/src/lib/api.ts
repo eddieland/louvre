@@ -78,6 +78,10 @@ export interface Listed extends Artifact {
     updated_at: string
     /** How many of its threads are open. */
     open_threads: number
+    /** How many of its decisions are open. */
+    open_decisions: number
+    /** How many of those ask the reader, who has not answered them. */
+    awaiting: number
 }
 
 /** A version of an artifact. */
@@ -136,6 +140,92 @@ export interface Comparison {
     words_removed: number
     /** The threads on the earlier version's text, oldest first. */
     threads: ThreadFate[]
+}
+
+/** One choice a decision offers. */
+export interface DecisionOption {
+    /** Its id, such as o1, as answers name it. */
+    id: string
+    /** What it is, in a few words. */
+    label: string
+    /** A line more about it, or empty. */
+    detail: string
+    /** The passage of the artifact it is about, or null. */
+    anchor: Anchor | null
+    /** How many people chose it. */
+    count: number
+}
+
+/** A person a decision asks, by login. */
+export interface Asked {
+    /** Their login. */
+    login: string
+    /** Their name, once they have signed in to Louvre; null before. */
+    name: string | null
+    /** Whether they have answered. */
+    answered: boolean
+}
+
+/** A person's answer to a decision. */
+export interface Answer {
+    /** Their account's id. */
+    account_id: string
+    /** Their name. */
+    name: string
+    /** The options they chose. */
+    choices: string[]
+    /** What they added, or empty. */
+    note: string
+    /** When they last answered, as ISO 8601. */
+    answered_at: string
+}
+
+/** A question asked on an artifact, for people to answer by choosing (ui/DESIGN.md, "Decisions"). */
+export interface Decision {
+    /** Its id. */
+    id: string
+    /** The artifact it is asked on. */
+    artifact_id: string
+    /** That artifact's title. */
+    artifact_title: string
+    /** What to decide. */
+    question: string
+    /** Whether an answer may choose more than one option. */
+    multiple: boolean
+    /** The artifact's version when it was asked. */
+    version: number
+    /** Its options, in order, each with how many chose it. */
+    options: DecisionOption[]
+    /** The people it asks. */
+    asked: Asked[]
+    /** Who asked it: an agent, or a person. */
+    author: Author
+    /** Open, or closed. */
+    state: 'open' | 'closed'
+    /** The option decided on when it was closed, or null. */
+    outcome: string | null
+    /** What its closer said, or empty. */
+    outcome_note: string
+    /** When it was asked, as ISO 8601. */
+    created_at: string
+    /** When it was closed, or null. */
+    closed_at: string | null
+    /** Every answer, oldest first. */
+    answers: Answer[]
+    /** What the reader chose, or null. */
+    mine: { choices: string[]; note: string } | null
+    /** Whether it asks the reader, who has not answered. */
+    awaits_me: boolean
+    /** Whether the reader may close it: they asked it, or their agent did. */
+    may_close: boolean
+}
+
+/** Decisions, newest first, and how many open ones await the reader. */
+export interface Decisions {
+    /** The decisions. */
+    decisions: Decision[]
+    /** How many open decisions ask the reader, who has not answered. */
+    awaiting: number
 }
 
 /** A board in the list: how many of its frames the reader reaches, and their artifacts' open threads. */
@@ -214,7 +304,7 @@ export interface Session {
     account: Account | null
     /** Whether the deployment has its database. */
     configured: boolean
-    /** Whether the demo is on, readable without signing in. */
+    /** Whether the demo is on, readable at /demo without signing in. */
     demo: boolean
     /** The ways to sign in. */
     sign_in: { github: boolean; dev: boolean }
@@ -287,17 +377,30 @@ export const sessionQuery = queryOptions({
     staleTime: 60_000,
 })
 
-/** Read a page of the list of artifacts, newest first, from `cursor`. */
-export function listArtifacts(cursor: string | null) {
-    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+/** The namespace the demo publishes in (louvre.core.demo.NAMESPACE): a list leaves it out unless it names it. */
+export const DEMO_NAMESPACE = 'demo'
+
+/** Read a page of the list of artifacts, newest first, from `cursor`, in `namespace` alone if given. */
+export function listArtifacts(cursor: string | null, namespace?: string) {
+    const params = new URLSearchParams()
+    if (cursor) {
+        params.set('cursor', cursor)
+    }
+    if (namespace !== undefined) {
+        params.set('namespace', namespace)
+    }
+    const query = params.size > 0 ? `?${params.toString()}` : ''
     return request<{ artifacts: Listed[]; next_cursor: string | null }>('GET', `/api/artifacts${query}`)
 }
 
-/** The boards the reader reaches a frame of. */
-export const boardsQuery = queryOptions({
-    queryKey: ['boards'],
-    queryFn: () => request<{ boards: ListedBoard[] }>('GET', '/api/boards'),
-})
+/** The boards the reader reaches a frame of, in `namespace` alone if given. */
+export function boardsQuery(namespace?: string) {
+    const query = namespace === undefined ? '' : `?${new URLSearchParams({ namespace }).toString()}`
+    return queryOptions({
+        queryKey: ['boards', namespace ?? null],
+        queryFn: () => request<{ boards: ListedBoard[] }>('GET', `/api/boards${query}`),
+    })
+}
 
 /** A board, with its frames. */
 export function boardQuery(id: string) {
@@ -350,6 +453,49 @@ export function compareQuery(id: string, base: number, head: number) {
         // Two published versions never change, so neither does what changed between them.
         staleTime: Infinity,
     })
+}
+
+/** Every decision the reader reaches, newest first. */
+export const decisionsQuery = queryOptions({
+    queryKey: ['decisions', 'all'],
+    queryFn: () => request<Decisions>('GET', '/api/decisions'),
+    refetchInterval: THREADS_POLL,
+})
+
+/** An artifact's decisions, newest first. */
+export function artifactDecisionsQuery(id: string) {
+    return queryOptions({
+        queryKey: ['decisions', 'artifact', id],
+        queryFn: () => request<Decisions>('GET', `/api/artifacts/${encodeURIComponent(id)}/decisions`),
+        refetchInterval: THREADS_POLL,
+    })
+}
+
+/** The writes to decisions, each reading decisions and the list again once it is done. */
+export function useDecisionWrites() {
+    const client = useQueryClient()
+    const settle = async () => {
+        await client.invalidateQueries({ queryKey: ['decisions'] })
+        await client.invalidateQueries({ queryKey: ['artifacts'] })
+    }
+    return {
+        answer: useMutation({
+            mutationFn: (given: { decisionId: string; choices: string[]; note: string }) =>
+                request('POST', `/api/decisions/${encodeURIComponent(given.decisionId)}/answer`, {
+                    choices: given.choices,
+                    note: given.note,
+                }),
+            onSettled: settle,
+        }),
+        close: useMutation({
+            mutationFn: (given: { decisionId: string; outcome: string | null; note: string }) =>
+                request('POST', `/api/decisions/${encodeURIComponent(given.decisionId)}/close`, {
+                    outcome: given.outcome,
+                    note: given.note,
+                }),
+            onSettled: settle,
+        }),
+    }
 }
 
 /** The signed-in person's tokens. */

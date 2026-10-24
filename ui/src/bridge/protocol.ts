@@ -17,10 +17,12 @@ export interface Mark {
     /** The passage. */
     anchor: Anchor
     /**
-     * A thread open, resolved, or a draft not yet sent; or words a later version added or rewrote (`change`), or the
-     * word beside where it removed some (`removed`), which is found, to place its note, but never painted.
+     * Whether it is open, resolved, or a draft not yet sent; the passage a decision's option is about, marked only
+     * while its option is hovered or shown, and never a thread the reader can click; or words a later version added or
+     * rewrote (`change`), or the word beside where it removed some (`removed`), found to place its note but never
+     * painted.
      */
-    state: 'open' | 'resolved' | 'draft' | 'change' | 'removed'
+    state: 'open' | 'resolved' | 'draft' | 'passage' | 'change' | 'removed'
     /** Its number in the margin, shown after its last word, or null for none. */
     n: number | null
 }

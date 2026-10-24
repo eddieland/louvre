@@ -88,6 +88,10 @@ function start(): void {
                 }
             } else if (mark.state === 'change') {
                 ;(lit ? changeStrong : change).push(range)
+            } else if (mark.state === 'passage') {
+                if (lit) {
+                    strong.push(range)
+                }
             } else {
                 ;(lit ? strong : rest).push(range)
             }
@@ -178,8 +182,9 @@ function start(): void {
     const hit = (x: number, y: number): string | null => {
         for (const mark of marks) {
             const range = ranges.get(mark.id)
-            // A removal's range is the word beside it, which it never paints, so it is never what the reader points at.
-            if (!range || mark.state === 'removed') {
+            // Neither a decision's passage nor a removal (the word beside it, never painted) is what the reader
+            // points at.
+            if (!range || mark.state === 'passage' || mark.state === 'removed') {
                 continue
             }
             for (const rect of range.getClientRects()) {

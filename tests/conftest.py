@@ -36,7 +36,22 @@ LIVE_DEADLINE = 15.0
 #: The header every write to the web app carries.
 WRITES = {"X-Louvre": "1"}
 #: Every table the store writes, emptied before each test.
-TABLES = ("changes", "comments", "threads", "versions", "artifacts", "authors", "tokens", "sessions", "accounts")
+TABLES = (
+    "files",
+    "blobs",
+    "decision_events",
+    "answers",
+    "decisions",
+    "changes",
+    "comments",
+    "threads",
+    "versions",
+    "artifacts",
+    "authors",
+    "tokens",
+    "sessions",
+    "accounts",
+)
 
 
 @pytest.fixture

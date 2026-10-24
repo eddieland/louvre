@@ -76,6 +76,9 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - `/content/...` answers with a `sandbox` Content-Security-Policy and is framed without `allow-same-origin`, so its
   scripts run on an opaque origin and never see a session. Louvre adds one script, the bridge (`ui/src/bridge`), and
   trusts nothing it says further than where a passage is or what was selected.
+- The policy lets a page load nothing but fonts from Louvre itself, and Louvre serves only the house style's, at
+  `/style/<version>/fonts/`, with `Access-Control-Allow-Origin: *`, as an opaque origin's font load needs (settled by
+  the operator, 2026-10-24). Anything else a page shows it carries inline.
 - Anchors are read the same way on both sides: `louvre.core.text` and `ui/src/bridge/text.ts` answer
   `tests/fixtures/anchors.json` alike; a change to one changes the other.
 - Rejected: a second origin for content (a domain to run); marks as `<mark>` elements in the artifact's markup (the
@@ -96,3 +99,23 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - Tests reach it through the SDK's own client, in process and over HTTP, as agents' runtimes do.
 - Rejected: hand-rolled JSON-RPC (every protocol version, and resources and prompts, by hand); the SDK's `MCPServer`
   (schemas from function signatures, not canopy's).
+
+## D011. Louvre's own tools are added beside the contract's, and change none of them
+
+- The contract's eight tools, their results, and `comment_feed`'s kinds are canopy's (REQUIREMENTS L1). A tool of
+  Louvre's own (the `style_` and `decision_` tools, and `files_publish`) is a new name; what it records that a reader
+  follows gets a feed of its own (`decision_feed`), never a new kind in `comment_feed`, which canopy's loop reads.
+- Rejected: decisions' events in `comment_feed` (a reader written against the contract meets kinds it does not know).
+- Revisit: when canopy's contract takes a tool of Louvre's, which then follows the contract's word.
+
+## D012. A version's files are served under a key in their path, never behind a session
+
+- A version with files is served at `/content/<artifact>/<n>/<key>/`, its files under it, the key 128 random bits. A
+  page runs on an opaque origin (D008), so its requests for its files carry no cookie; the key, which only a person
+  who may read the version learns, by being sent to it, is what a request for a file needs.
+- The page's policy lets it load files from that path and nowhere else, so it reads its own version's files, never
+  another's.
+- Rejected: files behind a session (a sandboxed page's requests carry none); a key in the frame's URL that the UI
+  asks for (`/content/<artifact>/<n>` answers a signed-in person with a redirect to it, so no frame changes); files
+  across an artifact or a namespace (a version would not keep its own).
+- Revisit: if a file must be taken back from someone who already has its path.

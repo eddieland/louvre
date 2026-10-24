@@ -14,7 +14,8 @@ Next: how that changes later milestones, docs, or open questions.
 ```
 
 The milestones after M0 were written down 2026-10-23 from [REQUIREMENTS](../REQUIREMENTS.md): the UI and the
-interaction first, over mock data, then the store under them, at the operator's word.
+interaction first, over mock data, then the store under them, at the operator's word. M8 onward were written down
+2026-10-24, at the operator's word: comparing versions, files beside a version, then maps.
 
 ## Milestones
 
@@ -28,5 +29,12 @@ interaction first, over mock data, then the store under them, at the operator's 
 - [M5. Sign-in, and MCP behind tokens](M05-signin-mcp.md): in progress: built, and held to the official MCP
   client; an agent loaded with canopy's skill is the operator's check.
 - [M6. Deployed for the organization](M06-deploy.md): not started. The preview runs the whole app.
-- [M7. Changes between versions](M07-changes.md): in progress: built; waiting on the operator's pass on a phone and
-  a laptop.
+- [M7. Decisions](M07-decisions.md): in progress: built; waiting on the operator's word, and on canopy's for its
+  contract.
+- [M8. Comparing versions](M08-compare.md): in progress: built; waiting on the operator's pass on a phone and a
+  laptop.
+- [M9. Files beside a version](M09-files.md): in progress: built as `files_publish`, a tool of Louvre's.
+- [M10. A map kit, served by Louvre](M10-map-kit.md): not started.
+- [M11. Geodata as an artifact](M11-geodata.md): not started.
+- [M12. Comments on places](M12-places.md): not started.
+- [M13. Maps reviewed](M13-maps-reviewed.md): not started.

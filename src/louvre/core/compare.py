@@ -1,4 +1,4 @@
-"""What changed from one version of an artifact to a later one: their texts compared word by word (REQUIREMENTS U7).
+"""What changed from one version of an artifact to a later one: their texts compared word by word (REQUIREMENTS U8).
 
 Two versions are compared as their readers see them, by their texts (louvre.core.text): words parted by single spaces,
 so markup, scripts, and reflowed whitespace never show as a change. The words both share at the start and at the end

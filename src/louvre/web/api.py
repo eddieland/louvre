@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from louvre.core import accounts, boards, demo, explorations, style
+from louvre.core.decisions import MAX_OPTIONS, Decisions
 from louvre.core.store import MAX_BODY, MAX_EXACT, iso
 from louvre.core.text import CONTEXT, Anchor
 from louvre.web.caller import SESSION_COOKIE, Conn, Database, Person, Reader, database
@@ -49,6 +50,20 @@ class ResolveBody(_Body):
     resolved: bool
 
 
+class AnswerBody(_Body):
+    """A person's answer to a decision: the options they chose, and a note."""
+
+    choices: Annotated[list[Annotated[str, Field(max_length=16)]], Field(min_length=1, max_length=MAX_OPTIONS)]
+    note: Annotated[str, Field(max_length=MAX_BODY)] = ""
+
+
+class CloseBody(_Body):
+    """A decision's close: the option decided on, if one was, and why."""
+
+    outcome: Annotated[str | None, Field(max_length=16)] = None
+    note: Annotated[str, Field(max_length=MAX_BODY)] = ""
+
+
 class TokenBody(_Body):
     """A token to mint."""
 
@@ -82,11 +97,12 @@ def session(request: Request, found: Annotated[Database, Depends(database)]) -> 
 @router.get("/artifacts")
 def artifacts(
     store: Reader,
+    found: Annotated[Database, Depends(database)],
     cursor: str | None = None,
     namespace: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, object]:
-    """The artifacts the request reaches, newest first, a page at a time."""
-    return store.overview(cursor=cursor, namespace=namespace)
+    """The artifacts the request reaches, newest first, by page: the demo's only when its namespace is named."""
+    return store.overview(cursor=cursor, namespace=namespace, leave_out=_set_apart(found, namespace))
 
 
 @router.get("/artifacts/{artifact_id}")
@@ -141,9 +157,15 @@ def delete_artifact(store: Reader, artifact_id: str) -> dict[str, object]:
 
 
 @router.get("/boards")
-def board_list(store: Reader, found: Annotated[Database, Depends(database)]) -> dict[str, object]:
-    """The boards with a frame the request reaches."""
-    return {"boards": boards.listing(store, _boards(found))}
+def board_list(
+    store: Reader,
+    found: Annotated[Database, Depends(database)],
+    namespace: Annotated[str | None, Query(max_length=64)] = None,
+) -> dict[str, object]:
+    """The boards with a frame the request reaches, in `namespace` if named: the demo's only when its namespace is."""
+    apart = _set_apart(found, namespace)
+    listed = [b for b in _boards(found) if (namespace is None or b.namespace == namespace) and b.namespace not in apart]
+    return {"boards": boards.listing(store, listed)}
 
 
 @router.get("/boards/{board_id}")
@@ -202,6 +224,34 @@ def delete(store: Reader, comment_id: str) -> dict[str, object]:
     return store.delete(comment_id)
 
 
+@router.get("/decisions")
+def decision_list(
+    store: Reader,
+    conn: Conn,
+    state: Literal["open", "closed"] | None = None,
+) -> dict[str, object]:
+    """The decisions the request reaches, newest first, and how many open ones await its person."""
+    return _named(conn, Decisions(store).listed(state=state))
+
+
+@router.get("/artifacts/{artifact_id}/decisions")
+def artifact_decisions(store: Reader, conn: Conn, artifact_id: str) -> dict[str, object]:
+    """An artifact's decisions, newest first."""
+    return _named(conn, Decisions(store).listed(artifact_id=artifact_id))
+
+
+@router.post("/decisions/{decision_id}/answer")
+def answer(store: Reader, decision_id: str, given: AnswerBody) -> dict[str, object]:
+    """Answer a decision, or change one's answer."""
+    return Decisions(store).answer(decision_id, given.choices, given.note)
+
+
+@router.post("/decisions/{decision_id}/close")
+def close(store: Reader, decision_id: str, given: CloseBody) -> dict[str, object]:
+    """Close a decision one asked, or that one's agent asked."""
+    return Decisions(store).close(decision_id, given.outcome, given.note)
+
+
 @router.get("/tokens")
 def tokens(conn: Conn, person: Person) -> dict[str, object]:
     """The signed-in person's tokens, newest first."""
@@ -227,14 +277,37 @@ def revoke(conn: Conn, person: Person, token_id: str) -> dict[str, object]:
 
 
 @router.get("/style")
-def house_style() -> dict[str, str]:
+def house_style(kind: style.Kind = style.Kind.REPORT) -> dict[str, object]:
     """Louvre's house style for artifacts, as the `style_get` tool gives it."""
-    return {"version": style.VERSION, "css": style.CSS, "rules": style.RULES, "starter": style.STARTER}
+    return style.handover(kind)
 
 
 def _boards(found: Database) -> tuple[boards.Board, ...]:
     """The boards there are: mock data for now, the demo's design study when the demo is on (roadmap M3)."""
     return (demo.BOARD,) if found.settings.demo else ()
+
+
+def _set_apart(found: Database, namespace: str | None) -> frozenset[str]:
+    """Find the namespaces a list leaves out: the demo's, which is read at `/demo`, unless it names a namespace.
+
+    Returns:
+        The demo's namespace when the demo is on and no namespace is named; none otherwise.
+    """
+    return frozenset({demo.NAMESPACE}) if namespace is None and found.settings.demo else frozenset()
+
+
+def _named(conn: Conn, listed: dict[str, object]) -> dict[str, object]:
+    """Name the person each agent that asked a decision writes for, as an agent's comment names them.
+
+    Returns:
+        `listed`, each decision's author with `on_behalf_of_name`.
+    """
+    found = _dicts(listed["decisions"])
+    authors = [a for d in found if isinstance(a := d["author"], dict)]
+    named = accounts.names(conn, {str(a["on_behalf_of"]) for a in authors if a.get("on_behalf_of")})
+    for author in authors:
+        author["on_behalf_of_name"] = named.get(str(author.get("on_behalf_of")))
+    return listed
 
 
 def _dicts(value: object) -> list[dict[str, object]]:

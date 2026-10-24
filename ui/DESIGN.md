@@ -92,14 +92,15 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
 - A notice in `accent` names threads whose passages left this version, and jumps to them.
 - The frame carries a label row above the artifact (its kind, its age) on wider screens only.
 - The header centers the wordmark over the page's provenance on wide screens, with the person's links (the theme,
-  Tokens, signing in or out) at its right, in Instrument Sans.
+  Decisions with how many wait on them in `accent`, Tokens, signing in or out) at its right, in Instrument Sans. A
+  phone's one line leaves Tokens out: minting one is a desk task.
 - Threads on the whole artifact sit at the top of the margin; "Comment on the page" in the toolbar starts one.
 - An older version says so under the toolbar, in `accent`, with a link to the latest: comments go on the latest only.
 - From version II on, "Changes" in the toolbar compares the version shown with the one before it (Changes).
 
 ## Changes
 
-What a revision changed, for the reader who commented on the version before it (REQUIREMENTS U7). Comparing is a
+What a revision changed, for the reader who commented on the version before it (REQUIREMENTS U8). Comparing is a
 state of the artifact's page, linked by `?changes=N`, the earlier version's number: the frame, the toolbar, and the
 margin are the page's own, and the artifact keeps its author's look.
 
@@ -122,8 +123,12 @@ margin are the page's own, and the artifact keeps its author's look.
 
 The list of artifacts is a reading column, at most 760 px: a title in Fraunces, newest first, each entry parted from
 the next by a hairline. Under the title, in Instrument Sans and `muted`: the namespace, where it came from in `ink`
-(its ticket), when it last changed, and how many versions it has past one. The open threads' count sits at the right
-in `accent`; none is a muted dash. The tokens page and signing in are the same column.
+(its ticket), when it last changed, how many versions it has past one, and its open decisions: "Your answer is wanted"
+in `accent` when one waits on the reader. The open threads' count sits at the right in `accent`; none is a muted
+dash. The tokens page and signing in are the same column.
+
+The demo, where a deployment publishes it, is its own catalogue at `/demo`, which anyone reads without signing in;
+the catalogue at `/` leaves it out, and links to it, as the sign-in a reader is first asked for does.
 
 ## Boards
 
@@ -135,6 +140,10 @@ but the canvas, to the screen's edges, under one hairline.
   `paper` with the frame's shadow. Above it, a label in Instrument Sans: the artifact's title in `ink`, the frame's
   size in `muted`, its open threads in `accent`. Labels and outlines keep one size on the screen at any zoom, and a
   label never runs past its frame's width: what does not fit ends in an ellipsis.
+- **On a phone** (600 px and below on the screen's shorter side), a frame's page is drawn only while the frame is on
+  the screen at 25% or more, and two pages at most, those the screen shows the most of: six pages at once are more than
+  a phone has the memory for. Fitted to a phone, the board shows its frames' sheets and labels, and a frame's page
+  fills in as the reader zooms into it.
 - **Moving.** Drag to pan, by pointer or by touch; pinch, the wheel, or the toolbar's zoom control (`−`, the zoom in
   percent, `+`, Fit) to zoom, about the cursor or the pinch's middle, from 5% to 100%: a frame's page at its own size,
   as a reader opens the frame to read it closer. The board opens fitted to the screen, and fits again on a resize until
@@ -152,12 +161,55 @@ but the canvas, to the screen's edges, under one hairline.
 - **The catalogue** lists boards above artifacts, in the same entries: the title, the namespace, how many frames, and
   the open threads at the right.
 
+## Decisions
+
+A decision is a question an agent asked on the artifact, for people to answer by choosing (REQUIREMENTS U7). It is
+the one call to action Louvre makes, so it hangs above the artifact, in the artifact's column, before the reader
+starts reading; the margin stays the conversation's.
+
+- **A decision** has no box: a hairline above it, then a label row in Instrument Sans (Decision, or "Your answer is
+  wanted" in `accent` when it asks the reader; who asked, an agent marked as in a thread; when), the question in
+  Fraunces at a section head's size, and its options. One that waits on the reader carries an `accent` rule on its
+  left, as an active thread does.
+- **Options** are rows in Source Serif: a radio, or a checkbox where several may be chosen, in `accent` once checked;
+  the label in `ink`; its detail under it in `muted`. An option about a passage lights that passage in the frame while
+  it is hovered or focused, with the `hl-strong` band, and "Passage" at its right scrolls the page to it. The note is
+  a single line that grows, as a reply is. Answering is the filled button: it is what the page asks for.
+- **Results** show once the reader has answered, once it is closed, or to a reader who cannot answer: never before
+  they choose, so the count does not sway them. Each option's count is a number and a hairline bar, `muted`, and
+  `accent` for the reader's choice and the outcome, each tagged in `accent`. Answers follow as notes do in the
+  margin: the name in small caps, the choice, the note under it.
+- **Open or closed up.** An open decision shows whole; a closed one shows as its question and outcome, and opens on a
+  tap. A link to it (`?decision=`) opens the page scrolled to it, shown whole.
+- **Closing** is for whoever asked, or the person their agent writes for: Close, then the option decided on and why,
+  in a row of small fields.
+- **The list of decisions**, `/decisions`, is the catalogue's column: waiting on the reader, then open, then decided,
+  each entry its question, its artifact in `ink`, who asked, when, and who it still waits on, the reader named "you".
+
 ## Louvre's style for agents
 
 `louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
-first, light when the reader's system is, every color a custom property. An artifact loads nothing from the network,
-so it names Louvre's faces and falls back to the reader's own serif and sans. A later style is a new version.
+first, light when the reader's system is, every color a custom property. It is set in Louvre's own faces, which Louvre
+serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. A later style
+is a new version.
+
+Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
+page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome
+does, so it adds to these tokens, in both themes, each reading at 4.5:1 or better on its background and its cards:
+`good` (`#6fbf8e`, `#2f7a4d`) and `bad` (`#e0915a`, `#a5521b`) for a change that is good or bad news. The accent
+still marks what matters most, and no color says anything alone.
+
+**Charts** are Marginalia (picked by the operator on 2026-10-24 over a palette of series colors with a legend, and
+over the same look without notes), drawn by `louvre.core.style.chart` and handed to agents by `style_chart`. A chart
+is a figure between hairlines, not in a card: its finding as its title in Fraunces, over what it measures in
+Instrument Sans and `muted`. What it is about is in `accent`; every other series is `muted`, and every axis and
+gridline a `rule` hairline. Each series is labeled where it is, in Source Serif italic, so there is no legend. The
+moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
+quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
 ## Not decided yet
 
 - A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).
+- A decision across a board's frames, each frame an option (REQUIREMENTS, Open).
+- How two versions compare on a page, and on a phone (REQUIREMENTS U8).
+- A map's page in the kit, and how a thread on a place shows on the map and in the margin (REQUIREMENTS U9, U10).

@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { sessionQuery, useSignIn } from '@/lib/api'
+import { SignInLink } from '@/components/sign-in'
+import { decisionsQuery, sessionQuery, useSignIn } from '@/lib/api'
 import { setTheme, useTheme } from '@/lib/theme'
 
 /** What the header says about the page, beside the wordmark: where an artifact came from, say. */
@@ -19,6 +20,11 @@ export function Header({ provenance }: HeaderProps) {
     const theme = useTheme()
     const { out } = useSignIn()
     const account = session?.account ?? null
+    // How many open decisions ask the reader, who has not answered: Louvre's one call for their attention.
+    // Read without polling: every page has the header, and an answer or a close reads it again by itself.
+    const awaiting =
+        useQuery({ ...decisionsQuery, enabled: account !== null, refetchInterval: false, staleTime: 60_000 }).data
+            ?.awaiting ?? 0
     return (
         <header className="masthead">
             <div className="masthead-mark">
@@ -38,7 +44,17 @@ export function Header({ provenance }: HeaderProps) {
                 </button>
                 {account ? (
                     <>
-                        <Link to="/tokens" className="action" activeProps={{ className: 'action text-ink' }}>
+                        <Link
+                            to="/decisions"
+                            className="action"
+                            activeProps={{ className: 'action text-ink' }}
+                            aria-label={awaiting > 0 ? `Decisions, ${String(awaiting)} waiting on you` : 'Decisions'}
+                        >
+                            Decisions
+                            {awaiting > 0 ? <span className="awaiting">{awaiting}</span> : null}
+                        </Link>
+                        {/* Minting a token is a desk task, so a phone's one line of chrome leaves it out. */}
+                        <Link to="/tokens" className="action long" activeProps={{ className: 'action text-ink' }}>
                             Tokens
                         </Link>
                         <button type="button" className="action" onClick={() => out.mutate()} title={account.name}>
@@ -46,9 +62,7 @@ export function Header({ provenance }: HeaderProps) {
                         </button>
                     </>
                 ) : (
-                    <Link to="/sign-in" className="action action-primary">
-                        Sign in
-                    </Link>
+                    <SignInLink className="action action-primary">Sign in</SignInLink>
                 )}
             </nav>
         </header>

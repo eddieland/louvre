@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where should checkout cache tax quotes?</title>
+<style>
+{css}
+</style>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Decision &middot; Payments, by 30 October</p>
+<h1>Where should checkout cache tax quotes?</h1>
+<p class="l-lede">In Redis, shared by every checkout process. A cart's quote then survives a deploy and a retry on
+another instance, for one more network hop of about 2&nbsp;ms.</p>
+<p class="l-meta">PAY-151, after PAY-142's fix &middot; canopy worker, for Sam Okafor, 27 October 2026</p>
+<h2>What we need</h2>
+<p>PAY-142 cut checkout's p95 to 430&nbsp;ms by caching each cart's tax quote for five minutes.</p>
+<p>Each checkout process keeps its own cache today, so a deploy empties it, and a retry that lands on another
+instance asks the tax service again.</p>
+<dl>
+<dt>Must</dt><dd>A cached quote is never older than five minutes, or than the cart's promotion.</dd>
+<dt>Should</dt><dd>Keep its quotes through a deploy, and share them between instances.</dd>
+<dt>Out of scope</dt><dd>Caching shipping rates, which change by the hour.</dd>
+</dl>
+<h2>The options</h2>
+<div class="l-compare">
+<div class="l-option">
+<h3>In each process</h3>
+<p>What we run today: a map in memory, per instance.</p>
+<ul>
+<li>No new service to run.</li>
+<li>Empty after every deploy, and never shared.</li>
+</ul>
+</div>
+<div class="l-option l-chosen">
+<h3>In Redis <span class="l-tag">Recommended</span></h3>
+<p>One cache, shared by every checkout instance.</p>
+<ul>
+<li>Survives deploys, and serves retries.</li>
+<li>One more service, and 2&nbsp;ms a lookup.</li>
+</ul>
+</div>
+<div class="l-option">
+<h3>No cache</h3>
+<p>Ask the tax service every time, as before PAY-142.</p>
+<ul>
+<li>Nothing to invalidate.</li>
+<li>Puts back the latency we just removed.</li>
+</ul>
+</div>
+</div>
+<h2>Side by side</h2>
+<div class="l-scroll">
+<table>
+<thead><tr><th>Measure</th><th class="l-num">In process</th><th class="l-num">Redis</th>
+<th class="l-num">None</th></tr></thead>
+<tbody>
+<tr><td>Hit rate, replaying 22 October</td><td class="l-num">61%</td><td class="l-num l-good">94%</td>
+<td class="l-num l-bad">0%</td></tr>
+<tr><td>Added p95</td><td class="l-num">0&nbsp;ms</td><td class="l-num">2&nbsp;ms</td>
+<td class="l-num l-bad">380&nbsp;ms</td></tr>
+<tr><td>Tax calls a week</td><td class="l-num">1.2&nbsp;million</td><td class="l-num l-good">190,000</td>
+<td class="l-num l-bad">3.1&nbsp;million</td></tr>
+<tr><td>Cost to run</td><td class="l-num">None</td><td class="l-num">$40 a month</td><td class="l-num">None</td></tr>
+</tbody>
+</table>
+</div>
+<figure class="l-plot">
+<figcaption><span class="l-say">Redis makes a sixteenth of the tax calls of no cache at all</span>
+<span class="l-measure">Tax calls a week, replaying 22 October</span></figcaption>
+<svg class="l-chart" viewBox="0 0 440 106" role="img">
+<title>Redis makes a sixteenth of the tax calls of no cache at all. Tax calls a week, replaying 22
+    October</title>
+<text class="l-name" x="0" y="21" fill="var(--l-muted)">In process</text>
+<rect x="88" y="10" width="113.50" height="14" fill="var(--l-muted)" opacity="0.6"/>
+<text x="207.5" y="21" text-anchor="start">1.2M</text>
+<text class="l-name" x="0" y="55" fill="var(--l-ink)">Redis</text>
+<rect x="88" y="44" width="17.97" height="14" fill="var(--l-accent)" opacity="1"/>
+<text x="111.97" y="55" text-anchor="start" class="l-value" fill="var(--l-accent)">190k</text>
+<text class="l-mark" x="147.97" y="48">1</text>
+<text class="l-name" x="0" y="89" fill="var(--l-muted)">No cache</text>
+<rect x="88" y="78" width="293.20" height="14" fill="var(--l-muted)" opacity="0.6"/>
+<text x="387.2" y="89" text-anchor="start">3.1M</text>
+</svg>
+<ol class="l-notes">
+<li>Redis, recommended: one small node, about $40 a month.</li>
+</ol>
+<p class="l-source">A replay of 22 October&#x27;s checkout traffic against each option, in staging</p>
+</figure>
+<h2>Why Redis</h2>
+<p>Redis serves half as many quotes again from cache as the processes do, because deploys and retries no longer
+miss.</p>
+<p>The tax service bills by the call, so the saving pays for the Redis node many times over.</p>
+<p>One small node is enough: the cache holds about 40,000 quotes at the busiest hour, under 30&nbsp;MB.</p>
+<div class="l-callout l-risk">If Redis is down, checkout must ask the tax service, not fail. The fallback is part of
+the change, and staging tests it with Redis turned off.</div>
+<h2>What changes</h2>
+<p><del>Each checkout process keeps its own quotes for five minutes.</del> <ins>Every checkout process shares its
+quotes in Redis for five minutes.</ins></p>
+<h2>If we agree</h2>
+<ol class="l-steps">
+<li><b>A Redis node for checkout.</b> Platform provisions it in each region, by 31 October.</li>
+<li><b>Quotes in Redis, behind a flag.</b> The checkout service reads Redis first and falls back to the tax
+service.</li>
+<li><b>The flag on, region by region.</b> We watch the hit rate and p95 for a day in each.</li>
+</ol>
+<footer>
+<p>Sources: a replay of 22 October's checkout traffic against each option in staging, and the tax service's
+invoice for September.</p>
+</footer>
+</main>
+</body>
+</html>

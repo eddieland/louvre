@@ -1,9 +1,15 @@
 """The demo: published once, a part at a time, with the design study as its board."""
 
-from louvre.core import accounts, demo
+import re
+
+import pytest
+
+from louvre.core import accounts, demo, style
 from louvre.core.boards import shown
 from louvre.core.db import Connection
+from louvre.core.decisions import Decisions
 from louvre.core.store import Store
+from louvre.core.style.check import check
 
 
 def reader(conn: Connection) -> Store:
@@ -21,7 +27,7 @@ def test_the_demo_is_published_once(conn: Connection) -> None:
 
     listed = reader(conn).overview()["artifacts"]
     assert isinstance(listed, list)
-    assert len(listed) == 6
+    assert len(listed) == 8
 
 
 def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
@@ -39,7 +45,7 @@ def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
         "Direction: Margins",
         "Direction: Studio",
     ]
-    assert len(titles) == 6
+    assert len(titles) == 8
 
 
 def test_the_design_study_is_a_board_of_each_direction_at_a_laptops_size_and_a_phones(conn: Connection) -> None:
@@ -81,3 +87,38 @@ def test_the_studys_pages_load_nothing_from_the_network(conn: Connection) -> Non
     for frame in shown(store, [demo.BOARD], demo.BOARD.id)["frames"]:  # type: ignore[union-attr]
         content = str(store.read(frame["artifact"]["id"])["content"])
         assert "https://" not in content, frame["id"]
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [{"canopy.report": "weekly"}, {"canopy.ticket": "PAY-151"}, {"canopy.ticket": "PAY-160"}],
+)
+def test_its_house_style_pages_use_only_the_styles_classes_and_pass_its_check(
+    conn: Connection,
+    origin: dict[str, str],
+) -> None:
+    demo.seed(conn)
+    store = reader(conn)
+    [made] = store.overview(origin=origin)["artifacts"]  # type: ignore[misc]
+    content = str(store.read(made["id"])["content"])
+    classes = {name for names in re.findall(r'class="([^"]+)"', content) for name in names.split()}
+
+    assert style.CSS.rstrip() in content
+    assert classes - {"louvre"} <= set(re.findall(r"\.(l-[a-z0-9-]+)", style.CSS))
+    assert check(content) == []
+
+
+def test_its_decisions_are_asked_once_and_a_database_without_them_gets_them_alone(conn: Connection) -> None:
+    demo.seed(conn)
+    conn.execute("DELETE FROM decisions")
+
+    assert demo.seed(conn) is True
+    assert demo.seed(conn) is False
+
+    found = Decisions(reader(conn)).listed()["decisions"]
+    assert isinstance(found, list)
+    assert [(d["question"], d["state"], [o["count"] for o in d["options"]]) for d in found] == [
+        ("Ship these notes with Thursday's release?", "closed", [2, 0]),
+        ("Which fix ships first?", "open", [2, 0, 0]),
+    ]
+    assert [(p["login"], p["answered"]) for p in found[1]["asked"]] == [("ana", False), ("raj", True)]

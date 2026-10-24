@@ -1,5 +1,6 @@
-"""The MCP server answers the contract's tools, and style_get, as canopy's local store does, to the SDK's client."""
+"""The MCP server answers the contract's tools as canopy's local store does, and Louvre's own, to the SDK's client."""
 
+import base64
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -11,10 +12,12 @@ from anyio.from_thread import BlockingPortal, start_blocking_portal
 from mcp.shared.exceptions import MCPError
 from mcp.types import CallToolResult, TextContent, TextResourceContents
 
-from louvre.core import style
+from louvre.core import accounts, style
+from louvre.core.db import Connection
+from louvre.core.decisions import Decisions
 from louvre.core.store import MAX_BODY, MAX_FEED, MAX_ORIGIN, Store
 from louvre.mcp import server
-from tests.conftest import MakeAgent
+from tests.conftest import MakeAgent, person
 
 #: A report: the passage people comment on sits in markup.
 REPORT = """<html><head><title>Cache report</title></head><body>
@@ -39,6 +42,14 @@ TOOLS = [
     "comment_create",
     "thread_resolve",
     "style_get",
+    "style_check",
+    "style_chart",
+    "decision_create",
+    "decision_list",
+    "decision_read",
+    "decision_close",
+    "decision_feed",
+    "files_publish",
 ]
 
 
@@ -193,6 +204,10 @@ def test_a_read_only_token_refuses_every_write(client: Client, agent: MakeAgent)
         ("comment_create", {"artifact_id": "a_missing", "body": "x"}),
         ("comment_reply", {"thread_id": "t_missing", "body": "x"}),
         ("thread_resolve", {"thread_id": "t_missing", "resolved": True}),
+        ("decision_read", {"decision_id": "d_missing"}),
+        ("decision_close", {"decision_id": "d_missing"}),
+        ("decision_list", {"artifact_id": "a_missing"}),
+        ("decision_create", {"artifact_id": "a_missing", "question": "q", "options": [{"label": "a"}, {"label": "b"}]}),
         ("artifact_publish", {"title": "t", "content_type": "text/html", "content": "x", "artifact_id": "a_missing"}),
     ],
 )
@@ -228,6 +243,9 @@ def test_what_is_over_its_bound_is_too_long(client: Client) -> None:
         ("comment_feed", {"since": 2**64}),
         ("thread_resolve", {"thread_id": "t_1", "resolved": "yes"}),
         ("comment_reply", {"thread_id": "t_1", "body": "  \n"}),
+        ("decision_create", {"artifact_id": "a_1", "question": "q", "options": [{"label": "a", "colour": "red"}]}),
+        ("decision_feed", {"limit": 0}),
+        ("decision_list", {"state": "decided"}),
     ],
 )
 def test_arguments_the_tool_cannot_use_are_invalid(client: Client, name: str, arguments: dict[str, object]) -> None:
@@ -239,8 +257,91 @@ def test_style_get_hands_over_the_house_style(client: Client) -> None:
         "version": style.VERSION,
         "css": style.CSS,
         "rules": style.RULES,
-        "starter": style.STARTER,
+        "kind": "report",
+        "starter": style.STARTERS[style.Kind.REPORT],
+        "kinds": dict(style.KINDS),
     }
+
+
+def test_style_get_hands_over_the_starter_page_of_the_kind_asked_for(client: Client) -> None:
+    given = client.call("style_get", kind="decision")
+
+    assert given["kind"] == "decision"
+    assert given["starter"] == style.STARTERS[style.Kind.DECISION]
+    assert client.refused("style_get", kind="essay") == "invalid"
+
+
+def test_style_check_finds_what_a_page_should_change(client: Client) -> None:
+    starter = client.call("style_check", content=style.STARTERS[style.Kind.REPORT])
+    page = client.call("style_check", content=REPORT)
+
+    assert starter["ok"] is False
+    assert {f["rule"] for f in starter["findings"]} == {"placeholder"}
+    assert page["ok"] is True
+    assert {f["severity"] for f in page["findings"]} == {"warning"}
+    assert client.refused("style_check") == "invalid"
+
+
+def test_style_chart_draws_a_figure_from_data(client: Client) -> None:
+    drawn = client.call(
+        "style_chart",
+        kind="bar",
+        finding="Redis makes the fewest tax calls",
+        measure="Tax calls a week",
+        labels=["Process", "Redis"],
+        series=[{"name": "calls", "values": [1_200_000, 190_000]}],
+        focus="Redis",
+        notes=[{"label": "Redis", "text": "Recommended."}],
+    )
+
+    assert drawn["figure"].startswith('<figure class="l-plot">\n<figcaption><span class="l-say">Redis makes the fewest')
+    assert "<li>Recommended.</li>" in drawn["figure"]
+    assert client.refused("style_chart", kind="line", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
+    assert client.refused("style_chart", kind="pie", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
+
+
+def test_files_publish_publishes_a_page_with_its_files_beside_it(client: Client) -> None:
+    csv = base64.b64encode(b"region,p95\nus-east,410\n").decode()
+    page = '<h1>p95</h1><a href="p95.csv">The data</a>'
+
+    made = client.call(
+        "files_publish",
+        title="p95",
+        content_type="text/html",
+        content=page,
+        files=[{"path": "p95.csv", "content_type": "text/csv", "data": csv}],
+    )
+    bad = client.refused(
+        "files_publish",
+        title="p95",
+        content_type="text/html",
+        content=page,
+        files=[{"path": "p95.csv", "content_type": "text/csv", "data": "not base64!"}],
+    )
+    wrong = client.refused(
+        "files_publish",
+        title="p95",
+        content_type="text/html",
+        content=page,
+        files=[{"path": "p95.png", "content_type": "image/png", "data": csv}],
+    )
+
+    assert made["version"] == 1
+    assert client.call("artifact_read", artifact_id=made["artifact_id"])["content"] == page
+    assert bad == "invalid"
+    assert wrong == "invalid"
+
+
+def test_style_check_holds_a_page_to_the_files_published_beside_it(client: Client) -> None:
+    page = '<h1>p95</h1><img src="p95.png" alt="p95">'
+
+    beside = client.call("style_check", content=page, files=["p95.png", "unused.csv"])
+    alone = client.call("style_check", content=page)
+
+    assert {(f["rule"], f["severity"]) for f in beside["findings"]} >= {("file", "warning")}
+    assert beside["ok"] is True
+    assert alone["ok"] is False
+    assert ("file", "error") in {(f["rule"], f["severity"]) for f in alone["findings"]}
 
 
 def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
@@ -250,12 +351,14 @@ def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
     assert [(r.uri, r.mime_type) for r in listed] == [
         ("louvre://style/louvre-1/style.css", "text/css"),
         ("louvre://style/louvre-1/rules.md", "text/markdown"),
-        ("louvre://style/louvre-1/starter.html", "text/html"),
+        ("louvre://style/louvre-1/starters/report.html", "text/html"),
+        ("louvre://style/louvre-1/starters/decision.html", "text/html"),
+        ("louvre://style/louvre-1/starters/plan.html", "text/html"),
     ]
     assert [[c.text for c in contents if isinstance(c, TextResourceContents)] for contents in read.values()] == [
         [style.CSS],
         [style.RULES],
-        [style.STARTER],
+        *([starter] for starter in style.STARTERS.values()),
     ]
     with pytest.raises(MCPError):
         client.portal.call(client.session.read_resource, "louvre://style/louvre-0/style.css")
@@ -272,12 +375,25 @@ def test_the_style_prompt_asks_for_a_page_about_what_it_is_given(client: Client)
 
     assert listed.name == "style"
     assert message.role == "user"
-    assert message.content.text.startswith("Write a page about checkout latency as an HTML artifact")
+    assert [a.name for a in listed.arguments or []] == ["about", "kind"]
+    assert message.content.text.startswith("Write a report about checkout latency as an HTML artifact")
+    assert "style_check" in message.content.text
     assert style.RULES in message.content.text
-    assert style.STARTER in message.content.text
-    assert plain.content.text.startswith("Write the page I ask for as an HTML artifact")
+    assert style.STARTERS[style.Kind.REPORT] in message.content.text
+    assert plain.content.text.startswith("Write the report I ask for as an HTML artifact")
     with pytest.raises(MCPError):
         client.portal.call(client.session.get_prompt, "publish", None)
+
+
+def test_the_style_prompt_starts_from_the_kind_it_is_given(client: Client) -> None:
+    given = client.portal.call(client.session.get_prompt, "style", {"about": "the queue", "kind": "plan"})
+    [message] = given.messages
+    assert isinstance(message.content, TextContent)
+
+    assert message.content.text.startswith("Write a plan about the queue as an HTML artifact")
+    assert style.STARTERS[style.Kind.PLAN] in message.content.text
+    with pytest.raises(MCPError):
+        client.portal.call(client.session.get_prompt, "style", {"kind": "essay"})
 
 
 def test_it_serves_its_tools_and_says_what_it_is_for(client: Client) -> None:
@@ -291,3 +407,58 @@ def test_it_serves_its_tools_and_says_what_it_is_for(client: Client) -> None:
     assert client.session.instructions == server.INSTRUCTIONS
     with pytest.raises(MCPError):
         client.tool("artifact_delete")
+
+
+def test_an_agent_asks_a_decision_and_reads_back_what_people_chose(client: Client, conn: Connection) -> None:
+    artifact = client.publish()["artifact_id"]
+    asked = client.call(
+        "decision_create",
+        artifact_id=artifact,
+        question="Shard the cache, or not yet?",
+        options=[
+            {"label": "Shard it", "detail": "A week's work.", "anchor": {"exact": "We should shard it."}},
+            {"label": "Not yet"},
+        ],
+        asked=["ana"],
+    )
+    ana = Decisions(Store(conn, accounts.person_scope(person(conn, "ana", "Ana Ruiz"))))
+    ana.answer(asked["decision_id"], ["o1"], "Before the sale.")
+
+    read = client.call("decision_read", decision_id=asked["decision_id"])
+    listed = client.call("decision_list", artifact_id=artifact, state="open")
+    events = [json.loads(line) for line in client.result("decision_feed").splitlines()]
+    closed = client.call("decision_close", decision_id=asked["decision_id"], outcome="o1", note="Sharding next sprint.")
+
+    assert [(o["id"], o["label"], o["count"]) for o in read["options"]] == [("o1", "Shard it", 1), ("o2", "Not yet", 0)]
+    assert read["options"][0]["anchor"] == {"exact": "We should shard it.", "prefix": "", "suffix": ""}
+    assert read["answers"] == [
+        {
+            "account_id": "dev:ana",
+            "name": "Ana Ruiz",
+            "choices": ["o1"],
+            "note": "Before the sale.",
+            "answered_at": read["answers"][0]["answered_at"],
+        },
+    ]
+    assert read["asked"] == [{"login": "ana", "name": "Ana Ruiz", "answered": True}]
+    assert [d["id"] for d in listed["decisions"]] == [asked["decision_id"]]
+    assert [(e["kind"], e.get("choices")) for e in events] == [
+        ("decision_asked", []),
+        ("decision_answered", ["o1"]),
+        ("end", None),
+    ]
+    assert closed["state"] == "closed"
+    assert client.refused("decision_close", decision_id=asked["decision_id"]) == "closed"
+
+
+def test_a_decision_is_never_answered_with_a_token(client: Client, agent: MakeAgent) -> None:
+    artifact = client.publish()["artifact_id"]
+    options = [{"label": "Yes"}, {"label": "No"}]
+    tools = client.portal.call(client.session.list_tools).tools
+
+    assert "decision_answer" not in [t.name for t in tools]
+    assert client.refused("decision_create", artifact_id=artifact, question="Ship?", options=options[:1]) == "invalid"
+    made = client.call("decision_create", artifact_id=artifact, question="Ship?", options=options)
+    with connected(agent(scopes=("read",))) as reader:
+        assert reader.refused("decision_create", artifact_id=artifact, question="Ship?", options=options) == "read_only"
+        assert reader.refused("decision_close", decision_id=made["decision_id"]) == "read_only"

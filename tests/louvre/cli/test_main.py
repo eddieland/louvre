@@ -52,4 +52,4 @@ def test_demo_publishes_once(runner: CliRunner, database_url: str, conn: Connect
     assert again.stdout == "the demo is published already\n"
     assert migrated.stdout == "the database is up to date\n"
     row = conn.execute("SELECT count(*) AS n FROM artifacts WHERE namespace = 'demo'").fetchone()
-    assert row == {"n": 6}
+    assert row == {"n": 8}

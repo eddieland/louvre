@@ -19,7 +19,7 @@ request after a deploy.
    | `LOUVRE_GITHUB_CLIENT_ID` | The OAuth app's client id |
    | `LOUVRE_GITHUB_CLIENT_SECRET` | Its client secret (mark it sensitive) |
    | `LOUVRE_ALLOWED_LOGINS` | The GitHub logins who may sign in, comma-separated; `*` lets anyone in |
-   | `LOUVRE_DEMO` | `1` to publish the demo's artifacts, which anyone may read without signing in |
+   | `LOUVRE_DEMO` | `1` to publish the demo's artifacts at `/demo`, which anyone may read without signing in |
 
 4. Open the deployment, sign in with GitHub, and mint a token for an agent on the Tokens page.
 
@@ -54,9 +54,15 @@ claude mcp add --transport http louvre https://louvre.example.com/mcp --header "
 
 The server speaks MCP's streamable HTTP at `/mcp`, one JSON-RPC message a request, answered as JSON. Its tools are
 canopy's artifacts contract's eight, so canopy's `canopy-artifacts` skill works against it unchanged, and
-`style_get`, Louvre's house style for HTML an agent wants to look like Louvre's own pages. The style is also three
-resources, its stylesheet, rules, and a starter page (`louvre://style/louvre-1/...`, which Claude Code attaches with
-`@`), and a prompt, `style`, that asks for a page in it (`/mcp__louvre__style` in Claude Code).
+`style_get`, Louvre's house style for HTML an agent wants to look like Louvre's own pages, with a starter page for a
+report, a decision, or a plan; `style_chart`, which draws a chart in it from data; and `style_check`, which checks a
+page against the style's guide before it is published; and `files_publish`, which publishes a page with its images
+and data beside it. The style is also resources, its stylesheet, its guide, and
+each starter page (`louvre://style/louvre-1/...`, which Claude Code attaches with `@`), and a prompt, `style`, that
+asks for a page of a kind in it (`/mcp__louvre__style` in Claude Code).
+
+Give the agent the [louvre-artifacts](../skills/README.md) skill too: it says when to publish a page, in what form,
+and how to build one in the house style.
 
 ## Locally, for development
 
