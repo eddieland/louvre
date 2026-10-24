@@ -32,12 +32,21 @@ spec:
       command: [python, -c]
       args:
         - |
-          import json, urllib.request
+          import json, time, urllib.error, urllib.request
           base = "http://{{ include "louvre.fullname" . }}:{{ .Values.service.port }}"
           def get(path):
               with urllib.request.urlopen(base + path, timeout=10) as response:
                   return json.load(response)
-          health = get("/healthz")
+          # A Service can lag a pod that just became ready by a few seconds, as right after a rollout.
+          deadline = time.monotonic() + 60
+          while True:
+              try:
+                  health = get("/healthz")
+                  break
+              except urllib.error.URLError:
+                  if time.monotonic() > deadline:
+                      raise
+                  time.sleep(1)
           assert health["status"] == "ok", health
           session = get("/api/session")
           assert session["configured"], session

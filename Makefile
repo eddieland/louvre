@@ -121,15 +121,15 @@ chart-lint: ## Lint the Helm chart and render it with each example values file
 	done
 
 # The image goes into the cluster's nodes, so nothing is pushed or pulled; then the chart's own test checks Louvre and
-# its bundled PostgreSQL. Run it again after a change: it rebuilds, reloads, and upgrades in place.
+# its bundled PostgreSQL. Run it again after a change: it rebuilds, reloads, and upgrades in place. The tag stays the
+# same, so the image's id goes on the pods as an annotation: a new build rolls them, and helm's --wait sees it ready.
 kind-up: image ## Run Louvre and a bundled PostgreSQL on a local kind cluster, and test the release
 	kind get clusters | grep -qx $(KIND_CLUSTER) || kind create cluster --name $(KIND_CLUSTER) --wait 120s
 	kind load docker-image $(IMAGE) --name $(KIND_CLUSTER)
 	helm upgrade --install louvre $(CHART) --kube-context kind-$(KIND_CLUSTER) -f $(CHART)/examples/local.yaml \
 		--set image.repository=$(word 1,$(subst :, ,$(IMAGE))) --set image.tag=$(word 2,$(subst :, ,$(IMAGE))) \
+		--set-string podAnnotations.image-id=$$(docker image inspect --format '{{.Id}}' $(IMAGE)) \
 		--wait --timeout 5m
-	kubectl --context kind-$(KIND_CLUSTER) rollout restart deployment/louvre
-	kubectl --context kind-$(KIND_CLUSTER) rollout status deployment/louvre --timeout 2m
 	helm test louvre --kube-context kind-$(KIND_CLUSTER) --logs
 	@echo "kubectl --context kind-$(KIND_CLUSTER) port-forward svc/louvre 8000:80, then open http://127.0.0.1:8000/"
 
