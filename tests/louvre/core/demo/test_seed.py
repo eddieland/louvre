@@ -8,6 +8,7 @@ from louvre.core import accounts, demo, style
 from louvre.core.boards import shown
 from louvre.core.db import Connection
 from louvre.core.store import Store
+from louvre.core.style.check import check
 
 
 def reader(conn: Connection) -> Store:
@@ -91,7 +92,7 @@ def test_the_studys_pages_load_nothing_from_the_network(conn: Connection) -> Non
     "origin",
     [{"canopy.report": "weekly"}, {"canopy.ticket": "PAY-151"}, {"canopy.ticket": "PAY-160"}],
 )
-def test_its_house_style_pages_inline_the_style_and_use_only_its_classes(
+def test_its_house_style_pages_use_only_the_styles_classes_and_pass_its_check(
     conn: Connection,
     origin: dict[str, str],
 ) -> None:
@@ -103,3 +104,4 @@ def test_its_house_style_pages_inline_the_style_and_use_only_its_classes(
 
     assert style.CSS.rstrip() in content
     assert classes - {"louvre"} <= set(re.findall(r"\.(l-[a-z0-9-]+)", style.CSS))
+    assert check(content) == []
