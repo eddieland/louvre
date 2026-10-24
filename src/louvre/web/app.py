@@ -22,10 +22,10 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from louvre.core import accounts
+from louvre.core import accounts, explorations
 from louvre.core.store import Code, Refused, Store
 from louvre.mcp import server
-from louvre.web import api, auth, explorations, ui
+from louvre.web import api, auth, ui
 from louvre.web.caller import Database, Reader, database
 from louvre.web.settings import Settings
 

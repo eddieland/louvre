@@ -100,6 +100,26 @@ the next by a hairline. Under the title, in Instrument Sans and `muted`: the nam
 (its ticket), when it last changed, and how many versions it has past one. The open threads' count sits at the right
 in `accent`; none is a muted dash. The tokens page and signing in are the same column.
 
+## Boards
+
+A board is several artifacts on one canvas, each in a frame at a screen's size, as a design study hangs its directions
+side by side (REQUIREMENTS U5). The canvas is the wall: the page's header and toolbar above it, and below them nothing
+but the canvas, to the screen's edges, under one hairline.
+
+- **A frame** shows its artifact's latest version as a screen of its size would, sandboxed like any artifact (L7), on
+  `paper` with the frame's shadow. Above it, a label in Instrument Sans: the artifact's title in `ink`, the frame's
+  size in `muted`, its open threads in `accent`. Labels and outlines keep one size on the screen at any zoom, and a
+  label never runs past its frame's width: what does not fit ends in an ellipsis.
+- **Moving.** Drag to pan, by pointer or by touch; pinch, the wheel, or the toolbar's zoom control (`−`, the zoom in
+  percent, `+`, Fit) to zoom, about the cursor or the pinch's middle. The board opens fitted to the screen, and fits
+  again on a resize until the reader moves it. Keys: `+` and `-` zoom, `0` fits, the arrows pan.
+- **Opening a frame.** A frame is read by opening it, never on the canvas: the canvas takes every pointer, and a
+  frame's page is inert there. A tap or a click opens it on the artifact's page, at the frame's width when that is
+  narrower than the page's, with its threads in the margin as on any artifact's page, and the way back to the board
+  first in the toolbar. A drag that ends on a frame does not open it.
+- **The catalogue** lists boards above artifacts, in the same entries: the title, the namespace, how many frames, and
+  the open threads at the right.
+
 ## Louvre's style for agents
 
 `louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
@@ -108,4 +128,4 @@ so it names Louvre's faces and falls back to the reader's own serif and sans. A 
 
 ## Not decided yet
 
-- M3's boards: designed in this direction when they are built, and added here.
+- A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).

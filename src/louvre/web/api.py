@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from louvre.core import accounts, style
+from louvre.core import accounts, boards, demo, style
 from louvre.core.store import MAX_BODY, MAX_EXACT, iso
 from louvre.core.text import CONTEXT, Anchor
 from louvre.web.caller import SESSION_COOKIE, Conn, Database, Person, Reader, database
@@ -129,6 +129,18 @@ def delete_artifact(store: Reader, artifact_id: str) -> dict[str, object]:
     return store.delete_artifact(artifact_id)
 
 
+@router.get("/boards")
+def board_list(store: Reader, found: Annotated[Database, Depends(database)]) -> dict[str, object]:
+    """The boards with a frame the request reaches."""
+    return {"boards": boards.listing(store, _boards(found))}
+
+
+@router.get("/boards/{board_id}")
+def board(store: Reader, found: Annotated[Database, Depends(database)], board_id: str) -> dict[str, object]:
+    """A board, and each of its frames the request reaches, with its artifact."""
+    return boards.shown(store, _boards(found), board_id)
+
+
 @router.post("/threads/{thread_id}/replies", status_code=201)
 def reply(store: Reader, thread_id: str, given: CommentBody) -> dict[str, object]:
     """Reply in a thread."""
@@ -181,6 +193,11 @@ def revoke(conn: Conn, person: Person, token_id: str) -> dict[str, object]:
 def house_style() -> dict[str, str]:
     """Louvre's house style for artifacts, as the `style_get` tool gives it."""
     return {"version": style.VERSION, "css": style.CSS, "rules": style.RULES}
+
+
+def _boards(found: Database) -> tuple[boards.Board, ...]:
+    """The boards there are: mock data for now, the demo's design study when the demo is on (roadmap M3)."""
+    return (demo.BOARD,) if found.settings.demo else ()
 
 
 def _dicts(value: object) -> list[dict[str, object]]:

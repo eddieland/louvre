@@ -1,4 +1,4 @@
-"""What people do on Louvre's pages, in Chromium: comment on words they select, reply, resolve, and mint tokens.
+"""What people do on Louvre's pages, in Chromium: comment on selected words, reply, resolve, pan a board, mint tokens.
 
 These drive a browser, so they run with the screen matrix (`make screens`, CI's screens job), against the live app on
 the test database. A selection is made inside the artifact's sandboxed frame, as a reader's would be, so the bridge's
@@ -8,10 +8,11 @@ reading of the page and the server's must agree for a comment to land.
 import json
 import os
 import re
-from collections.abc import Iterator
+import time
+from collections.abc import Iterator, Sequence
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page, expect
+from playwright.sync_api import Browser, BrowserContext, CDPSession, Page, expect
 
 from tests.conftest import WRITES
 
@@ -23,6 +24,11 @@ PAGE = (
     "<h1>Cache report</h1><p>The cache is <em>slow under load</em>, because every miss takes the lock.</p>"
     "<p>We should shard it.</p><p>Then measure again.</p></main></body></html>"
 )
+
+#: How close two of a board's views are to be the same: the browser keeps a transform to a few decimal places.
+CLOSE = 0.001
+#: How long a board may take to be drawn as a test expects, in seconds.
+DEADLINE = 5.0
 
 pytestmark = pytest.mark.skipif(MODE not in {"1", "update"}, reason="drives a browser: run `make screens`")
 
@@ -85,7 +91,7 @@ def shown(page: Page) -> None:
 
 def select(page: Page, start: str, end: str) -> None:
     """Select, inside the frame, from the first character of `start` to the last of `end`."""
-    frame = page.frames[1]
+    frame = next(f for f in page.frames if "/content/" in f.url)
     frame.evaluate(
         """([start, end]) => {
             const find = (words) => {
@@ -189,3 +195,110 @@ def test_a_reader_of_the_demo_is_asked_to_sign_in_to_reply(browser: Browser, liv
         expect(page.locator("button.add")).to_have_count(0)
     finally:
         context.close()
+
+
+def board(page: Page) -> None:
+    """Open the demo's board, and wait until it is fitted to the screen and its frames' pages have loaded."""
+    page.goto("/b/design-study")
+    page.wait_for_selector(".world[data-ready]", state="attached")
+    expect(page.locator(".board-frame iframe")).to_have_count(6)
+
+
+def view(page: Page) -> tuple[float, float, float]:
+    """Read how the board's canvas is drawn: its offset on the screen, and its scale.
+
+    Returns:
+        Its x, y, and scale.
+    """
+    drawn = page.evaluate(
+        "() => { const m = new DOMMatrix(getComputedStyle(document.querySelector('.world')).transform);"
+        " return [m.e, m.f, m.a]; }",
+    )
+    return float(drawn[0]), float(drawn[1]), float(drawn[2])
+
+
+def drawn(page: Page, x: float | None = None, y: float | None = None, scale: float | None = None) -> None:
+    """Wait until the board's canvas is drawn at the offset and scale given, any for one not given."""
+    want = (x, y, scale)
+    deadline = time.monotonic() + DEADLINE
+    while True:
+        got = view(page)
+        if all(w is None or abs(g - w) <= CLOSE for g, w in zip(got, want, strict=True)):
+            return
+        assert time.monotonic() < deadline, f"the board is drawn at {got}, not {want}"
+        page.wait_for_timeout(50)
+
+
+def test_a_reader_pans_and_zooms_a_board_then_opens_a_frame_and_comments_on_it(context: BrowserContext) -> None:
+    page = context.new_page()
+    board(page)
+    x, y, fitted = view(page)
+
+    page.mouse.move(700, 600)
+    page.mouse.down()
+    page.mouse.move(600, 550, steps=5)
+    page.mouse.up()
+    drawn(page, x - 100, y - 50, fitted)
+    assert "/b/design-study" in page.url, "a drag that ends on a frame opened it"
+
+    page.mouse.wheel(0, -200)
+    page.wait_for_function(f"new DOMMatrix(getComputedStyle(document.querySelector('.world')).transform).a > {fitted}")
+    page.get_by_role("button", name="Fit to screen").click()
+    drawn(page, x, y, fitted)
+    page.get_by_role("button", name="Zoom in").click()
+    drawn(page, scale=fitted * 1.25)
+    page.keyboard.press("0")
+    drawn(page, x, y, fitted)
+
+    page.get_by_role("link", name="Open Direction: Gallery, Phone, 390").click()
+    page.wait_for_url(re.compile(r"/a/a_\w+\?board=design-study&frame=gallery-phone$"))
+    shown(page)
+    assert page.locator(".sheet").bounding_box()["width"] <= 392  # type: ignore[index]
+    select(page, "What we", "measured")
+    page.click("button.add")
+    page.fill(".thread[data-id=draft] textarea", "The phone's heads read well.")
+    page.keyboard.press("Control+Enter")
+    expect(page.locator(".thread.is-active .comments")).to_contain_text("The phone's heads read well.")
+
+    page.get_by_role("link", name="Back to Design study, 2026-10-23").click()
+    page.wait_for_url(re.compile(r"/b/design-study$"))
+
+
+def test_on_a_phone_a_reader_drags_and_pinches_a_board_then_taps_a_frame_open(browser: Browser, live_app: str) -> None:
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        touch = context.new_cdp_session(page)
+        x, y, fitted = view(page)
+
+        fingers(touch, [[(200, 500)], [(180, 480)], [(150, 460)]])
+        drawn(page, x - 50, y - 40, fitted)
+
+        fingers(touch, [[(150, 450), (250, 450)], [(125, 450), (275, 450)], [(100, 450), (300, 450)]])
+        drawn(page, scale=fitted * 2)
+        assert "/b/design-study" in page.url
+
+        page.get_by_role("button", name="Fit to screen").tap()
+        page.get_by_role("link", name="Open Direction: Studio, Laptop, 1440").tap()
+        page.wait_for_url(re.compile(r"frame=studio-laptop$"))
+        expect(page.locator("iframe.exhibit")).to_be_visible()
+    finally:
+        context.close()
+
+
+def fingers(session: CDPSession, steps: Sequence[Sequence[tuple[int, int]]]) -> None:
+    """Touch the screen: the fingers go down where the first step has them, move through the rest, and lift."""
+    for i, step in enumerate(steps):
+        points = [{"x": px, "y": py, "id": n} for n, (px, py) in enumerate(step)]
+        session.send(
+            "Input.dispatchTouchEvent",
+            {"type": "touchStart" if i == 0 else "touchMove", "touchPoints": points},
+        )
+    session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})

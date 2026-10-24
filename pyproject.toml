@@ -58,7 +58,7 @@ fallback-version = "0.0.0"
 [tool.hatch.build.targets.wheel]
 packages = ["src/louvre"]
 
-# Files the web app serves from the repository, bundled into the wheel. louvre.web.explorations finds them here in an
+# Files the web app serves from the repository, bundled into the wheel. louvre.core.explorations finds them here in an
 # installed copy, such as Vercel's, and at the repository root in a source checkout.
 [tool.hatch.build.targets.wheel.force-include]
 "docs/ui-explorations" = "louvre/_data/explorations"

@@ -9,7 +9,7 @@ import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { ThreadNote } from '@/components/thread-note'
 import type { Draft } from '@/components/thread-note'
-import { ApiError, artifactQuery, request, sessionQuery, threadsQuery, useThreadWrites } from '@/lib/api'
+import { ApiError, artifactQuery, boardQuery, request, sessionQuery, threadsQuery, useThreadWrites } from '@/lib/api'
 import type { Account, Detail, Thread } from '@/lib/api'
 import { ago, count, provenance, roman } from '@/lib/format'
 import { clearSelection } from '@/lib/frame'
@@ -34,11 +34,25 @@ function noteOf(rail: HTMLElement | null, id: string): HTMLElement | null {
     )
 }
 
+/** Which version the page shows, and the board frame it was opened from, if any. */
+interface Search {
+    /** The version, when it is not the latest. */
+    v?: number
+    /** The board it was opened from. */
+    board?: string
+    /** The frame on that board, whose width the page is shown at. */
+    frame?: string
+}
+
 /** An artifact's page: a version in its frame, its threads in the margin (ui/DESIGN.md). */
 export const Route = createFileRoute('/a/$artifactId')({
-    validateSearch: (search: Record<string, unknown>): { v?: number } => {
+    validateSearch: (search: Record<string, unknown>): Search => {
         const v = Number(search['v'])
-        return Number.isInteger(v) && v > 0 ? { v } : {}
+        const { board, frame } = search
+        return {
+            ...(Number.isInteger(v) && v > 0 ? { v } : {}),
+            ...(typeof board === 'string' && typeof frame === 'string' ? { board, frame } : {}),
+        }
     },
     component: ArtifactPage,
 })
@@ -81,6 +95,11 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const version = Math.min(search.v ?? artifact.latest_version, artifact.latest_version)
     const latest = version === artifact.latest_version
     const shown = versions.find((v) => v.n === version)
+    // Opened from a board's frame: shown at the frame's width, with the way back to the board.
+    const framed =
+        search.board !== undefined && search.frame !== undefined ? { board: search.board, frame: search.frame } : {}
+    const board = useQuery({ ...boardQuery(search.board ?? ''), enabled: search.board !== undefined })
+    const boardFrame = board.data?.frames.find((f) => f.id === search.frame && f.artifact.id === artifact.id)
     const threadsResult = useQuery(threadsQuery(artifact.id, version))
     const threads = threadsResult.data?.threads ?? []
     const writes = useThreadWrites(artifact.id)
@@ -390,13 +409,24 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
             />
             <nav className="toolbar" aria-label="Versions and threads">
                 <div className="versions">
+                    {board.data && boardFrame ? (
+                        <Link
+                            to="/b/$boardId"
+                            params={{ boardId: board.data.board.id }}
+                            className="pill back"
+                            aria-label={`Back to ${board.data.board.title}`}
+                        >
+                            &larr; <span className="long">{board.data.board.title}</span>
+                            <span className="short">Board</span>
+                        </Link>
+                    ) : null}
                     <span className="label long">Version</span>
                     {versions.map((v) => (
                         <Link
                             key={v.n}
                             to="/a/$artifactId"
                             params={{ artifactId: artifact.id }}
-                            search={v.n === artifact.latest_version ? {} : { v: v.n }}
+                            search={{ ...(v.n === artifact.latest_version ? {} : { v: v.n }), ...framed }}
                             className="pill"
                             data-current={v.n === version ? '' : undefined}
                             activeOptions={{ includeSearch: true }}
@@ -460,17 +490,20 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
             {latest ? null : (
                 <p className="older">
                     This is version {roman(version)}. Comments go on the latest,{' '}
-                    <Link to="/a/$artifactId" params={{ artifactId: artifact.id }} className="link">
+                    <Link to="/a/$artifactId" params={{ artifactId: artifact.id }} search={framed} className="link">
                         version {roman(artifact.latest_version)}
                     </Link>
                     .
                 </p>
             )}
-            <main className="stage">
-                <div className="sheet">
+            <main className="stage" data-framed={boardFrame ? '' : undefined}>
+                <div
+                    className="sheet"
+                    style={boardFrame ? { maxWidth: `${String(boardFrame.width + 2)}px` } : undefined}
+                >
                     <p className="label">
                         <span>
-                            {artifact.title} &middot; {kind}
+                            {artifact.title} &middot; {boardFrame ? boardFrame.label : kind}
                         </span>
                         <span>{shown ? `Published ${ago(shown.created_at)}` : null}</span>
                     </p>

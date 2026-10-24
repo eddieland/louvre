@@ -100,6 +100,46 @@ export interface Detail {
     owned: boolean
 }
 
+/** A board in the list: how many of its frames the reader reaches, and their artifacts' open threads. */
+export interface ListedBoard {
+    /** Its id. */
+    id: string
+    /** What it is called. */
+    title: string
+    /** Where its frames' artifacts are. */
+    namespace: string
+    /** How many of its frames the reader reaches. */
+    frames: number
+    /** How many threads are open on those frames' artifacts. */
+    open_threads: number
+}
+
+/** One artifact on a board, at a screen's size and a place on the canvas, in CSS pixels. */
+export interface BoardFrame {
+    /** Unique on its board. */
+    id: string
+    /** What the board calls it beside its artifact's title, such as "Phone, 390". */
+    label: string
+    /** Its left edge on the canvas. */
+    x: number
+    /** Its top edge on the canvas. */
+    y: number
+    /** The width it is shown at, as a screen that wide would show it. */
+    width: number
+    /** The height it is shown at. */
+    height: number
+    /** The artifact it shows, at its latest version. */
+    artifact: Listed
+}
+
+/** A board and the frames on it the reader reaches. */
+export interface Board {
+    /** The board. */
+    board: { id: string; title: string; namespace: string }
+    /** Its frames, in the order it lists them. */
+    frames: BoardFrame[]
+}
+
 /** A signed-in person. */
 export interface Account {
     /** Their id, such as gh:583231. */
@@ -193,6 +233,20 @@ export const sessionQuery = queryOptions({
 export function listArtifacts(cursor: string | null) {
     const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
     return request<{ artifacts: Listed[]; next_cursor: string | null }>('GET', `/api/artifacts${query}`)
+}
+
+/** The boards the reader reaches a frame of. */
+export const boardsQuery = queryOptions({
+    queryKey: ['boards'],
+    queryFn: () => request<{ boards: ListedBoard[] }>('GET', '/api/boards'),
+})
+
+/** A board, with its frames. */
+export function boardQuery(id: string) {
+    return queryOptions({
+        queryKey: ['board', id],
+        queryFn: () => request<Board>('GET', `/api/boards/${encodeURIComponent(id)}`),
+    })
 }
 
 /** An artifact and its versions. */

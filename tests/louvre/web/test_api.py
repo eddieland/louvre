@@ -149,7 +149,7 @@ def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> No
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
     assert {a["namespace"] for a in listed} == {"demo"}
-    assert len(listed) == 3
+    assert len(listed) == 6
     assert response.status_code == 403
     assert response.json()["code"] == "read_only"
 
@@ -166,6 +166,36 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
     agents = [c["author"] for t in threads for c in t["comments"] if c["author"]["kind"] == "agent"]
     assert agents
     assert {a["on_behalf_of_name"] for a in agents} == {"Sam Okafor"}
+
+
+def test_the_demos_board_is_listed_and_shown_with_its_frames(web: MakeWeb) -> None:
+    client = web(demo=True)
+
+    listed = client.get("/api/boards").json()["boards"]
+    shown = client.get("/api/boards/design-study").json()
+
+    assert listed == [
+        {
+            "id": "design-study",
+            "title": "Design study, 2026-10-23",
+            "namespace": "demo",
+            "frames": 6,
+            "open_threads": 2,
+        },
+    ]
+    assert shown["board"]["title"] == "Design study, 2026-10-23"
+    assert [f["id"] for f in shown["frames"]][:2] == ["gallery-laptop", "gallery-phone"]
+    assert shown["frames"][0]["artifact"]["title"] == "Direction: Gallery"
+
+
+def test_there_are_no_boards_without_the_demo(web: MakeWeb) -> None:
+    client = web()
+    sign_in(client, "ana")
+
+    assert client.get("/api/boards").json() == {"boards": []}
+    response = client.get("/api/boards/design-study")
+    assert response.status_code == 404
+    assert response.json()["code"] == "not_found"
 
 
 def test_only_its_owner_deletes_an_artifact(web: MakeWeb, published: str) -> None:
