@@ -96,8 +96,16 @@ person may comment where they stand.
 
 ### U11. A person hears what waits on them
 
-Gap; the half inside Louvre, an inbox, is built in #26. A reply to their comment, or a decision that asks them,
-reaches a person away from Louvre. C1 binds Louvre's readers of the feed, not people.
+Half built: the inbox, inside Louvre, at the operator's word (2026-10-24), outside the milestones. A person learns
+what changed on the artifacts they take part in without opening each one: those they commented on, and those their
+agents published. Their inbox lists each such artifact with a reply, a resolving, or a version they have not read,
+the newest first, quoting the passage and the words; the header counts them on every page. Opening one opens its
+newest thread, marks the threads that were new, and marks the artifact read, through what the page was shown, so a
+reply that lands meanwhile stays new. Their own words and their own agents' are never news to them; a version is,
+whoever published it.
+
+Gap: reaching a person away from Louvre, so a reply to their comment, or a decision that asks them, finds them where
+they are. C1 binds Louvre's readers of the feed, not people.
 
 ### U12. Search across artifacts
 

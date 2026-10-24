@@ -37,6 +37,7 @@ LIVE_DEADLINE = 15.0
 WRITES = {"X-Louvre": "1"}
 #: Every table the store writes, emptied before each test.
 TABLES = (
+    "reads",
     "files",
     "blobs",
     "decision_events",

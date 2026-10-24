@@ -5,16 +5,17 @@ answer alike. A refusal is answered as `{"code": ..., "message": ...}`, with the
 needs the header `X-Louvre: 1`, which a form or a link from another site cannot send (louvre.web.app).
 """
 
+from collections.abc import Sequence
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from louvre.core import accounts, boards, demo, explorations, style
+from louvre.core import accounts, boards, demo, explorations, inbox, style
 from louvre.core.decisions import MAX_OPTIONS, Decisions
 from louvre.core.store import MAX_BODY, MAX_EXACT, iso
 from louvre.core.text import CONTEXT, Anchor
-from louvre.web.caller import SESSION_COOKIE, Conn, Database, Person, Reader, database
+from louvre.web.caller import SESSION_COOKIE, Conn, Database, Person, Reader, Viewer, database
 
 router = APIRouter(prefix="/api")
 
@@ -48,6 +49,13 @@ class ResolveBody(_Body):
     """Whether a thread is resolved."""
 
     resolved: bool
+
+
+class ReadBody(_Body):
+    """What a person has read of an artifact: the version shown, and the `seq` its threads were read at."""
+
+    version: Annotated[int, Field(ge=1)]
+    through: Annotated[int, Field(ge=0)]
 
 
 class AnswerBody(_Body):
@@ -115,21 +123,31 @@ def artifact(store: Reader, artifact_id: str) -> dict[str, object]:
 def threads(
     store: Reader,
     conn: Conn,
+    account: Viewer,
     artifact_id: str,
     version: Annotated[int | None, Query(ge=1)] = None,
 ) -> dict[str, object]:
-    """An artifact's threads, each anchor looked for in a version, an agent's comments with whom it writes for."""
+    """An artifact's threads, each anchor looked for in a version, an agent's comments with whom it writes for.
+
+    For a signed-in person, each thread says whether it has news for them (louvre.core.inbox), and `through` is the
+    `seq` to mark the artifact read through once they have been shown: read before the threads, so it covers no
+    change the threads leave out.
+    """
+    through, fresh = (None, set[str]()) if account is None else inbox.unread(conn, account.id, artifact_id)
     found = store.threads(artifact_id, version=version)
-    comments = [c for t in _dicts(found["threads"]) for c in _dicts(t["comments"])]
-    behalf = {
-        str(a["on_behalf_of"]) for c in comments if (a := c["author"]) and isinstance(a, dict) and a.get("on_behalf_of")
-    }
-    named = accounts.names(conn, behalf)
-    for comment in comments:
-        author = comment["author"]
-        if isinstance(author, dict):
-            author["on_behalf_of_name"] = named.get(str(author.get("on_behalf_of")))
-    return found
+    listed = _dicts(found["threads"])
+    for thread in listed:
+        thread["unread"] = thread["id"] in fresh
+    _name_agents(conn, [c["author"] for t in listed for c in _dicts(t["comments"])])
+    return {**found, "through": through}
+
+
+@router.post("/artifacts/{artifact_id}/read")
+def read(store: Reader, conn: Conn, person: Person, artifact_id: str, given: ReadBody) -> dict[str, object]:
+    """Mark an artifact read by the signed-in person: the version shown, and its threads through `through`."""
+    store.versions(artifact_id)
+    inbox.read(conn, person.id, artifact_id, version=given.version, through=given.through)
+    return {"artifact_id": artifact_id}
 
 
 @router.post("/artifacts/{artifact_id}/threads", status_code=201)
@@ -241,6 +259,20 @@ def close(store: Reader, decision_id: str, given: CloseBody) -> dict[str, object
     return Decisions(store).close(decision_id, given.outcome, given.note)
 
 
+@router.get("/inbox")
+def news(conn: Conn, person: Person) -> dict[str, object]:
+    """What is new to the signed-in person on the artifacts they take part in, the newest first."""
+    entries = inbox.inbox(conn, person.id)
+    _name_agents(conn, [n["author"] for e in entries for n in _dicts(e["news"])])
+    return {"entries": entries}
+
+
+@router.post("/inbox/read")
+def read_everything(conn: Conn, person: Person) -> dict[str, object]:
+    """Mark everything in the signed-in person's inbox read."""
+    return {"artifacts": inbox.read_all(conn, person.id)}
+
+
 @router.get("/tokens")
 def tokens(conn: Conn, person: Person) -> dict[str, object]:
     """The signed-in person's tokens, newest first."""
@@ -291,12 +323,16 @@ def _named(conn: Conn, listed: dict[str, object]) -> dict[str, object]:
     Returns:
         `listed`, each decision's author with `on_behalf_of_name`.
     """
-    found = _dicts(listed["decisions"])
-    authors = [a for d in found if isinstance(a := d["author"], dict)]
-    named = accounts.names(conn, {str(a["on_behalf_of"]) for a in authors if a.get("on_behalf_of")})
-    for author in authors:
-        author["on_behalf_of_name"] = named.get(str(author.get("on_behalf_of")))
+    _name_agents(conn, [d["author"] for d in _dicts(listed["decisions"])])
     return listed
+
+
+def _name_agents(conn: Conn, authors: Sequence[object]) -> None:
+    """Name the person each agent among `authors` writes for, as `on_behalf_of_name`, where Louvre knows them."""
+    found = [author for author in authors if isinstance(author, dict)]
+    named = accounts.names(conn, {str(a["on_behalf_of"]) for a in found if a.get("on_behalf_of")})
+    for author in found:
+        author["on_behalf_of_name"] = named.get(str(author.get("on_behalf_of")))
 
 
 def _dicts(value: object) -> list[dict[str, object]]:
