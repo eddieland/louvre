@@ -10,6 +10,10 @@ notes ship, decided. They are seeded once too, after the artifacts they are aske
 
 The design study the operator picked Louvre's look from (docs/ui-explorations/2026-10-23-directions) is its first
 board: each direction at a laptop's size and a phone's, side by side, a row a direction (roadmap M3).
+
+canopy's two design studies (canopy/, copied from canopy's docs/ui-explorations) are its agent's work too: the style
+study's nine looks are its second board, a row a round, and the structure study is one page, with the screenshots it
+shows beside it.
 """
 
 import re
@@ -20,6 +24,7 @@ from louvre.core.accounts import Account, person_scope, upsert_account
 from louvre.core.boards import Board, Frame
 from louvre.core.db import MIGRATE_LOCK, Connection
 from louvre.core.decisions import Decisions, Option
+from louvre.core.files import File, Type
 from louvre.core.store import Author, Permission, Scope, Store, Via
 from louvre.core.text import Anchor
 
@@ -63,10 +68,46 @@ BOARD = Board(
         for column, (screen, label, width, height) in enumerate(SCREENS)
     ),
 )
+#: canopy's style study, its pages by file name in the order its board shows them, each round a row, and the origin its
+#: artifacts carry; each adds `page`, its file's name.
+CANOPY_STYLE = "2026-10-08-style"
+CANOPY_STYLE_ROUNDS = (
+    ("0-today-instrument-panel", "a-terminal-ledger", "b-field-notes", "c-control-room", "d-calm-inbox"),
+    ("e-ops-inbox-dark", "e-ops-inbox-light", "f-ledger-inbox-dark", "f-ledger-inbox-light"),
+)
+CANOPY_STYLE_ORIGIN = {"canopy.repo": "canopy", "study": CANOPY_STYLE}
+#: canopy's structure study: one page, and the origin its artifact carries.
+CANOPY_STRUCTURE = "2026-10-19-structure"
+CANOPY_STRUCTURE_ORIGIN = {"canopy.repo": "canopy", "study": CANOPY_STRUCTURE}
+#: The board of canopy's style study: every page drew the same Attention screen at a laptop's size, so a row a round.
+CANOPY_STYLE_BOARD = Board(
+    id="canopy-style",
+    title="canopy's style study, 2026-10-08",
+    namespace=NAMESPACE,
+    frames=tuple(
+        Frame(
+            id=page,
+            label=SCREENS[0][1],
+            origin={**CANOPY_STYLE_ORIGIN, "page": page},
+            x=column * (SCREENS[0][2] + BOARD_GAP),
+            y=row * (SCREENS[0][3] + BOARD_GAP),
+            width=SCREENS[0][2],
+            height=SCREENS[0][3],
+        )
+        for row, pages in enumerate(CANOPY_STYLE_ROUNDS)
+        for column, page in enumerate(pages)
+    ),
+)
+#: The demo's boards, in the order the catalogue lists them.
+BOARDS = (BOARD, CANOPY_STYLE_BOARD)
 #: Where the demo's pages are kept.
 _FILES = files("louvre.core.demo")
+#: Where the structure study's page names the screenshots it shows, which the demo publishes beside it.
+_SCREENSHOTS = "../../../ui/e2e/screenshots.spec.ts-snapshots/"
 #: A study page's links to Google's fonts, which an artifact's policy refuses: it loads nothing from the network.
 _FONT_LINK = re.compile(r"\s*<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>", re.IGNORECASE)
+#: A page's title, which a style study's artifact is published under.
+_TITLE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
 def seed(conn: Connection, *, base_url: str = "") -> bool:
@@ -83,6 +124,8 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         people = {login: Store(conn, person_scope(account)) for login, account in PEOPLE.items()}
         # Each part by an origin pair its artifacts carry, oldest first, so the newest shows first in the list.
         parts = (
+            (CANOPY_STYLE_ORIGIN, _canopy_style),
+            (CANOPY_STRUCTURE_ORIGIN, _canopy_structure),
             (STUDY_ORIGIN, _study),
             ({"canopy.ticket": "PAY-142"}, _checkout),
             ({"canopy.ticket": "REL-2026.11"}, _release_notes),
@@ -136,6 +179,50 @@ def _study(agent: Store, people: dict[str, Store]) -> None:
         )
     if "studio" in made:
         people["raj"].comment(made["studio"], None, "Good for triage, but too much chrome for reading a report.")
+
+
+def _canopy_style(agent: Store, people: dict[str, Store]) -> None:
+    """The style study canopy began with: nine looks, its board's frames, a thread on where it began and the pick."""
+    made: dict[str, str] = {}
+    for page in (page for pages in CANOPY_STYLE_ROUNDS for page in pages):
+        content = _FONT_LINK.sub("", (_FILES / "canopy" / CANOPY_STYLE / f"{page}.html").read_text(encoding="utf-8"))
+        title = match.group(1).strip() if (match := _TITLE.search(content)) else page
+        published = agent.publish(
+            title=f"{title} (canopy's style study)",
+            content_type="text/html",
+            content=content,
+            origin={**CANOPY_STYLE_ORIGIN, "page": page},
+        )
+        made[page] = str(published["artifact_id"])
+    people["raj"].comment(
+        made["0-today-instrument-panel"],
+        None,
+        "This one feels disconnected: a lab instrument, a name about trees, and a job that is mostly reading.",
+    )
+    people["ana"].comment(
+        made["e-ops-inbox-dark"],
+        None,
+        "The control room softened by the calm inbox. This is the one; the keyboard shortcuts can go.",
+    )
+
+
+def _canopy_structure(agent: Store, people: dict[str, Store]) -> None:
+    """The structure study canopy went on to: one page of boards, the screenshots it shows beside it, and a thread."""
+    folder = _FILES / "canopy" / CANOPY_STRUCTURE
+    shots = sorted((f for f in (folder / "screenshots").iterdir() if f.name.endswith(".png")), key=lambda f: f.name)
+    page = _FONT_LINK.sub("", (folder / "redrawn.html").read_text(encoding="utf-8"))
+    made = agent.publish(
+        title="canopy, redrawn",
+        content_type="text/html",
+        content=page.replace(_SCREENSHOTS, "screenshots/"),
+        origin=CANOPY_STRUCTURE_ORIGIN,
+        files=[File(f"screenshots/{shot.name}", Type.PNG, shot.read_bytes()) for shot in shots],
+    )
+    people["sam"].comment(
+        str(made["artifact_id"]),
+        None,
+        "Mailroom, as drawn, goes forward. Direction 1 stays a maybe: much cleaner than today's app.",
+    )
 
 
 def _checkout(agent: Store, people: dict[str, Store]) -> None:

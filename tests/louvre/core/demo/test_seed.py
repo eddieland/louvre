@@ -1,10 +1,10 @@
-"""The demo: published once, a part at a time, with the design study as its board."""
+"""The demo: published once, a part at a time, with the design studies as its boards."""
 
 import re
 
 import pytest
 
-from louvre.core import accounts, demo, style
+from louvre.core import accounts, demo, files, style
 from louvre.core.boards import shown
 from louvre.core.db import Connection
 from louvre.core.decisions import Decisions
@@ -27,7 +27,7 @@ def test_the_demo_is_published_once(conn: Connection) -> None:
 
     listed = reader(conn).overview()["artifacts"]
     assert isinstance(listed, list)
-    assert len(listed) == 9
+    assert len(listed) == 19
 
 
 def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
@@ -45,7 +45,7 @@ def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
         "Direction: Margins",
         "Direction: Studio",
     ]
-    assert len(titles) == 9
+    assert len(titles) == 19
 
 
 def test_the_design_study_is_a_board_of_each_direction_at_a_laptops_size_and_a_phones(conn: Connection) -> None:
@@ -80,13 +80,48 @@ def test_the_design_study_is_a_board_of_each_direction_at_a_laptops_size_and_a_p
     ]
 
 
-def test_the_studys_pages_load_nothing_from_the_network(conn: Connection) -> None:
+def test_canopys_style_study_is_a_board_of_its_looks_at_a_laptops_size_a_row_a_round(conn: Connection) -> None:
+    demo.seed(conn)
+
+    frames = shown(reader(conn), demo.BOARDS, demo.CANOPY_STYLE_BOARD.id)["frames"]
+
+    assert isinstance(frames, list)
+    assert [(f["id"], f["artifact"]["title"]) for f in frames] == [
+        ("0-today-instrument-panel", "Today: instrument panel (canopy's style study)"),
+        ("a-terminal-ledger", "Terminal ledger (canopy's style study)"),
+        ("b-field-notes", "Field notes (canopy's style study)"),
+        ("c-control-room", "Control room (canopy's style study)"),
+        ("d-calm-inbox", "Calm inbox (canopy's style study)"),
+        ("e-ops-inbox-dark", "Ops inbox (canopy's style study)"),
+        ("e-ops-inbox-light", "Ops inbox, light (canopy's style study)"),
+        ("f-ledger-inbox-dark", "Ledger inbox (canopy's style study)"),
+        ("f-ledger-inbox-light", "Ledger inbox, light (canopy's style study)"),
+    ]
+    assert {(f["width"], f["height"]) for f in frames} == {(1440, 900)}
+    assert [(f["x"] // 1440, f["y"] // 900) for f in frames] == [(c, 0) for c in range(5)] + [(c, 1) for c in range(4)]
+
+
+def test_canopys_structure_study_shows_the_screenshots_beside_it(conn: Connection) -> None:
     demo.seed(conn)
     store = reader(conn)
+    [made] = store.overview(origin=demo.CANOPY_STRUCTURE_ORIGIN)["artifacts"]  # type: ignore[misc]
+    content = str(store.read(made["id"])["content"])
+    named = set(re.findall(r"file: '([^']+)'", content))
 
-    for frame in shown(store, [demo.BOARD], demo.BOARD.id)["frames"]:  # type: ignore[union-attr]
-        content = str(store.read(frame["artifact"]["id"])["content"])
-        assert "https://" not in content, frame["id"]
+    assert named
+    assert {f["path"] for f in files.listed(conn, made["id"], 1)} == named
+
+
+def test_the_studies_pages_load_nothing_from_the_network(conn: Connection) -> None:
+    demo.seed(conn)
+    store = reader(conn)
+    studies = ({"canopy.ticket": "LOUVRE-M1"}, demo.CANOPY_STYLE_ORIGIN, demo.CANOPY_STRUCTURE_ORIGIN)
+    pages = [a for origin in studies for a in store.overview(origin=origin)["artifacts"]]  # type: ignore[union-attr]
+
+    assert len(pages) == 13
+    for page in pages:
+        content = str(store.read(page["id"])["content"])
+        assert "https://" not in content, page["title"]
 
 
 @pytest.mark.parametrize(
