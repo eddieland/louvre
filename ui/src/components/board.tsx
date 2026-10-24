@@ -4,7 +4,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 
 import { SANDBOX } from '@/components/frame'
 import { Header } from '@/components/header'
-import { bounds, fit, panBy, wheelFactor, ZOOM_STEP, zoomAt } from '@/lib/canvas'
+import { bounds, fit, live, panBy, wheelFactor, ZOOM_STEP, zoomAt } from '@/lib/canvas'
 import type { Point, View } from '@/lib/canvas'
 import { count } from '@/lib/format'
 import { useTheme } from '@/lib/theme'
@@ -74,12 +74,16 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
     // The moves made since the board was last drawn: a phone sends pointer moves faster than its screen redraws, so
     // they are drawn together, once a frame.
     const pending = useRef<((current: View) => View) | null>(null)
-    // Whether the zoom is changing, and when it is still again. Each step of a zoom redraws every frame's page at the
-    // new size, which a phone has not the memory to do many times a second: while it changes, the pages are put away.
-    const [zooming, setZooming] = useState(false)
-    const settling = useRef<ReturnType<typeof setTimeout>>(undefined)
+    // The view once it has been still for a moment, and the canvas's size: the pages are drawn from them, not from the
+    // view. Each step of a zoom would redraw every page at the new size, and each step of a pan on a phone load and
+    // unload them, which a phone has not the memory to do many times a second.
+    const [settled, setSettled] = useState<View | null>(null)
+    const [screen, setScreen] = useState<{ width: number; height: number } | null>(null)
 
     const world = bounds(frames, LABEL_ROOM)
+    // While the zoom changes, the pages are put away; once it is still, those the screen can hold are drawn.
+    const zooming = view !== null && settled?.scale !== view.scale
+    const shown = new Set(settled && screen ? live(frames, settled, screen.width, screen.height).map((f) => f.id) : [])
 
     const fitView = () => {
         const viewport = viewportRef.current
@@ -105,21 +109,23 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         }
     }
 
-    const zoom = (next: (current: View) => View) => {
-        change(next)
-        setZooming(true)
-        clearTimeout(settling.current)
-        settling.current = setTimeout(() => setZooming(false), SETTLE)
-    }
-
     const middle = (): Point => {
         const viewport = viewportRef.current
         return { x: (viewport?.clientWidth ?? 0) / 2, y: (viewport?.clientHeight ?? 0) / 2 }
     }
 
-    const zoomBy = (factor: number) => zoom((was) => zoomAt(was, factor, middle()))
+    const zoomBy = (factor: number) => change((was) => zoomAt(was, factor, middle()))
+
+    useEffect(() => {
+        const timer = setTimeout(() => setSettled(view), SETTLE)
+        return () => clearTimeout(timer)
+    }, [view])
 
     const onResize = useEffectEvent(() => {
+        const viewport = viewportRef.current
+        if (viewport) {
+            setScreen({ width: viewport.clientWidth, height: viewport.clientHeight })
+        }
         if (fitted.current) {
             fitView()
         }
@@ -141,7 +147,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         const at = viewportRef.current?.getBoundingClientRect()
         if (at) {
             const factor = wheelFactor(event.deltaY, event.deltaMode, event.ctrlKey)
-            zoom((was) => zoomAt(was, factor, { x: event.clientX - at.left, y: event.clientY - at.top }))
+            change((was) => zoomAt(was, factor, { x: event.clientX - at.left, y: event.clientY - at.top }))
         }
     })
     useEffect(() => {
@@ -209,7 +215,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
             const before = { at: halfway(was, other), apart: distance(was, other) }
             const after = { at: halfway(now, other), apart: distance(now, other) }
             const factor = before.apart > 0 ? after.apart / before.apart : 1
-            zoom((current) =>
+            change((current) =>
                 zoomAt(panBy(current, after.at.x - before.at.x, after.at.y - before.at.y), factor, after.at),
             )
             return
@@ -284,7 +290,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
                     style={view ? drawn(view) : { visibility: 'hidden' }}
                 >
                     {frames.map((frame) => (
-                        <FrameOnBoard key={frame.id} frame={frame} theme={theme} />
+                        <FrameOnBoard key={frame.id} frame={frame} theme={theme} running={shown.has(frame.id)} />
                     ))}
                 </div>
             </div>
@@ -292,14 +298,18 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
     )
 }
 
-/** A frame on the canvas: its label above it, its page running inside, and a link over it that opens it. */
-function FrameOnBoard({ frame, theme }: { frame: CanvasFrame; theme: Theme }) {
+/**
+ * A frame on the canvas: its label above it, its page running inside while it is live, its sheet alone while it is
+ * not, and a link over it that opens it.
+ */
+function FrameOnBoard({ frame, theme, running }: { frame: CanvasFrame; theme: Theme; running: boolean }) {
     const name = `${frame.title}, ${frame.label}`
     const label = <span className="sr-only">Open {name}</span>
     const { opens } = frame
     return (
         <figure
             className="board-frame"
+            data-live={running ? '' : undefined}
             style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
         >
             <figcaption className="board-label">
@@ -308,14 +318,16 @@ function FrameOnBoard({ frame, theme }: { frame: CanvasFrame; theme: Theme }) {
                 {frame.openThreads > 0 ? <span className="text-accent">{String(frame.openThreads)} open</span> : null}
             </figcaption>
             {/* Inert: the board takes every pointer and key, so a frame is read by opening it. */}
-            <iframe
-                src={frame.src}
-                title={name}
-                sandbox={SANDBOX}
-                referrerPolicy="no-referrer"
-                inert
-                style={{ colorScheme: theme }}
-            />
+            {running ? (
+                <iframe
+                    src={frame.src}
+                    title={name}
+                    sandbox={SANDBOX}
+                    referrerPolicy="no-referrer"
+                    inert
+                    style={{ colorScheme: theme }}
+                />
+            ) : null}
             {'href' in opens ? (
                 <a href={opens.href} className="board-open" draggable={false}>
                     {label}

@@ -72,9 +72,8 @@ def _artifact_shown(page: Page) -> None:
 
 
 def _board_shown(page: Page) -> None:
-    """Wait until the board is fitted to the screen and every frame's page has loaded."""
-    page.wait_for_selector(".world[data-ready]", state="attached")
-    page.wait_for_function("document.querySelectorAll('.board-frame iframe').length === 6")
+    """Wait until the board is fitted to the screen and the pages it draws have loaded."""
+    page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
     for frame in page.frames[1:]:
         frame.wait_for_load_state("load")
 

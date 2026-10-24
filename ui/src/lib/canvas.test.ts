@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { bounds, fit, MAX_SCALE, MIN_SCALE, panBy, wheelFactor, zoomAt } from './canvas'
+import { bounds, fit, live, MAX_SCALE, MIN_SCALE, panBy, wheelFactor, zoomAt } from './canvas'
 
 describe('bounds', () => {
     it('holds every box, with room above for their labels', () => {
@@ -74,3 +74,38 @@ describe('wheelFactor', () => {
         expect(wheelFactor(3, 1, false)).toBeCloseTo(wheelFactor(48, 0, false))
     })
 })
+
+describe('live', () => {
+    // The design study's board: a row a direction, its laptop beside its phone.
+    const frames = [0, 1, 2].flatMap((row) => [
+        { id: `laptop-${String(row)}`, x: 0, y: row * 1060, width: 1440, height: 900 },
+        { id: `phone-${String(row)}`, x: 1600, y: row * 1060, width: 390, height: 844 },
+    ])
+
+    it('draws every page on a screen wider than a phone', () => {
+        expect(ids(live(frames, { x: 0, y: 0, scale: 0.2 }, 1440, 780))).toEqual(ids(frames))
+    })
+
+    it('draws no page on a phone with the board fitted to it, too small to read', () => {
+        expect(live(frames, fit(bounds(frames, 80), 390, 700, 24), 390, 700)).toEqual([])
+    })
+
+    it('draws two pages at most on a phone, those it shows the most of first', () => {
+        // All six show in part; the second row's phone the most, then the first row's.
+        const shown = live(frames, { x: -440, y: -150, scale: 0.34 }, 390, 700)
+
+        expect(ids(shown)).toEqual(['phone-1', 'phone-0'])
+    })
+
+    it('counts a phone on its side as a phone', () => {
+        expect(live(frames, { x: 0, y: 0, scale: 0.1 }, 932, 330)).toEqual([])
+    })
+
+    it('draws no page that is off the screen', () => {
+        expect(live(frames, { x: -5000, y: 0, scale: 1 }, 390, 700)).toEqual([])
+    })
+})
+
+function ids(boxes: readonly { id: string }[]): string[] {
+    return boxes.map((box) => box.id)
+}
