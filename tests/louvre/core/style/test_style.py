@@ -8,9 +8,8 @@ from louvre.core import style
 
 #: Every class the stylesheet styles.
 STYLED = set(re.findall(r"\.(l-[a-z0-9-]+)", style.CSS))
-#: The classes no starter page needs: another element for the page and for a figure, and a chart's third and fourth
-#: series, which the report's chart of two does without.
-UNUSED = {"l-page", "l-figure", "l-c3", "l-c4"}
+#: The classes no starter page needs: another element for the page, and for a figure.
+UNUSED = {"l-page", "l-figure"}
 
 
 @pytest.mark.parametrize("kind", list(style.Kind))

@@ -67,6 +67,28 @@ instance asks the tax service again.</p>
 </tbody>
 </table>
 </div>
+<figure class="l-plot">
+<figcaption><span class="l-say">Redis makes a sixteenth of the tax calls of no cache at all</span>
+<span class="l-measure">Tax calls a week, replaying 22 October</span></figcaption>
+<svg class="l-chart" viewBox="0 0 440 106" role="img">
+<title>Redis makes a sixteenth of the tax calls of no cache at all. Tax calls a week, replaying 22
+    October</title>
+<text class="l-name" x="0" y="21" fill="var(--l-muted)">In process</text>
+<rect x="88" y="10" width="113.50" height="14" fill="var(--l-muted)" opacity="0.6"/>
+<text x="207.5" y="21" text-anchor="start">1.2M</text>
+<text class="l-name" x="0" y="55" fill="var(--l-ink)">Redis</text>
+<rect x="88" y="44" width="17.97" height="14" fill="var(--l-accent)" opacity="1"/>
+<text x="111.97" y="55" text-anchor="start" class="l-value" fill="var(--l-accent)">190k</text>
+<text class="l-mark" x="147.97" y="48">1</text>
+<text class="l-name" x="0" y="89" fill="var(--l-muted)">No cache</text>
+<rect x="88" y="78" width="293.20" height="14" fill="var(--l-muted)" opacity="0.6"/>
+<text x="387.2" y="89" text-anchor="start">3.1M</text>
+</svg>
+<ol class="l-notes">
+<li>Redis, recommended: one small node, about $40 a month.</li>
+</ol>
+<p class="l-source">A replay of 22 October&#x27;s checkout traffic against each option, in staging</p>
+</figure>
 <h2>Why Redis</h2>
 <p>Redis serves half as many quotes again from cache as the processes do, because deploys and retries no longer
 miss.</p>

@@ -37,7 +37,8 @@ lags it.
    from with the stylesheet inlined.
 3. Read the guide whole before writing: it is short, and it is the rules for the page.
 4. Write the page from the starter. Replace every placeholder sentence: each says what goes in its place. Keep the
-   components the page needs and drop the rest; never leave a placeholder in.
+   components the page needs and drop the rest; never leave a placeholder in. For a chart, call
+   `style_chart` with the data and put the figure it returns in the page, rather than drawing the SVG yourself.
 5. Call `style_check` with the page, and fix every error it finds: each says what to do instead. Fix a warning
    unless the page has a reason for it. Then read the guide's "Before publishing" list for what it cannot see.
 6. If you can open a browser, look at the page at a phone's width, 390 px, and a laptop's, in dark and in light.
