@@ -1,4 +1,4 @@
-"""The tools agents call: the contract's eight, and Louvre's own: `style_get`, `style_check`, and the decisions' five.
+"""The tools agents call: the contract's eight, and Louvre's own: the style's, the decisions' five, and `files_publish`.
 
 Each is a request and what the store does with it. A tool's arguments are validated against its request, whose JSON
 schema is its input schema; the store then does the call, held to its scope. What a tool returns is JSON: one object,
@@ -7,13 +7,16 @@ or for `comment_feed` one change to a line, its `end` line last, as canopy's con
 (packages/canopy-artifacts), so a skill written against canopy's local store works against Louvre unchanged.
 """
 
+import base64
+import binascii
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
+from louvre.core import files as version_files
 from louvre.core import style
 from louvre.core.decisions import MAX_ASKED, MAX_DETAIL, MAX_LABEL, MAX_OPTIONS, MAX_QUESTION, MIN_OPTIONS, Decisions
 from louvre.core.decisions import Option as DecisionOption
@@ -82,6 +85,37 @@ class Publish(_Request):
         StrictStr | None,
         Field(description="To add a version to this artifact, which keeps its origin and its threads."),
     ] = None
+
+
+class FileRequest(_Request):
+    """A file beside a version's content."""
+
+    path: Annotated[
+        StrictStr,
+        Field(description="Where it is, relative to the page, as the page names it: p95.png, or data/regions.csv."),
+    ]
+    content_type: Annotated[version_files.Type, Field(description="What the file is.")]
+    data: Annotated[
+        StrictStr,
+        Field(
+            max_length=(version_files.MAX_FILE + 2) // 3 * 4,
+            description=f"The file, base64-encoded: at most {version_files.MAX_FILE:,} bytes before encoding.",
+        ),
+    ]
+
+
+class PublishWithFiles(Publish):
+    """Make an artifact, or add a version to one, with files beside its content."""
+
+    files: Annotated[
+        list[FileRequest],
+        Field(
+            min_length=1,
+            max_length=version_files.MAX_COUNT,
+            description=f"The files the page names: at most {version_files.MAX_COUNT}, and "
+            f"{version_files.MAX_FILES:,} bytes together.",
+        ),
+    ]
 
 
 class Read(_Request):
@@ -156,6 +190,13 @@ class StyleCheck(_Request):
         StrictStr,
         Field(max_length=MAX_CONTENT, description="The page, whole, as it would be published."),
     ]
+    files: Annotated[
+        list[StrictStr],
+        Field(
+            max_length=version_files.MAX_COUNT,
+            description="The paths of the files you will publish beside it with files_publish, if any.",
+        ),
+    ] = []
 
 
 class SeriesRequest(_Request):
@@ -364,11 +405,12 @@ TOOLS = (
     tool(
         "style_check",
         "Check an HTML page against the house style's guide before publishing it: what would not work in Louvre's "
-        "sandbox (a request to the network, storage, starter words left in) as errors, and what goes against the "
-        "guide (no title or viewport, a chart without words, a width a phone cannot fit, a fixed color) as "
-        "warnings. ok is true when nothing is an error. It reads the markup and runs no script.",
+        "sandbox (a request to the network, a file it names that is not among files, storage, starter words left "
+        "in) as errors, and what goes against the guide (no title or viewport, a chart without words, a width a phone "
+        "cannot fit, a fixed color, a file nothing names) as warnings. ok is true when nothing is an error. It reads "
+        "the markup and runs no script.",
         StyleCheck,
-        lambda _store, r: _checked(r.content),
+        lambda _store, r: _checked(r.content, r.files),
     ),
     tool(
         "style_chart",
@@ -430,11 +472,28 @@ TOOLS = (
         DecisionFeed,
         lambda store, r: Decisions(store).feed(r.origin, r.since, r.limit),
     ),
+    tool(
+        "files_publish",
+        "Publish a page with files beside it, such as its images, a font, or the data behind a chart (CSV or JSON): "
+        "artifact_publish's arguments and the files, each a path relative to the page, a type, and its bytes. The "
+        'page names each file by its path (<img src="p95.png">), and loads it, and nothing else, from Louvre. A '
+        "version's files are as fixed as its content: a revision publishes its files again, and an unchanged one costs "
+        "nothing to keep.",
+        PublishWithFiles,
+        lambda store, r: store.publish(
+            title=r.title,
+            content_type=r.content_type,
+            content=r.content,
+            origin=r.origin,
+            artifact_id=r.artifact_id,
+            files=[version_files.File(f.path, f.content_type, _decoded(f.data, f.path)) for f in r.files],
+        ),
+    ),
 )
 
 
-def _checked(page: str) -> dict[str, object]:
-    findings = check.check(page)
+def _checked(page: str, named: Iterable[str]) -> dict[str, object]:
+    findings = check.check(page, frozenset(named))
     return {
         "ok": not any(f.severity == check.Severity.ERROR for f in findings),
         "findings": [f.json() for f in findings],
@@ -458,3 +517,10 @@ def _charted(request: StyleChart) -> dict[str, object]:
         return {"figure": chart.figure(drawn)}
     except ValueError as e:
         raise Refused(Code.INVALID, str(e)) from None
+
+
+def _decoded(data: str, path: str) -> bytes:
+    try:
+        return base64.b64decode(data, validate=True)
+    except binascii.Error:
+        raise Refused(Code.INVALID, f"{path}'s data is not base64") from None

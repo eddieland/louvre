@@ -1,5 +1,6 @@
 """The MCP server answers the contract's tools as canopy's local store does, and Louvre's own, to the SDK's client."""
 
+import base64
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -48,6 +49,7 @@ TOOLS = [
     "decision_read",
     "decision_close",
     "decision_feed",
+    "files_publish",
 ]
 
 
@@ -296,6 +298,50 @@ def test_style_chart_draws_a_figure_from_data(client: Client) -> None:
     assert "<li>Recommended.</li>" in drawn["figure"]
     assert client.refused("style_chart", kind="line", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
     assert client.refused("style_chart", kind="pie", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
+
+
+def test_files_publish_publishes_a_page_with_its_files_beside_it(client: Client) -> None:
+    csv = base64.b64encode(b"region,p95\nus-east,410\n").decode()
+    page = '<h1>p95</h1><a href="p95.csv">The data</a>'
+
+    made = client.call(
+        "files_publish",
+        title="p95",
+        content_type="text/html",
+        content=page,
+        files=[{"path": "p95.csv", "content_type": "text/csv", "data": csv}],
+    )
+    bad = client.refused(
+        "files_publish",
+        title="p95",
+        content_type="text/html",
+        content=page,
+        files=[{"path": "p95.csv", "content_type": "text/csv", "data": "not base64!"}],
+    )
+    wrong = client.refused(
+        "files_publish",
+        title="p95",
+        content_type="text/html",
+        content=page,
+        files=[{"path": "p95.png", "content_type": "image/png", "data": csv}],
+    )
+
+    assert made["version"] == 1
+    assert client.call("artifact_read", artifact_id=made["artifact_id"])["content"] == page
+    assert bad == "invalid"
+    assert wrong == "invalid"
+
+
+def test_style_check_holds_a_page_to_the_files_published_beside_it(client: Client) -> None:
+    page = '<h1>p95</h1><img src="p95.png" alt="p95">'
+
+    beside = client.call("style_check", content=page, files=["p95.png", "unused.csv"])
+    alone = client.call("style_check", content=page)
+
+    assert {(f["rule"], f["severity"]) for f in beside["findings"]} >= {("file", "warning")}
+    assert beside["ok"] is True
+    assert alone["ok"] is False
+    assert ("file", "error") in {(f["rule"], f["severity"]) for f in alone["findings"]}
 
 
 def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:

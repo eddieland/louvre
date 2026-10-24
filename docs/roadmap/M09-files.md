@@ -17,4 +17,6 @@ network.
 Accept: an agent publishes a report with images and a data file beside it, and it renders on a phone and a laptop
 with no request leaving Louvre; a new version replaces a file, and the old version still shows its own.
 
-Status: not started.
+Status: in progress: built, at the operator's word (2026-10-24), as `files_publish`, a tool of Louvre's beside the
+contract (D011), so canopy's contract is unchanged; whether `artifact_publish` takes files stays canopy's to settle. A
+version with files is served under a key only its readers learn, which its files need (D012).

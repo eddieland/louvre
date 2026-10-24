@@ -133,9 +133,11 @@ signed-in person is `kind: person`. Louvre states the fact; whether a comment ca
 
 ### L8. Files beside a version
 
-Planned (M9). A version carries files beside its content, images, data, and fonts, published with it, immutable as
-it is, and served beside it under the artifact policy (L7), so a page loads what it needs without the network. One
-`content` string per version is canopy's contract, so this grows it, or is a tool of Louvre's beside it (D011).
+Built (M9), awaiting the operator's word. A version carries files beside its content, images, data, and fonts,
+published with it, immutable as it is, and served beside it under the artifact policy (L7), so a page loads what it
+needs without the network. One `content` string per version is canopy's contract, so for now the files come through a
+tool of Louvre's beside it, `files_publish` (D011), and canopy's contract is unchanged. A page and its files are
+served under a key only its readers learn (D012).
 
 ## Tokens and scope
 
@@ -182,7 +184,7 @@ To settle before the milestone that needs it:
   inline or in files published with it. For now it may not: its policy allows data: URLs, and fonts from Louvre
   itself, which serves only the house style's (D008, settled by the operator on 2026-10-24). Files beside a version
   (L8) and a map kit Louvre serves (U9) are planned so that it need not.
-- Whether canopy's `artifact_publish` takes a version's files, or a tool of Louvre's does (L8, D011).
+- Whether canopy's `artifact_publish` takes a version's files, as Louvre's `files_publish` does for now (L8, D011).
 - Whether canopy's contract takes a content type for geodata, and a place's anchor beside a thread's quote, or a place
   is carried as a quote alone (U9, U10).
 - Where the map kit's basemap tiles live, and what they cover: the whole earth to a low zoom, or a region in detail;
