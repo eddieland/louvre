@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The finding, as a title</title>
+<style>
+/* style.css */
+</style>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Report &middot; Who it is for</p>
+<h1>The finding, as a title</h1>
+<p class="l-lede">The finding, in a sentence or two: what a reader takes away if they read nothing else.</p>
+<p class="l-meta">From what data, over what dates &middot; Who or what wrote it, and when</p>
+<div class="l-kpis">
+<div class="l-kpi"><span>A measure</span><b>430&nbsp;ms</b><em class="l-good">&minus;62% on last week</em></div>
+<div class="l-kpi"><span>A rate</span><b>8.3%</b><em class="l-bad">+0.4 points on last week</em></div>
+<div class="l-kpi"><span>A count</span><b>212,400</b><em>Level with last week</em></div>
+</div>
+<figure>
+<figcaption>What the chart shows, with its unit</figcaption>
+<svg class="l-chart" viewBox="0 0 440 200" role="img"
+    aria-label="What the chart says, for a reader who cannot see it: this week fell from 1,180 to 430">
+<line x1="50" y1="170" x2="430" y2="170" stroke="var(--l-rule)"/>
+<line x1="50" y1="90" x2="430" y2="90" stroke="var(--l-rule)" stroke-dasharray="2 4"/>
+<text x="44" y="174" text-anchor="end">0</text>
+<text x="44" y="94" text-anchor="end">600</text>
+<text x="44" y="14" text-anchor="end">1,200</text>
+<polyline fill="none" stroke="var(--l-c2)" stroke-width="2"
+    points="60,111 120,108 180,112 240,109 300,111 360,110 420,112"/>
+<polyline fill="none" stroke="var(--l-c1)" stroke-width="3"
+    points="60,13 120,18 180,74 240,103 300,108 360,111 420,113"/>
+<text x="60" y="192">Mon</text>
+<text x="420" y="192" text-anchor="end">Sun</text>
+</svg>
+<ul class="l-legend">
+<li class="l-c1">This week</li>
+<li class="l-c2">Last week</li>
+</ul>
+</figure>
+<h2>A section, named for what it says</h2>
+<p>One claim to a sentence, so a comment can quote it.</p>
+<p>Another claim, with the evidence for it.</p>
+<div class="l-callout">The one thing a reader must not miss.</div>
+<div class="l-callout l-risk">A risk, or what got worse, and what it costs.</div>
+<h2>The numbers</h2>
+<table>
+<thead><tr><th>Item</th><th class="l-num">Measure</th><th class="l-num">Change</th></tr></thead>
+<tbody>
+<tr><td>First</td><td class="l-num">410&nbsp;ms</td><td class="l-num l-good">&minus;8%</td></tr>
+<tr><td>Second</td><td class="l-num">470&nbsp;ms</td><td class="l-num l-bad">+2%</td></tr>
+</tbody>
+</table>
+<footer>
+<p>Sources: where each number came from, so a reader can check it.</p>
+</footer>
+</main>
+</body>
+</html>

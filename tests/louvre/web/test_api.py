@@ -279,7 +279,11 @@ def test_a_markdown_version_is_shown_in_the_house_style(web: MakeWeb, agent: Mak
 
 
 def test_the_house_style_is_public(web: MakeWeb) -> None:
-    assert web().get("/api/style").json()["version"] == "louvre-1"
+    client = web()
+
+    assert client.get("/api/style").json()["version"] == "louvre-1"
+    assert client.get("/api/style", params={"kind": "plan"}).json()["kind"] == "plan"
+    assert client.get("/api/style", params={"kind": "essay"}).status_code == 422
 
 
 def test_an_unknown_api_route_is_json_not_the_ui(web: MakeWeb) -> None:

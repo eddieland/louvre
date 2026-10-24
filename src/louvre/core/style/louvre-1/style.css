@@ -1,0 +1,269 @@
+/* louvre-1: Louvre's house style for artifacts. Put class="louvre" on <body>. */
+:root {
+    color-scheme: dark light;
+    --l-bg: #1c1915;
+    --l-card: #23201b;
+    --l-ink: #ece5d8;
+    --l-muted: #a69c8c;
+    --l-rule: #322c24;
+    --l-accent: #d9776c;
+    --l-good: #6fbf8e;
+    --l-bad: #e0915a;
+    --l-c1: var(--l-accent);
+    --l-c2: #7fa7d9;
+    --l-c3: #d2b15c;
+    --l-c4: #6fb7ae;
+    --l-serif: "Source Serif 4", "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --l-display: Fraunces, "Iowan Old Style", Georgia, serif;
+    --l-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --l-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+    :root {
+        --l-bg: #fffdf8;
+        --l-card: #f6f1e7;
+        --l-ink: #1f1b16;
+        --l-muted: #6d6458;
+        --l-rule: #e0d6c4;
+        --l-accent: #8a2f2a;
+        --l-good: #2f7a4d;
+        --l-bad: #a5521b;
+        --l-c2: #2f5f94;
+        --l-c3: #86610f;
+        --l-c4: #2a6f68;
+    }
+}
+* { box-sizing: border-box; }
+body.louvre {
+    margin: 0;
+    background: var(--l-bg);
+    color: var(--l-ink);
+    font: 17px/1.6 var(--l-serif);
+    -webkit-text-size-adjust: 100%;
+}
+.louvre main, .louvre .l-page {
+    max-width: 42.5rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+}
+@media (min-width: 600px) {
+    body.louvre { font-size: 19px; line-height: 1.62; }
+    .louvre main, .louvre .l-page { padding: 3rem 2rem 4.5rem; }
+}
+.louvre h1, .louvre h2, .louvre h3 {
+    font-family: var(--l-display);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+.louvre h1 { margin: 0 0 1rem; font-size: 1.75em; }
+.louvre h2 { margin: 2.2em 0 0.4em; font-size: 1.25em; }
+.louvre h3 { margin: 1.8em 0 0.3em; font-size: 1.05em; }
+.louvre p, .louvre ul, .louvre ol { margin: 0 0 1em; }
+.louvre a { color: var(--l-accent); text-underline-offset: 0.2em; }
+.louvre .l-kicker {
+    margin: 0 0 0.5rem;
+    color: var(--l-muted);
+    font: 600 0.72rem/1.4 var(--l-sans);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.louvre .l-lede { font-size: 1.1em; }
+.louvre .l-muted { color: var(--l-muted); }
+.louvre blockquote {
+    margin: 1.2em 0;
+    padding: 0.2em 0 0.2em 1em;
+    border-left: 2px solid var(--l-rule);
+    color: var(--l-muted);
+}
+.louvre code {
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+    background: var(--l-card);
+    font: 0.88em var(--l-mono);
+}
+.louvre pre {
+    overflow-x: auto;
+    padding: 1em;
+    border: 1px solid var(--l-rule);
+    border-radius: 8px;
+    background: var(--l-card);
+}
+.louvre pre code { padding: 0; background: none; }
+.louvre table {
+    width: 100%;
+    margin: 1em 0;
+    border-collapse: collapse;
+    font: 0.8em/1.5 var(--l-sans);
+    font-variant-numeric: tabular-nums;
+}
+.louvre th, .louvre td {
+    padding: 0.5em 0.75em 0.5em 0;
+    border-bottom: 1px solid var(--l-rule);
+    text-align: left;
+}
+.louvre th { color: var(--l-muted); font-weight: 500; }
+.louvre hr { margin: 2em 0; border: 0; border-top: 1px solid var(--l-rule); }
+.louvre img, .louvre svg { max-width: 100%; height: auto; }
+.louvre .l-figure, .louvre figure {
+    margin: 1.2em 0;
+    padding: 1em;
+    border: 1px solid var(--l-rule);
+    border-radius: 12px;
+    background: var(--l-card);
+}
+.louvre figcaption { margin-bottom: 0.6em; font: 600 0.8em/1.4 var(--l-sans); }
+.louvre .l-callout {
+    margin: 1.2em 0;
+    padding: 0.8em 1em;
+    border-left: 3px solid var(--l-good);
+    border-radius: 0 10px 10px 0;
+    background: var(--l-card);
+}
+.louvre .l-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.75rem;
+    margin: 1.5em 0;
+}
+.louvre .l-kpi {
+    padding: 0.9em 1em;
+    border: 1px solid var(--l-rule);
+    border-radius: 12px;
+    background: var(--l-card);
+    font-family: var(--l-sans);
+}
+.louvre .l-kpi b { display: block; font-size: 1.5em; font-variant-numeric: tabular-nums; }
+.louvre .l-kpi span { display: block; color: var(--l-muted); font-size: 0.78em; line-height: 1.35; }
+
+/* What follows the opening: who wrote it, when, and from what. */
+.louvre .l-meta { margin: -0.4em 0 1.5em; color: var(--l-muted); font: 0.8em/1.5 var(--l-sans); }
+
+/* A change, and whether it is good news. Color says it once; the sign and the words say it again. */
+.louvre .l-kpi em { display: block; margin-top: 0.2em; font-size: 0.78em; font-style: normal; line-height: 1.35; }
+.louvre .l-good { color: var(--l-good); }
+.louvre .l-bad { color: var(--l-bad); }
+.louvre .l-callout.l-risk { border-left-color: var(--l-bad); }
+
+/* A status, in a word. */
+.louvre .l-tag {
+    display: inline-block;
+    padding: 0.1em 0.6em;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font: 600 0.68rem/1.5 var(--l-sans);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: 0.15em;
+    white-space: nowrap;
+}
+
+/* Options side by side, which stack on a phone; the one recommended is outlined in the accent. */
+.louvre .l-compare {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.75rem;
+    margin: 1.5em 0;
+}
+.louvre .l-option {
+    padding: 0.9em 1em;
+    border: 1px solid var(--l-rule);
+    border-radius: 12px;
+    background: var(--l-card);
+    font-size: 0.9em;
+}
+.louvre .l-option.l-chosen { border-color: var(--l-accent); box-shadow: inset 0 0 0 1px var(--l-accent); }
+.louvre .l-chosen .l-tag { color: var(--l-accent); }
+.louvre .l-option h3 { margin-top: 0; }
+.louvre .l-option ul { padding-left: 1.1em; }
+.louvre .l-option > :last-child { margin-bottom: 0; }
+
+/* Steps in order, each numbered in the margin. */
+.louvre .l-steps { margin: 1.2em 0; padding: 0; list-style: none; counter-reset: l-step; }
+.louvre .l-steps > li {
+    position: relative;
+    margin: 0;
+    padding: 0 0 1em 2.6em;
+    counter-increment: l-step;
+}
+.louvre .l-steps > li::before {
+    position: absolute;
+    top: 0.1em;
+    left: 0;
+    width: 1.7em;
+    height: 1.7em;
+    border: 1px solid var(--l-accent);
+    border-radius: 50%;
+    color: var(--l-accent);
+    content: counter(l-step);
+    font: 600 0.8em/1.7 var(--l-sans);
+    text-align: center;
+}
+.louvre .l-steps > li:not(:last-child)::after {
+    position: absolute;
+    top: 1.75em;
+    bottom: 0.2em;
+    left: 0.67em;
+    border-left: 1px solid var(--l-rule);
+    content: "";
+}
+
+/* Facts as label and value: two columns, one on a narrow screen. */
+.louvre dl {
+    display: grid;
+    grid-template-columns: minmax(6rem, max-content) 1fr;
+    gap: 0.35em 1.25em;
+    margin: 1.2em 0;
+}
+.louvre dt { color: var(--l-muted); font: 500 0.8em/1.9 var(--l-sans); }
+.louvre dd { margin: 0; }
+@media (max-width: 420px) {
+    .louvre dl { grid-template-columns: 1fr; gap: 0; }
+    .louvre dd { margin-bottom: 0.6em; }
+}
+
+/* Words added and taken out, as in a diff or a redline. */
+.louvre ins { background: color-mix(in srgb, var(--l-good) 18%, transparent); text-decoration: none; }
+.louvre del { background: color-mix(in srgb, var(--l-bad) 18%, transparent); }
+
+/* Numbers in a table line up on the right; a table too wide for a phone scrolls inside its wrapper, not the page. */
+.louvre th.l-num, .louvre td.l-num { padding-right: 0; padding-left: 0.75em; text-align: right; }
+.louvre .l-scroll { overflow-x: auto; margin: 1em 0; }
+.louvre .l-scroll table { margin: 0; }
+
+/* A chart: an inline SVG whose text is Louvre's sans, in the muted ink unless it says otherwise. */
+.louvre .l-chart { display: block; width: 100%; fill: var(--l-muted); font: 500 14px var(--l-sans); }
+.louvre .l-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em 1.2em;
+    margin: 0.6em 0 0;
+    padding: 0;
+    color: var(--l-muted);
+    font: 0.75em/1.4 var(--l-sans);
+    list-style: none;
+}
+.louvre .l-legend li::before {
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.4em;
+    border-radius: 2px;
+    background: var(--l-muted);
+    content: "";
+    vertical-align: -0.05em;
+}
+.louvre .l-legend .l-c1::before { background: var(--l-c1); }
+.louvre .l-legend .l-c2::before { background: var(--l-c2); }
+.louvre .l-legend .l-c3::before { background: var(--l-c3); }
+.louvre .l-legend .l-c4::before { background: var(--l-c4); }
+
+/* The page's end: its sources, and how it was made. */
+.louvre footer {
+    margin-top: 3em;
+    padding-top: 1em;
+    border-top: 1px solid var(--l-rule);
+    color: var(--l-muted);
+    font: 0.78em/1.55 var(--l-sans);
+}
+.louvre footer ol, .louvre footer ul { padding-left: 1.2em; }

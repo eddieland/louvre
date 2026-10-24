@@ -133,6 +133,13 @@ but the canvas, to the screen's edges, under one hairline.
 first, light when the reader's system is, every color a custom property. An artifact loads nothing from the network,
 so it names Louvre's faces and falls back to the reader's own serif and sans. A later style is a new version.
 
+Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
+page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome
+does, so it adds to these tokens, in both themes, each reading at 4.5:1 or better on its background and its cards:
+`good` (`#6fbf8e`, `#2f7a4d`) and `bad` (`#e0915a`, `#a5521b`) for a change that is good or bad news, and four series
+for a chart, the accent first, then blue (`#7fa7d9`, `#2f5f94`), ochre (`#d2b15c`, `#86610f`), and teal (`#6fb7ae`,
+`#2a6f68`). The accent still marks what matters most, and no color says anything alone.
+
 ## Not decided yet
 
 - A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).

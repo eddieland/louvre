@@ -216,9 +216,9 @@ def revoke(conn: Conn, person: Person, token_id: str) -> dict[str, object]:
 
 
 @router.get("/style")
-def house_style() -> dict[str, str]:
+def house_style(kind: style.Kind = style.Kind.REPORT) -> dict[str, object]:
     """Louvre's house style for artifacts, as the `style_get` tool gives it."""
-    return {"version": style.VERSION, "css": style.CSS, "rules": style.RULES, "starter": style.STARTER}
+    return style.handover(kind)
 
 
 def _boards(found: Database) -> tuple[boards.Board, ...]:

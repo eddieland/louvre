@@ -15,7 +15,8 @@ operator shares an artifact with, serving the same MCP tools, so a skill written
 
 What Louvre must do, and where it stands on each, is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). The order it is
 built in is [docs/roadmap/](docs/roadmap/README.md). Deploying it, and connecting an agent, is
-[docs/DEPLOY.md](docs/DEPLOY.md). How every page looks at every screen size is [docs/screenshots/](docs/screenshots/).
+[docs/DEPLOY.md](docs/DEPLOY.md), and the skill that tells an agent how to build a page people read is in
+[skills/](skills/README.md). How every page looks at every screen size is [docs/screenshots/](docs/screenshots/).
 
 ## Develop
 
