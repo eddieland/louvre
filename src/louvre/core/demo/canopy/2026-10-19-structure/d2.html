@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction 2: Mailroom</title>
+<style>
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+main { min-width: 0px; padding-block: 36px 80px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.board { max-width: 1240px; display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--f-muted); }
+h1 { font-size: 36px; line-height: 1.1; letter-spacing: -0.02em; margin: 6px 0px 0px; text-wrap: balance; font-weight: 700; }
+h2 { font-size: 21px; line-height: 1.25; margin: 0px; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0px; }
+.lede { font-size: 18px; max-width: 68ch; color: var(--f-fg); margin: 12px 0px 0px; }
+p { margin: 0px; max-width: 72ch; }
+.panel { background: var(--f-surface); border: 1px solid var(--f-line); border-radius: 12px; padding: 22px 24px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0px, 1fr)); gap: 16px; }
+.facts .panel { padding: 18px 20px; }
+.facts h3 { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--f-muted); font-weight: 500; margin-bottom: 8px; }
+.facts ul { margin: 0px; padding-left: 16px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--f-line); border-radius: 12px; background: var(--f-surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--f-line); vertical-align: top; }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--f-muted); font-weight: 500; background: var(--f-raised); white-space: nowrap; }
+tr:last-child td { border-bottom: 0px; }
+td.k { font-weight: 600; white-space: nowrap; }
+.verdict { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+h1 { font-size: 28px; }
+.cols2, .cols3, .shot-grid, .facts { grid-template-columns: minmax(0px, 1fr); }
+}
+</style>
+</head>
+<body>
+<main><div class="board"><header><div class="eyebrow">Direction 2 · a mail client for workers</div><h1>Mailroom</h1><p class="lede">Round one’s calm inbox taken all the way. Three panes: mailboxes, messages, the open thread with its composer. Runs, ticks and notes become small lines inside the thread, so a ticket reads as one story. The machinery lives in a folder you rarely open.</p></header>
+    
+    <div class="tbl-wrap"><table><thead><tr><th>Today</th><th>In Mailroom</th></tr></thead><tbody><tr><td class="k">Attention</td><td>“Needs you” mailbox</td></tr><tr><td class="k">Tickets</td><td>“Working”, “Waiting on others”, “All tickets”, “Done” mailboxes</td></tr><tr><td class="k">Pull requests</td><td>The ticket’s Details drawer</td></tr><tr><td class="k">Reviews</td><td>A message in the thread; “Reviews” under The loop</td></tr><tr><td class="k">Runs</td><td>“Runs” under The loop; a run also opens from its line in the thread</td></tr><tr><td class="k">Chores</td><td>“Chores” under The loop; findings arrive in Needs you</td></tr><tr><td class="k">Spend</td><td>A figure beside Spend; its page under The loop</td></tr><tr><td class="k">Ticks</td><td>A link in the foot</td></tr><tr><td class="k">Worktrees</td><td>A link in the foot</td></tr><tr><td class="k">Memory</td><td>A link in the foot; proposals arrive in Needs you</td></tr><tr><td class="k">Settings</td><td>A link in the foot</td></tr><tr><td class="k">Rail: search, Working, spend, Sprig</td><td>Gone. Working is a mailbox; search tops the list</td></tr><tr><td class="k">Header: ticker, aurora, Pause, Tick now</td><td>Gone. Live state sits at the foot of the mailboxes</td></tr></tbody></table></div>
+    <div class="facts"><div class="panel"><h3>Keeps</h3><ul><li>The thread as chat bubbles with a reply box</li><li>Status as dots and chips; the accent for the action</li><li>Every write still a CLI verb, with its refusal</li></ul></div><div class="panel"><h3>Cuts</h3><ul><li>Pages per table: Ticks, Worktrees, Memory and Settings fold into one line at the foot</li><li>Separate Decisions, Runs and Conversation panels on a ticket</li><li>Section colors, aurora, ticker, panel labels</li></ul></div><div class="panel"><h3>Costs</h3><p style="font-size:14px">Medium. A new shell and a new ticket page that merges three panels into one timeline. Lists keep their queries.</p></div><div class="panel"><h3>Risk</h3><p style="font-size:14px">A mail client invites you to clear it. If the list rarely reaches zero, it nags instead of calms.</p></div></div>
+    <div class="panel verdict"><h2>Should a ticket be a conversation first and a record second?</h2>
+    
+    
+    </div></div></main>
+</body>
+</html>

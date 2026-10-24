@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction 1: Ops inbox, kept, Ticket ABC-102</title>
+<style>
+body { margin: 0; }
+:root { --f-bg: #f1f2f4; --f-surface: #ffffff; --f-raised: #e8eaee; --f-line: #d9dce2; --f-fg: #15171c; --f-muted: #5a606c; --f-accent: #3549d0; --f-accent-fg: #ffffff; --f-good: #1d7a4e; --f-warn: #9a5d00; --f-bad: #b3342a; --f-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --f-bg: #0d0e11; --f-surface: #15171b; --f-raised: #1e2127; --f-line: #2a2e36; --f-fg: #eceef2; --f-muted: #9aa0ab; --f-accent: #93a0ff; --f-accent-fg: #0d0e11; --f-good: #5fd39b; --f-warn: #f2b65a; --f-bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--f-bg); color: var(--f-fg); font-family: var(--f-sans); font-size: 15px; line-height: 1.55; }
+:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+h1 { font-size: 36px; line-height: 1.1; letter-spacing: -0.02em; margin: 6px 0px 0px; text-wrap: balance; font-weight: 700; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0px, 1fr)); gap: 16px; }
+@media (max-width: 900px) {
+body::before { content: ""; position: fixed; inset: 0px 0px auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--f-bg); }
+h1 { font-size: 28px; }
+.cols2, .cols3, .shot-grid, .facts { grid-template-columns: minmax(0px, 1fr); }
+}
+.mock { width: 1440px; min-height: 900px; font-size: 14px; line-height: 1.5; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.mock * { box-sizing: border-box; }
+.mock .mono { font-family: var(--mono); }
+.mock .fg { color: var(--fg); }
+.mock .mut { color: var(--muted); }
+.mock .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentcolor; flex: 0 0 auto; }
+.mock .s-fail { color: var(--fail); }
+.mock .s-wait { color: var(--wait); }
+.mock .s-run { color: var(--run); }
+.mock .s-other { color: var(--muted); }
+.m1 { --sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; font-family: var(--sans); }
+.m1[data-mode="dark"] { --bg: #0b0e13; --surface: #11151c; --raised: #1a202a; --line: #232b38; --fg: #e8edf5; --text: #c9d1dd; --muted: #7d8899; --accent: #8ea2ff; --accent-fg: #0b0e13; --run: #3ddc97; --wait: #ffb547; --fail: #ff6b6b; --rev: #4fd1e0; --spend: #c4a7ff; }
+.m1[data-mode="light"] { --bg: #eef0f3; --surface: #ffffff; --raised: #f3f4f7; --line: #dde0e6; --fg: #1c1d22; --text: #2a2c33; --muted: #5d6070; --accent: #3550c8; --accent-fg: #ffffff; --run: #1f8a5b; --wait: #a86400; --fail: #c0392b; --rev: #0f7c8c; --spend: #6d4fc4; }
+.m1 .hdr { display: flex; justify-content: space-between; align-items: stretch; height: 46px; background: var(--surface); border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 13px; }
+.m1 .brand { display: flex; align-items: center; padding: 0px 20px; font-weight: 600; color: var(--fg); border-right: 1px solid var(--line); }
+.m1 .tabsx { display: flex; }
+.m1 .tabsx span { display: flex; align-items: center; gap: 8px; padding: 0px 18px; color: var(--muted); }
+.m1 .tabsx span.on { color: var(--fg); background: var(--raised); box-shadow: inset 0 -2px 0 var(--accent); }
+.m1 .tabsx b { color: var(--accent); font-weight: 500; }
+.m1 .live { display: flex; align-items: center; gap: 12px; padding: 0px 20px; color: var(--muted); font-size: 12px; }
+.m1 .main { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; flex: 1 1 0%; }
+.m1 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.m1 .thread { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
+.m1 .msg { display: flex; flex-direction: column; gap: 4px; max-width: 660px; }
+.m1 .meta { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.m1 .bub { padding: 12px 14px; border-radius: 4px 12px 12px; background: var(--raised); color: var(--text); }
+.m1 .bub.ask { background: color-mix(in srgb, var(--wait) 13%, transparent); color: var(--fg); }
+.m1 .ev { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.m1 .ev .dot { width: 6px; height: 6px; }
+.m1 .field { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 12px 14px; min-height: 80px; color: var(--muted); }
+.m1 .acts { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.m1 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line); color: var(--fg); font-size: 14px; }
+.m1 .btn.pri { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 500; }
+.m1 .btn.sm { padding: 4px 10px; font-size: 12px; }
+.m1 .two { display: grid; grid-template-columns: minmax(0px, 1fr) 340px; gap: 16px; align-items: start; }
+.m1 .facts { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.m1 .facts .r { display: grid; grid-template-columns: 96px 1fr; gap: 8px; }
+.m1 .facts .r > span:first-child { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-top: 2px; }
+.m1 .facts hr { border-right: 0px; border-bottom: 0px; border-left: 0px; border-image: none; border-top: 1px solid var(--line); margin: 4px 0px; width: 100%; }
+.m1 .facts h5 { margin: 0px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; }
+.m1 .pagehead { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.m1 .pagehead h1 { margin: 2px 0px 0px; font-size: 24px; color: var(--fg); font-weight: 600; letter-spacing: 0px; }
+.m1 .pagehead .k { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="mock m1" data-mode="dark"><header class="hdr"><div style="display:flex"><span class="brand">canopy</span><div class="tabsx"><span class="">Attention <b>6</b></span><span class="on">Tickets</span><span class="">Runs</span><span class="">Settings</span></div></div>
+  <div class="live"><span class="dot s-run"></span>LIVE · TICK 2 · NEXT 0:42<span class="btn sm">Pause</span></div></header><div class="main">
+  <div class="pagehead"><div><span class="k">TICKETS / ABC-102 · web · private, started</span><h1>Export reports as CSV</h1></div><span class="k">jira.example/browse/ABC-102 ↗</span></div>
+  <div class="two">
+    <article class="card thread"><div class="ev"><span class="dot s-other"></span><span>10:48</span><span class="fg">tick 1</span><span>Dispatched implement: started privately; implement the export button.</span></div><div class="ev"><span class="dot s-run"></span><span>10:49</span><span class="fg">run 42</span><span>run 42 started · implement · worktree web/3</span></div><div class="msg"><span class="meta ">Worker · report · 11:26</span><div class="bub ">Added the export button and its CSV writer; its color waits on you.</div></div><div class="ev"><span class="dot s-other"></span><span>11:26</span><span class="fg">note</span><span>Noted export-encoding: The CSV writer needs utf-8-sig for Excel to read accented names; plain utf-8 shows mojibake.</span></div><div class="msg"><span class="meta s-wait">Worker · question · 11:26</span><div class="bub ask">Should the export button be red or blue? The design doc says red, the toolbar uses blue.</div></div><div class="ev"><span class="dot s-run"></span><span>11:26</span><span class="fg">run 42</span><span>run 42 ended blocked · 37m · $1.07</span></div><div class="ev"><span class="dot s-other"></span><span>11:30</span><span class="fg">tick 2</span><span>Waits: awaiting the operator’s answer to message 5.</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px"><span class="fg" style="font-weight:500;font-size:13px">Reply to message 5</span><div class="field">The next worker reads it as an instruction.</div><div class="acts"><span class="btn">Stop</span><span class="btn pri">Send reply</span></div></div>
+    </article>
+    <aside class="card facts">
+      <div class="r"><span>Phase</span><span class="s-wait">needs human</span></div>
+      <div class="r"><span>Branch</span><span class="mono">agent/ABC-102-export</span></div>
+      <div class="r"><span>Cost</span><span class="mono">$1.07 · 1 run</span></div>
+      <div class="r"><span>PR</span><span class="mut">none yet</span></div>
+      <hr><h5>Runs</h5>
+      <div class="ev"><span class="dot s-wait"></span><span class="fg">run 42</span><span>implement · blocked · $1.07</span></div>
+      <hr><h5>Notes for its next worker</h5>
+      <div><span class="mono fg" style="font-size:12px">export-encoding</span><div class="mut" style="margin-top:2px">The CSV writer needs utf-8-sig for Excel to read accented names; plain utf-8 shows mojibake.</div></div>
+      <hr><div class="acts"><span class="btn sm">Start privately</span><span class="btn sm s-fail">Forget</span></div>
+    </aside>
+  </div></div></div><script>if (matchMedia('(prefers-color-scheme: light)').matches) document.querySelector('.mock').dataset.mode = 'light';</script>
+</body>
+</html>

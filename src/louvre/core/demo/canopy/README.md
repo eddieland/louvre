@@ -1,12 +1,14 @@
 # canopy's design studies
 
-Copies of canopy's two UI studies, which the demo publishes as canopy's own work (`louvre.core.demo`). Their record,
-what each page proposes and which way the operator went, is in canopy's `docs/ui-explorations/`; these are its pages
-alone, as they stood at canopy's 3bd8c6a. Their lines are not wrapped, as canopy keeps them, so `ec` leaves them out.
+canopy's two UI studies, which the demo publishes as canopy's own work, each on a board (`louvre.core.demo`). Their
+record, what each page proposes and which way the operator went, is in canopy's `docs/ui-explorations/`. Written by
+`scripts/canopy_studies.py` from canopy at 3bd8c6a; run it again rather than editing a page here. Their lines are not
+wrapped, so `ec` leaves them out.
 
-- `2026-10-08-style/`: rounds one and two, the same Attention screen in nine looks. The demo hangs them on a board.
-- `2026-10-19-structure/redrawn.html`: rounds three and four, one page of boards. Its "Where we are" board shows
-  canopy's screenshot baselines at 8db8772, which `screenshots/` holds and the demo publishes beside the page.
+- `2026-10-08-style/`: rounds one and two, the same Attention screen in nine looks, copied as they are.
+- `2026-10-19-structure/`: rounds three and four. canopy keeps them as one page, `redrawn.html`, whose script draws
+  each screen into a board of its own; the script draws each as a static page of its own, so Louvre's board hangs them
+  and each takes its own threads. A drawing of canopy takes the reader's theme. "Where we are" shows canopy's
+  screenshot baselines at 8db8772, each beside the page that shows it, published as that version's file.
 
-Copy a page again from canopy rather than editing it here. The demo changes a page as it publishes it: it drops the
-links to Google's fonts, which an artifact's policy refuses, and points the screenshots at the files beside it.
+The demo drops the style pages' links to Google's fonts as it publishes them, which an artifact's policy refuses.
