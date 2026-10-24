@@ -54,7 +54,9 @@ claude mcp add --transport http louvre https://louvre.example.com/mcp --header "
 
 The server speaks MCP's streamable HTTP at `/mcp`, one JSON-RPC message a request, answered as JSON. Its tools are
 canopy's artifacts contract's eight, so canopy's `canopy-artifacts` skill works against it unchanged, and
-`style_get`, Louvre's house style for HTML an agent wants to look like Louvre's own pages.
+`style_get`, Louvre's house style for HTML an agent wants to look like Louvre's own pages. The style is also three
+resources, its stylesheet, rules, and a starter page (`louvre://style/louvre-1/...`, which Claude Code attaches with
+`@`), and a prompt, `style`, that asks for a page in it (`/mcp__louvre__style` in Claude Code).
 
 ## Locally, for development
 
