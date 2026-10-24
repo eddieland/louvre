@@ -39,24 +39,29 @@ FILES: Mapping[str, File] = {
         ),
         File(
             f"louvre://style/{style.VERSION}/rules.md",
-            f"{style.VERSION} rules",
+            f"{style.VERSION} guide",
             "text/markdown",
-            "How to use Louvre's house style: the page's shape, its components, and writing for comments.",
+            "How to use Louvre's house style: the page's shape, its components, charts, and writing for comments.",
             style.RULES,
         ),
-        File(
-            f"louvre://style/{style.VERSION}/starter.html",
-            f"{style.VERSION} starter page",
-            "text/html",
-            "An HTML page to start from, in Louvre's house style: the stylesheet inlined, and each component once.",
-            style.STARTER,
+        *(
+            File(
+                f"louvre://style/{style.VERSION}/starters/{kind}.html",
+                f"{style.VERSION} {kind}",
+                "text/html",
+                f"An HTML page to start from, in Louvre's house style, for a {kind}. {about}",
+                style.STARTERS[kind],
+            )
+            for kind, about in style.KINDS.items()
         ),
     )
 }
 #: The prompt's name, as a client offers it.
 PROMPT = "style"
-#: The prompt's one argument: what the page is about.
+#: The prompt's argument: what the page is about.
 ABOUT = "about"
+#: The prompt's argument: the kind of artifact, which picks its starter page.
+KIND = "kind"
 
 
 def resources() -> list[types.Resource]:
@@ -105,7 +110,14 @@ def prompts() -> list[types.Prompt]:
             name=PROMPT,
             title="Write a page in Louvre's style",
             description=f"Write an HTML artifact in Louvre's house style, {style.VERSION}, and publish it.",
-            arguments=[types.PromptArgument(name=ABOUT, description="What the page is about.", required=False)],
+            arguments=[
+                types.PromptArgument(name=ABOUT, description="What the page is about.", required=False),
+                types.PromptArgument(
+                    name=KIND,
+                    description="The kind of artifact: " + ", ".join(style.Kind) + f"; {style.Kind.REPORT} if omitted.",
+                    required=False,
+                ),
+            ],
         ),
     ]
 
@@ -117,17 +129,22 @@ def prompt(name: str, arguments: Mapping[str, str] | None) -> types.GetPromptRes
         One message from the person: the rules, and the starter page to write from.
 
     Raises:
-        MCPError: No prompt has that name.
+        MCPError: No prompt has that name, or no kind of artifact the one asked for.
     """
     if name != PROMPT:
         raise MCPError(types.INVALID_PARAMS, f"no prompt {name!r}")
     about = (arguments or {}).get(ABOUT, "").strip()
-    page = f"a page about {about}" if about else "the page I ask for"
+    asked = (arguments or {}).get(KIND, "").strip() or style.Kind.REPORT
+    try:
+        kind = style.Kind(asked)
+    except ValueError:
+        raise MCPError(types.INVALID_PARAMS, f"no kind {asked!r}: " + ", ".join(style.Kind)) from None
+    page = f"a {kind} about {about}" if about else f"the {kind} I ask for"
     text = (
         f"Write {page} as an HTML artifact in Louvre's house style, {style.VERSION}, and publish it with "
         "artifact_publish, content_type text/html.\n\n"
         f"{style.RULES}\n"
-        f"Start from this page, which inlines the stylesheet:\n\n```html\n{style.STARTER}```\n"
+        f"Start from this page, which inlines the stylesheet:\n\n```html\n{style.STARTERS[kind]}```\n"
     )
     return types.GetPromptResult(
         description=f"A page in Louvre's house style, {style.VERSION}.",

@@ -239,8 +239,18 @@ def test_style_get_hands_over_the_house_style(client: Client) -> None:
         "version": style.VERSION,
         "css": style.CSS,
         "rules": style.RULES,
-        "starter": style.STARTER,
+        "kind": "report",
+        "starter": style.STARTERS[style.Kind.REPORT],
+        "kinds": dict(style.KINDS),
     }
+
+
+def test_style_get_hands_over_the_starter_page_of_the_kind_asked_for(client: Client) -> None:
+    given = client.call("style_get", kind="decision")
+
+    assert given["kind"] == "decision"
+    assert given["starter"] == style.STARTERS[style.Kind.DECISION]
+    assert client.refused("style_get", kind="essay") == "invalid"
 
 
 def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
@@ -250,12 +260,14 @@ def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:
     assert [(r.uri, r.mime_type) for r in listed] == [
         ("louvre://style/louvre-1/style.css", "text/css"),
         ("louvre://style/louvre-1/rules.md", "text/markdown"),
-        ("louvre://style/louvre-1/starter.html", "text/html"),
+        ("louvre://style/louvre-1/starters/report.html", "text/html"),
+        ("louvre://style/louvre-1/starters/decision.html", "text/html"),
+        ("louvre://style/louvre-1/starters/plan.html", "text/html"),
     ]
     assert [[c.text for c in contents if isinstance(c, TextResourceContents)] for contents in read.values()] == [
         [style.CSS],
         [style.RULES],
-        [style.STARTER],
+        *([starter] for starter in style.STARTERS.values()),
     ]
     with pytest.raises(MCPError):
         client.portal.call(client.session.read_resource, "louvre://style/louvre-0/style.css")
@@ -272,12 +284,24 @@ def test_the_style_prompt_asks_for_a_page_about_what_it_is_given(client: Client)
 
     assert listed.name == "style"
     assert message.role == "user"
-    assert message.content.text.startswith("Write a page about checkout latency as an HTML artifact")
+    assert [a.name for a in listed.arguments or []] == ["about", "kind"]
+    assert message.content.text.startswith("Write a report about checkout latency as an HTML artifact")
     assert style.RULES in message.content.text
-    assert style.STARTER in message.content.text
-    assert plain.content.text.startswith("Write the page I ask for as an HTML artifact")
+    assert style.STARTERS[style.Kind.REPORT] in message.content.text
+    assert plain.content.text.startswith("Write the report I ask for as an HTML artifact")
     with pytest.raises(MCPError):
         client.portal.call(client.session.get_prompt, "publish", None)
+
+
+def test_the_style_prompt_starts_from_the_kind_it_is_given(client: Client) -> None:
+    given = client.portal.call(client.session.get_prompt, "style", {"about": "the queue", "kind": "plan"})
+    [message] = given.messages
+    assert isinstance(message.content, TextContent)
+
+    assert message.content.text.startswith("Write a plan about the queue as an HTML artifact")
+    assert style.STARTERS[style.Kind.PLAN] in message.content.text
+    with pytest.raises(MCPError):
+        client.portal.call(client.session.get_prompt, "style", {"kind": "essay"})
 
 
 def test_it_serves_its_tools_and_says_what_it_is_for(client: Client) -> None:

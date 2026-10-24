@@ -34,8 +34,8 @@ NAME = "louvre"
 INSTRUCTIONS = (
     "Louvre hosts artifacts, pages people read and comment on: publish one with artifact_publish, read its threads "
     "with thread_list, and answer with comment_reply. Your token reaches one namespace. For an HTML page that looks "
-    "like Louvre's own, call style_get: its stylesheet, rules, and a starter page are resources too, and the style "
-    "prompt writes a page in it."
+    "like Louvre's own, call style_get with the kind of page, a report, a decision, or a plan: its stylesheet, its "
+    "guide, and a starter page for each kind are resources too, and the style prompt writes a page in it."
 )
 
 #: Opens the store a call reaches, from the request's context: the token's scope, in a connection of its own.

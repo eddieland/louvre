@@ -60,6 +60,10 @@ def tool[R: BaseModel](name: str, description: str, request: type[R], do: Callab
     return Tool(name, description, request, call)
 
 
+#: Each kind of artifact the house style has a starter page for, and what it is for.
+_KINDS = " ".join(f"{kind}: {about}" for kind, about in style.KINDS.items())
+
+
 class _Request(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -137,7 +141,9 @@ class Create(_Request):
 
 
 class StyleGet(_Request):
-    """Get Louvre's house style."""
+    """Get Louvre's house style, with the starter page for one kind of artifact."""
+
+    kind: Annotated[style.Kind, Field(description=f"The kind of artifact to start from. {_KINDS}")] = style.Kind.REPORT
 
 
 class Resolve(_Request):
@@ -214,9 +220,9 @@ TOOLS = (
     tool(
         "style_get",
         "Get Louvre's house style, optional: a stylesheet to inline in an HTML artifact so it looks like Louvre's own "
-        "pages, dark and light, the rules for using it, and a starter page that uses it. A Markdown artifact is shown "
-        "in it already.",
+        "pages, dark and light, its guide to the page's shape, components, charts, and writing for comments, and a "
+        "starter page for the kind of artifact asked for. A Markdown artifact is shown in it already.",
         StyleGet,
-        lambda _store, _r: {"version": style.VERSION, "css": style.CSS, "rules": style.RULES, "starter": style.STARTER},
+        lambda _store, r: style.handover(r.kind),
     ),
 )
