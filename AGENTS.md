@@ -71,9 +71,9 @@ Instructions for any agent working in this repository. Humans should read it too
   Adopted so far: `click` for every command line, never argparse (D003), `pydantic` for validating config and anything
   parsed from another program's output, `rich` for terminal output (D006), `fastapi` and `uvicorn` for the web app
   (only in `louvre.web` and `louvre serve`), `psycopg` for Postgres (D007), `markdown-it-py` to render a
-  Markdown artifact with its raw HTML off, `httpx2` for its test client (dev only), `hypothesis` for property tests
-  of input validators (dev only), `pytest-xdist` to run the tests in parallel (dev only), and `syrupy` for snapshot
-  tests (dev only).
+  Markdown artifact with its raw HTML off, `httpx2` for its test client (dev only), `mcp`, the official MCP client,
+  to hold `/mcp` to what agents run (dev only), `hypothesis` for property tests of input validators (dev only),
+  `pytest-xdist` to run the tests in parallel (dev only), and `syrupy` for snapshot tests (dev only).
 
 ## Formatting
 

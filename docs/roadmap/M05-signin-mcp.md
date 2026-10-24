@@ -14,4 +14,7 @@ replies; a `read` token's writes are refused; a person's comment on the web and 
 the artifact's HTML cannot read the person's session.
 
 Status: in progress: built (GitHub sign-in with an allowlist, tokens, MCP at `/mcp`, `style_get`), with every part
-held by tests; the live check with canopy's skill is the operator's.
+held by tests. The official MCP client takes the skill's steps against a running Louvre in CI
+(`tests/louvre/web/test_mcp_client.py`): it publishes, reads a person's comment, replies in that thread, and resolves
+it, and a `read` token's writes are refused `read_only`. canopy's tool definitions match Louvre's (2026-10-24). Left
+for the operator: an agent loaded with canopy's skill, against a local Louvre.
