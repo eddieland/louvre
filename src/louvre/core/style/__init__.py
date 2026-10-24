@@ -6,18 +6,20 @@ one thing an artifact's sandbox lets it load; elsewhere, such as in canopy's loc
 reader's own serif and sans. Louvre wraps every Markdown artifact in it, and the
 `style_get` tool, the MCP server's resources, and its `style` prompt hand it to an agent writing HTML, which inlines
 it in a `<style>` element. The version is in the name: a later style is a new version, and never restyles a page
-already published.
+already published. A page that inlined a version keeps its stylesheet, but loads its version's faces from Louvre, so
+Louvre serves every version's fonts for as long as a page may name them. A page Louvre draws itself, Markdown or
+GeoJSON, is drawn whole each time it is shown, its markup and the current style together.
 
-The style's files sit in a directory named for its version, beside this module: `style.css`, `rules.md`, the guide, a
+Each version's files sit in a directory named for it, beside this module: `style.css`, `rules.md`, the guide, a
 starter page for each kind of artifact, which holds the line `/* style.css */` where the stylesheet goes, and `fonts/`,
 each face's variable WOFF2 (Latin, from Fontsource) beside its Open Font License.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from importlib.resources import files
 
-#: The style's name and version, as a page that uses it names it.
+#: The style's name and version, as a page that uses it names it: the version handed to agents.
 VERSION = "louvre-1"
 #: Where Louvre serves the style's fonts, which its stylesheet's `@font-face` rules name.
 FONTS_PATH = f"/style/{VERSION}/fonts/"
@@ -36,7 +38,10 @@ class Kind(StrEnum):
     MAP = "map"
 
 
-_FILES = files(__name__) / VERSION
+_ROOT = files(__name__)
+_FILES = _ROOT / VERSION
+#: Every version of the style, the current one among them: each directory beside this module named for one.
+VERSIONS: Sequence[str] = sorted(d.name for d in _ROOT.iterdir() if d.is_dir() and d.name.startswith("louvre-"))
 #: Where a starter page's file puts the stylesheet.
 _SLOT = "/* style.css */\n"
 
@@ -51,12 +56,18 @@ KINDS: Mapping[Kind, str] = {
     Kind.PLAN: "What will be done, in steps, with its risks and open questions: a proposal, a migration, a rollout.",
     Kind.MAP: "Where something is, on a map: regions, sites, a route, with what matters about each.",
 }
-#: The style's fonts, by file name: the faces its stylesheet names.
-FONTS: Mapping[str, bytes] = {
-    f.name: f.read_bytes()
-    for f in sorted((_FILES / "fonts").iterdir(), key=lambda f: f.name)
-    if f.name.endswith(".woff2")
+#: Every version's fonts, by version and file name: the faces each version's stylesheet names, which Louvre serves at
+#: that version's path for as long as a page may name them.
+FONTS_BY_VERSION: Mapping[str, Mapping[str, bytes]] = {
+    version: {
+        f.name: f.read_bytes()
+        for f in sorted((_ROOT / version / "fonts").iterdir(), key=lambda f: f.name)
+        if f.name.endswith(".woff2")
+    }
+    for version in VERSIONS
 }
+#: The current style's fonts, by file name.
+FONTS = FONTS_BY_VERSION[VERSION]
 #: A page to start from, by kind: the stylesheet inlined, and the components that kind uses, their words saying what
 #: goes there.
 STARTERS: Mapping[Kind, str] = {

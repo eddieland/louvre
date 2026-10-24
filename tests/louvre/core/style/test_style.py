@@ -1,8 +1,11 @@
 """Louvre's house style: the stylesheet, its guide, and the starter pages an agent writes from."""
 
+import hashlib
 import re
+from importlib.resources import files
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from louvre.core import style
 
@@ -60,7 +63,29 @@ def test_the_handover_gives_the_starter_page_of_the_kind_asked_for() -> None:
     assert style.handover()["kind"] == style.Kind.REPORT
 
 
-def test_every_font_the_stylesheet_names_is_one_louvre_serves() -> None:
-    named = re.findall(r'url\("([^"]+)"\)', style.CSS)
+@pytest.mark.parametrize("version", style.VERSIONS)
+def test_every_font_each_versions_stylesheet_names_is_one_louvre_serves(version: str) -> None:
+    css = (files(style) / version / "style.css").read_text(encoding="utf-8")
+    named = re.findall(r'url\("([^"]+)"\)', css)
 
-    assert sorted(named) == sorted(style.FONTS_PATH + name for name in style.FONTS)
+    assert sorted(named) == sorted(f"/style/{version}/fonts/{name}" for name in style.FONTS_BY_VERSION[version])
+
+
+def test_the_current_version_is_one_louvre_serves() -> None:
+    assert style.VERSION in style.VERSIONS
+    assert style.FONTS_BY_VERSION[style.VERSION] == style.FONTS
+    assert f"/style/{style.VERSION}/fonts/" == style.FONTS_PATH
+
+
+def test_no_versions_fonts_ever_change(snapshot: SnapshotAssertion) -> None:
+    """Hold every version's fonts to their hashes, and every version to being served.
+
+    A page loads its version's faces from Louvre, which tells browsers to keep them for a year: a changed or dropped
+    font changes every page published with that version. Put a new font in a new version of the style instead.
+    """
+    hashes = {
+        version: {name: hashlib.sha256(data).hexdigest() for name, data in fonts.items()}
+        for version, fonts in style.FONTS_BY_VERSION.items()
+    }
+
+    assert hashes == snapshot

@@ -1,0 +1,11 @@
+# serializer version: 1
+# name: test_no_versions_fonts_ever_change
+  dict({
+    'louvre-1': dict({
+      'fraunces.woff2': '7f9d191d999336d3b9790afa72e1358e50a13b06d4f289341e92a311967a80f9',
+      'instrument-sans.woff2': '2ee17598a98d8a59e4df8152d015bec9ab8e4d5672cc0ab42bef806b568e3971',
+      'source-serif-4-italic.woff2': 'b4f56ddc9873487f1c9a3ad5bbce31982fe89b951f57e4604f62b4c8a540fb19',
+      'source-serif-4.woff2': '382475f38242c52d42a3e5ff8dc69b5d73f10d0d21e4550b5fe232984688779a',
+    }),
+  })
+# ---

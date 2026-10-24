@@ -186,7 +186,8 @@ starts reading; the margin stays the conversation's.
 `louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
 first, light when the reader's system is, every color a custom property. It is set in Louvre's own faces, which Louvre
 serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. A later style
-is a new version.
+is a new version, beside this one: a page that inlined `louvre-1` keeps it, and its fonts stay served. A page Louvre
+draws itself, Markdown or GeoJSON, is drawn in the current style each time it is shown.
 
 Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
 page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome

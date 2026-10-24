@@ -92,8 +92,11 @@ def create(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/style/{version}/fonts/{name}", include_in_schema=False)
     def font(version: str, name: str) -> Response:
-        """One of the house style's fonts, which an artifact's page loads from its opaque origin, so with CORS."""
-        found = style.FONTS.get(name) if version == style.VERSION else None
+        """A font of a version of the house style, which a page loads from its opaque origin, so with CORS.
+
+        Every version is served, not only the current one: a page keeps the stylesheet it inlined, which names its own.
+        """
+        found = style.FONTS_BY_VERSION.get(version, {}).get(name)
         if found is None:
             raise HTTPException(status_code=404, detail="Not found.")
         return Response(
@@ -143,15 +146,16 @@ def create(settings: Settings | None = None) -> FastAPI:
 def artifact_policy(origin: str, files: str | None = None) -> str:
     """Make an artifact's own policy, as Louvre at `origin` serves it, beside its version's `files` if it has them.
 
-    An opaque origin (D008); scripts and styles inline, and the map kit's script (louvre.core.maps), whose worker runs
-    from a blob; images inline; fonts inline or the house style's, from Louvre (D008); the map kit's basemap and
-    glyphs to read; the version's own files, under `files`, to load and read (D012); nothing else from the network;
-    and framed only by Louvre. Whether an artifact may load from the network is an open question (REQUIREMENTS).
+    An opaque origin (D008); scripts and styles inline, and the map kit's script (louvre.core.maps), of any version
+    Louvre serves, as a page loads the one it was written with, whose worker runs from a blob; images inline; fonts
+    inline or the house style's, from Louvre (D008); the map kit's basemap and glyphs to read; the version's own
+    files, under `files`, to load and read (D012); nothing else from the network; and framed only by Louvre. Whether
+    an artifact may load from the network is an open question (REQUIREMENTS).
 
     Returns:
         The policy.
     """
-    kit = f"{origin}{maps.PATH}"
+    kit = f"{origin}{maps.ROOT}"
     own = f" {origin}{files}" if files else ""
     return (
         "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'none'; "
@@ -236,7 +240,7 @@ def _kit(app: FastAPI) -> None:
     def street_tile(request: Request, version: str, z: int, x: int, y: int) -> Response:
         """A street tile for the map kit, from OpenFreeMap through Louvre, as a page's map loads nothing else."""
         streets: Streets = request.app.state.streets
-        found = streets.tile(z, x, y) if version == maps.VERSION else None
+        found = streets.tile(z, x, y) if version in maps.KITS else None
         if found is None:
             raise HTTPException(status_code=404, detail="Not found.")
         # An empty tile is a 204, which the map draws as nothing; kept briefly, in case OpenFreeMap is back soon.
@@ -253,8 +257,11 @@ def _kit(app: FastAPI) -> None:
 
     @app.get("/kit/{version}/{path:path}", include_in_schema=False)
     def kit(version: str, path: str) -> Response:
-        """One of the map kit's files, which an artifact's page loads from its opaque origin, so with CORS."""
-        found = maps.served(path) if version == maps.VERSION else None
+        """A file of a version of the map kit, which a page loads from its opaque origin, so with CORS.
+
+        Every version is served, not only the current one: a published map loads the kit it was drawn with.
+        """
+        found = maps.served(version, path)
         if found is None:
             raise HTTPException(status_code=404, detail="Not found.")
         media_type, data = found

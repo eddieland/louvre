@@ -415,7 +415,7 @@ def test_a_version_with_files_is_served_beside_them_under_a_policy_for_them_alon
     assert shown.text.startswith(page)
     assert policy == artifact_policy(BASE_URL, here)
     assert f"img-src data: blob: {BASE_URL}{here};" in policy
-    assert f"connect-src {BASE_URL}/kit/louvre-map-1/ {BASE_URL}{here};" in policy
+    assert f"connect-src {BASE_URL}/kit/ {BASE_URL}{here};" in policy
     assert "allow-same-origin" not in policy
     assert web().get(here).status_code == 401
     assert reader.get(f"/content/{artifact}/1/not-its-key/").status_code == 404
