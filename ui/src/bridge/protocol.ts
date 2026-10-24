@@ -23,19 +23,21 @@ export interface MapPlace {
     coordinates: [number, number] | null
 }
 
-/** A thread's passage, as the page asks the bridge to mark it. */
+/** A thread's passage, or a change's, as the page asks the bridge to mark it. */
 export interface Mark {
-    /** The thread's id, or a draft's. */
+    /** The thread's id, a draft's, or a change's. */
     id: string
     /** The passage: its words, or for a thread on a map, the place's words. */
     anchor: Anchor
     /** The place on a map it is on, which the map kit marks in place of the words; null for words. */
     place: MapPlace | null
     /**
-     * Whether it is open, resolved, or a draft not yet sent; or the passage a decision's option is about, marked only
-     * while its option is hovered or shown, and never a thread the reader can click.
+     * Whether it is open, resolved, or a draft not yet sent; the passage a decision's option is about, marked only
+     * while its option is hovered or shown, and never a thread the reader can click; or words a later version added or
+     * rewrote (`change`), or the word beside where it removed some (`removed`), found to place its note but never
+     * painted.
      */
-    state: 'open' | 'resolved' | 'draft' | 'passage'
+    state: 'open' | 'resolved' | 'draft' | 'passage' | 'change' | 'removed'
     /** Its number in the margin, shown after its last word, or null for none. */
     n: number | null
 }
@@ -50,6 +52,10 @@ export interface Colors {
     resolved: string
     /** A thread's number. */
     accent: string
+    /** Words a later version added or rewrote, at rest. */
+    change: string
+    /** Words a later version added or rewrote, hovered or active. */
+    changeStrong: string
 }
 
 /** What the page tells the bridge: the passages to mark, and how. */

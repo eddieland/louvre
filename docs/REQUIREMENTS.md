@@ -76,9 +76,13 @@ decisions.
 
 ### U8. Comparing versions
 
-Planned (M8), built in #30. The operator's ask (2026-10-24): an agent revises a page to answer its comments, so a
-reader's first question of a new version is what changed. A reader picks two versions of an artifact and sees what
-changed in its visible words, and what became of each thread between them.
+Built (M8), awaiting the operator's word. The operator's ask (2026-10-24): an agent revises a page to answer its
+comments, so a reader's first question of a new version is what changed. A reader picks two versions of an artifact
+and sees what changed in its visible words, word by word, so markup and reflowed whitespace never show as a change,
+marked inside the artifact's own frame so it keeps its author's look; what was removed is noted in the margin where it
+was. For each thread on the earlier version's text it says what became of its passage (unchanged, changed beside it,
+or gone), whether it is resolved, and its replies since. A comparison is a link, `?changes=N`, so an agent can point a
+person at what it changed. Not over MCP: the contract's tools are canopy's (L1), and an agent knows what it changed.
 
 ### U9. Maps, drawn with what Louvre serves
 

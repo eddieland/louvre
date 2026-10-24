@@ -73,6 +73,17 @@ def _artifact_shown(page: Page) -> None:
     page.wait_for_function("document.querySelector('iframe.exhibit').offsetHeight > 480")
 
 
+def _changes_shown(page: Page) -> None:
+    """Wait until the bridge has marked what changed, then open the summary: in the margin, or in the sheet."""
+    page.wait_for_selector(".changes-summary", state="attached")
+    page.wait_for_function("document.querySelector('iframe.exhibit').offsetHeight > 480")
+    next(f for f in page.frames if "/content/" in f.url).wait_for_function(
+        "() => CSS.highlights.get('louvre-change')?.size === 2",
+    )
+    page.click(".compare-bar .action")
+    page.wait_for_selector(".changes-summary.is-active", state="visible")
+
+
 def _board_shown(page: Page) -> None:
     """Wait until the board is fitted to the screen and the pages it draws have loaded."""
     page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
@@ -167,6 +178,7 @@ SCENES = (
     Scene("sign-in", "Signing in", "/sign-in", signed_in=False),
     Scene("artifact", "An artifact, a thread open", "/a/{checkout}", _report_open),
     Scene("artifact-older", "An artifact's older version", "/a/{checkout}?v=1", _artifact_shown),
+    Scene("changes", "An artifact's changes since its first version", "/a/{checkout}?changes=1", _changes_shown),
     Scene("markdown", "A Markdown artifact, in the house style", "/a/{notes}", _artifact_shown),
     Scene("decision", "An artifact, a decision waiting on the reader", "/a/{checkout}", _decision_waiting),
     Scene("decided", "An artifact, its decision decided and opened", "/a/{notes}", _decided),

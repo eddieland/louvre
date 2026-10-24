@@ -26,7 +26,7 @@ from typing import Literal, Self
 
 from psycopg.pq import TransactionStatus
 
-from louvre.core import geodata, render
+from louvre.core import compare, geodata, render
 from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.files import File, FilesError, new_key
 from louvre.core.files import check as check_files
@@ -377,6 +377,72 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             for thread in threads
         ]
         return {"artifact_id": artifact_id, "version": version or artifact["latest_version"], "threads": listed}
+
+    def compare(self, artifact_id: str, base: int, head: int | None = None) -> dict[str, object]:
+        """Say what changed from version `base` of an artifact to a later one, its latest unless `head` names one.
+
+        Returns:
+            The changes, in the later version's order, each with how to find it there; how many words they add and
+            remove; and each thread on the earlier version's text, oldest first, with what became of its passage in the
+            later: `unchanged`; `near_change` when a change is in it or within `CONTEXT` characters of it, as when the
+            rest of its sentence was rewritten; or `passage_gone`; None for a thread on the whole artifact.
+
+        Raises:
+            Refused: `not_found` or `out_of_scope` for the artifact, `not_found` for a version it does not have;
+                `invalid` when `base` is not before the later version; `too_long` for a version with more words than
+                Louvre compares.
+        """
+        with self.reading():
+            artifact = self.artifact_row(artifact_id)
+            later = self._version(artifact, head)
+            if not 1 <= base < int(str(later["n"])):
+                raise Refused(Code.INVALID, f"version {base} is not before version {later['n']}")
+            earlier = self._version(artifact, base)
+            threads = self._conn.execute(
+                "SELECT * FROM threads WHERE artifact_id = %s AND anchored_version <= %s ORDER BY n",
+                (artifact_id, base),
+            ).fetchall()
+        old, new = str(earlier["text"]), str(later["text"])
+        try:
+            found = compare.compare(old, new)
+        except compare.TooLongError as e:
+            raise Refused(Code.TOO_LONG, str(e)) from None
+        outcomes: list[dict[str, object]] = []
+        for thread in threads:
+            anchor = _anchor(thread)
+            if anchor is not None and locate(old, anchor) is None:
+                # Its passage had left the text by the earlier version: what became of it is no news of this change.
+                continue
+            at = None if anchor is None else locate(new, anchor)
+            outcome = (
+                None
+                if anchor is None
+                else "passage_gone"
+                if at is None
+                else "near_change"
+                if found.touches(max(0, at - CONTEXT), at + len(anchor.exact) + CONTEXT)
+                else "unchanged"
+            )
+            outcomes.append({"thread_id": thread["id"], "state": thread["state"], "outcome": outcome})
+        return {
+            "artifact_id": artifact_id,
+            "base": base,
+            "head": later["n"],
+            "changes": [
+                {
+                    "kind": change.kind.value,
+                    "anchor": None
+                    if change.anchor is None
+                    else {"exact": change.anchor.exact, "prefix": change.anchor.prefix, "suffix": change.anchor.suffix},
+                    "added": change.added,
+                    "removed": change.removed,
+                }
+                for change in found.changes
+            ],
+            "words_added": found.words_added,
+            "words_removed": found.words_removed,
+            "threads": outcomes,
+        }
 
     def feed(
         self,

@@ -95,5 +95,12 @@ function post(frame: HTMLIFrameElement | null, message: ToBridge): void {
 function colorsOf(): Colors {
     const style = getComputedStyle(document.documentElement)
     const token = (name: string) => style.getPropertyValue(`--${name}`).trim()
-    return { rest: token('hl'), strong: token('hl-strong'), resolved: token('rule'), accent: token('accent') }
+    return {
+        rest: token('hl'),
+        strong: token('hl-strong'),
+        resolved: token('rule'),
+        accent: token('accent'),
+        change: token('chg'),
+        changeStrong: token('chg-strong'),
+    }
 }

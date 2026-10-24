@@ -136,6 +136,28 @@ Light:
 | --- | --- |
 | ![An artifact's older version, Phone, 390, light](artifact-older/phone-light.png) | ![An artifact's older version, Laptop, 1440, light](artifact-older/laptop-light.png) |
 
+## An artifact's changes since its first version
+
+`/a/{checkout}?changes=1`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An artifact's changes since its first version, Small phone, 360, dark](changes/phone-small-dark.png) | ![An artifact's changes since its first version, Phone, 390, dark](changes/phone-dark.png) | ![An artifact's changes since its first version, Tablet, 820, dark](changes/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An artifact's changes since its first version, Tablet landscape, 1180, dark](changes/tablet-landscape-dark.png) | ![An artifact's changes since its first version, Laptop, 1440, dark](changes/laptop-dark.png) | ![An artifact's changes since its first version, Wide, 1920, dark](changes/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An artifact's changes since its first version, Phone, 390, light](changes/phone-light.png) | ![An artifact's changes since its first version, Laptop, 1440, light](changes/laptop-light.png) |
+
 ## A Markdown artifact, in the house style
 
 `/a/{notes}`

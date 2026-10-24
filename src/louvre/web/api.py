@@ -161,6 +161,17 @@ def read(store: Reader, conn: Conn, person: Person, artifact_id: str, given: Rea
     return {"artifact_id": artifact_id}
 
 
+@router.get("/artifacts/{artifact_id}/compare")
+def compare(
+    store: Reader,
+    artifact_id: str,
+    base: Annotated[int, Query(ge=1)],
+    head: Annotated[int | None, Query(ge=1)] = None,
+) -> dict[str, object]:
+    """What changed from version `base` of an artifact to a later one, its latest unless `head` names one."""
+    return store.compare(artifact_id, base, head)
+
+
 @router.post("/artifacts/{artifact_id}/threads", status_code=201)
 def create_thread(store: Reader, artifact_id: str, given: ThreadBody) -> dict[str, object]:
     """Start a thread on an artifact's latest version: on a passage, a place on its map, or the whole of it."""

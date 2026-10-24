@@ -17,4 +17,8 @@ Accept: on a phone and a laptop, the operator compares two versions of the demo'
 and finds the thread the revision answered; Playwright holds the comparison, and the screen matrix holds it at every
 size.
 
-Status: in progress: built in #30, not yet merged.
+Status: in progress: built (#30); waiting on the operator's pass on a phone and a laptop. `louvre.core.compare`
+compares texts in two passes, by chunks of words and then word by word inside the chunks that differ, so a page of
+300,000 words compares in under a second; Hypothesis holds that putting back what each change removed rebuilds the
+earlier text. Playwright holds comparing, stepping through the changes, and opening a thread from the summary
+(`tests/louvre/web/test_flows.py`), and the screen matrix holds the comparison.

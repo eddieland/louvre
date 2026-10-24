@@ -278,7 +278,11 @@ def _canopy_study(
 
 
 def _checkout(agent: Store, people: dict[str, Store]) -> None:
-    """The report, in two versions: the second rewords a passage a thread is on, so that thread is gone from it."""
+    """The report, in two versions: the second rewords a passage a thread is on, so that thread is gone from it.
+
+    The second also adds a sentence and drops a few words, as a revision answering its threads would, so comparing the
+    two shows each kind of change.
+    """
     first = (_FILES / "checkout-latency.html").read_text(encoding="utf-8")
     title = "Checkout latency: what we found and what to change"
     made = agent.publish(
@@ -317,7 +321,16 @@ def _checkout(agent: Store, people: dict[str, Store]) -> None:
 
     raj.comment(artifact, None, "Clear write-up. Can this go into Thursday's incident review as it is?")
 
-    second = first.replace("cache the quote per cart for 60 s", "cache the quote per cart for five minutes")
+    # The second answers the threads: the cache's time, where the provider's figure is from; and drops an estimate.
+    second = (
+        first.replace("cache the quote per cart for 60 s", "cache the quote per cart for five minutes")
+        .replace(
+            "the provider is not the cause.",
+            "the provider is not the cause. The figure is from its status panel, psp.latency, for 14 to 21 October.",
+        )
+        .replace("Alone, brings p95 under 700 ms. A day's work.", "Alone, brings p95 under 700 ms.")
+    )
+    assert second.count("five minutes") == second.count("psp.latency") == 1  # noqa: S101  (the page as written)
     agent.publish(title=title, content_type="text/html", content=second, artifact_id=artifact)
     agent.resolve(str(cache["thread_id"]), resolved=True)
 
