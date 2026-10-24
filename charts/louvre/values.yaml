@@ -85,7 +85,7 @@ config:
   allowedLogins: []
   # The session cookie over HTTPS only: right behind a TLS Ingress, wrong for a plain-HTTP port-forward.
   secureCookies: true
-  # Publish the demo's artifacts, which anyone may read without signing in.
+  # Publish the demo's artifacts at /demo, which anyone may read without signing in.
   demo: false
   # Let anyone sign in as anyone by typing a name: for a local cluster only, never a deployment people use.
   devSignIn: false

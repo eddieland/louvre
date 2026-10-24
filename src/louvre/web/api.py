@@ -97,11 +97,12 @@ def session(request: Request, found: Annotated[Database, Depends(database)]) -> 
 @router.get("/artifacts")
 def artifacts(
     store: Reader,
+    found: Annotated[Database, Depends(database)],
     cursor: str | None = None,
     namespace: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, object]:
-    """The artifacts the request reaches, newest first, a page at a time."""
-    return store.overview(cursor=cursor, namespace=namespace)
+    """The artifacts the request reaches, newest first, by page: the demo's only when its namespace is named."""
+    return store.overview(cursor=cursor, namespace=namespace, leave_out=_set_apart(found, namespace))
 
 
 @router.get("/artifacts/{artifact_id}")
@@ -145,9 +146,15 @@ def delete_artifact(store: Reader, artifact_id: str) -> dict[str, object]:
 
 
 @router.get("/boards")
-def board_list(store: Reader, found: Annotated[Database, Depends(database)]) -> dict[str, object]:
-    """The boards with a frame the request reaches."""
-    return {"boards": boards.listing(store, _boards(found))}
+def board_list(
+    store: Reader,
+    found: Annotated[Database, Depends(database)],
+    namespace: Annotated[str | None, Query(max_length=64)] = None,
+) -> dict[str, object]:
+    """The boards with a frame the request reaches, in `namespace` if named: the demo's only when its namespace is."""
+    apart = _set_apart(found, namespace)
+    listed = [b for b in _boards(found) if (namespace is None or b.namespace == namespace) and b.namespace not in apart]
+    return {"boards": boards.listing(store, listed)}
 
 
 @router.get("/boards/{board_id}")
@@ -267,6 +274,15 @@ def house_style(kind: style.Kind = style.Kind.REPORT) -> dict[str, object]:
 def _boards(found: Database) -> tuple[boards.Board, ...]:
     """The boards there are: mock data for now, the demo's design study when the demo is on (roadmap M3)."""
     return (demo.BOARD,) if found.settings.demo else ()
+
+
+def _set_apart(found: Database, namespace: str | None) -> frozenset[str]:
+    """Find the namespaces a list leaves out: the demo's, which is read at `/demo`, unless it names a namespace.
+
+    Returns:
+        The demo's namespace when the demo is on and no namespace is named; none otherwise.
+    """
+    return frozenset({demo.NAMESPACE}) if namespace is None and found.settings.demo else frozenset()
 
 
 def _named(conn: Conn, listed: dict[str, object]) -> dict[str, object]:

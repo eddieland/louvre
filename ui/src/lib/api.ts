@@ -266,7 +266,7 @@ export interface Session {
     account: Account | null
     /** Whether the deployment has its database. */
     configured: boolean
-    /** Whether the demo is on, readable without signing in. */
+    /** Whether the demo is on, readable at /demo without signing in. */
     demo: boolean
     /** The ways to sign in. */
     sign_in: { github: boolean; dev: boolean }
@@ -339,17 +339,30 @@ export const sessionQuery = queryOptions({
     staleTime: 60_000,
 })
 
-/** Read a page of the list of artifacts, newest first, from `cursor`. */
-export function listArtifacts(cursor: string | null) {
-    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+/** The namespace the demo publishes in (louvre.core.demo.NAMESPACE): a list leaves it out unless it names it. */
+export const DEMO_NAMESPACE = 'demo'
+
+/** Read a page of the list of artifacts, newest first, from `cursor`, in `namespace` alone if given. */
+export function listArtifacts(cursor: string | null, namespace?: string) {
+    const params = new URLSearchParams()
+    if (cursor) {
+        params.set('cursor', cursor)
+    }
+    if (namespace !== undefined) {
+        params.set('namespace', namespace)
+    }
+    const query = params.size > 0 ? `?${params.toString()}` : ''
     return request<{ artifacts: Listed[]; next_cursor: string | null }>('GET', `/api/artifacts${query}`)
 }
 
-/** The boards the reader reaches a frame of. */
-export const boardsQuery = queryOptions({
-    queryKey: ['boards'],
-    queryFn: () => request<{ boards: ListedBoard[] }>('GET', '/api/boards'),
-})
+/** The boards the reader reaches a frame of, in `namespace` alone if given. */
+export function boardsQuery(namespace?: string) {
+    const query = namespace === undefined ? '' : `?${new URLSearchParams({ namespace }).toString()}`
+    return queryOptions({
+        queryKey: ['boards', namespace ?? null],
+        queryFn: () => request<{ boards: ListedBoard[] }>('GET', `/api/boards${query}`),
+    })
+}
 
 /** A board, with its frames. */
 export function boardQuery(id: string) {

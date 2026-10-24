@@ -19,7 +19,7 @@ request after a deploy.
    | `LOUVRE_GITHUB_CLIENT_ID` | The OAuth app's client id |
    | `LOUVRE_GITHUB_CLIENT_SECRET` | Its client secret (mark it sensitive) |
    | `LOUVRE_ALLOWED_LOGINS` | The GitHub logins who may sign in, comma-separated; `*` lets anyone in |
-   | `LOUVRE_DEMO` | `1` to publish the demo's artifacts, which anyone may read without signing in |
+   | `LOUVRE_DEMO` | `1` to publish the demo's artifacts at `/demo`, which anyone may read without signing in |
 
 4. Open the deployment, sign in with GitHub, and mint a token for an agent on the Tokens page.
 

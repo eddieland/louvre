@@ -118,8 +118,9 @@ SCREENS = (
 )
 #: Every page the web app serves, each in the state worth looking at.
 SCENES = (
-    Scene("catalogue", "The catalogue, signed in", "/"),
-    Scene("reader", "The catalogue, reading the demo without signing in", "/", signed_in=False),
+    Scene("front-door", "The catalogue, before signing in", "/", signed_in=False),
+    Scene("catalogue", "The demo, signed in", "/demo"),
+    Scene("reader", "The demo, read without signing in", "/demo", signed_in=False),
     Scene("sign-in", "Signing in", "/sign-in", signed_in=False),
     Scene("artifact", "An artifact, a thread open", "/a/{checkout}", _report_open),
     Scene("artifact-older", "An artifact's older version", "/a/{checkout}?v=1", _artifact_shown),
@@ -177,7 +178,7 @@ def test_the_gallery_lists_every_screenshot() -> None:
 @pytest.fixture(scope="module")
 def demo(live_app: str) -> dict[str, str]:
     """The demo's artifacts' ids, by the names scenes' paths give them."""
-    with urllib.request.urlopen(f"{live_app}/api/artifacts") as response:  # noqa: S310  (the test's own server)
+    with urllib.request.urlopen(f"{live_app}/api/artifacts?namespace=demo") as response:  # noqa: S310  (the test's own server)
         listed = json.load(response)["artifacts"]
     return {name: next(a["id"] for a in listed if a["title"].startswith(t)) for name, t in DEMO.items()}
 
