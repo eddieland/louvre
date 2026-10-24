@@ -100,6 +100,44 @@ export interface Detail {
     owned: boolean
 }
 
+/** One passage that differs from an earlier version to a later one. */
+export interface Change {
+    /** Words added where there were none, removed leaving none, or rewritten as others. */
+    kind: 'added' | 'removed' | 'changed'
+    /** Finds it in the later version: its words, or the word beside where a removal's were; null for no text. */
+    anchor: Anchor | null
+    /** The words the later version has here, empty for a removal. */
+    added: string
+    /** The words the earlier version had here, empty for an addition. */
+    removed: string
+}
+
+/** What became of a thread on the earlier version's text, in the later version. */
+export interface ThreadFate {
+    /** The thread's id. */
+    thread_id: string
+    /** Open, or resolved. */
+    state: 'open' | 'resolved'
+    /** Its passage untouched, a change in or beside it, or its words gone; null for a thread on the whole artifact. */
+    outcome: 'unchanged' | 'near_change' | 'passage_gone' | null
+}
+
+/** What changed from one version of an artifact to a later one. */
+export interface Comparison {
+    /** The earlier version's number. */
+    base: number
+    /** The later version's number. */
+    head: number
+    /** The changes, in the later version's order. */
+    changes: Change[]
+    /** How many words the changes add. */
+    words_added: number
+    /** How many words the changes remove. */
+    words_removed: number
+    /** The threads on the earlier version's text, oldest first. */
+    threads: ThreadFate[]
+}
+
 /** A board in the list: how many of its frames the reader reaches, and their artifacts' open threads. */
 export interface ListedBoard {
     /** Its id. */
@@ -297,6 +335,20 @@ export function threadsQuery(id: string, version: number) {
                 `/api/artifacts/${encodeURIComponent(id)}/threads?version=${String(version)}`,
             ),
         refetchInterval: THREADS_POLL,
+    })
+}
+
+/** What changed from version `base` of an artifact to version `head`. */
+export function compareQuery(id: string, base: number, head: number) {
+    return queryOptions({
+        queryKey: ['compare', id, base, head],
+        queryFn: () =>
+            request<Comparison>(
+                'GET',
+                `/api/artifacts/${encodeURIComponent(id)}/compare?base=${String(base)}&head=${String(head)}`,
+            ),
+        // Two published versions never change, so neither does what changed between them.
+        staleTime: Infinity,
     })
 }
 

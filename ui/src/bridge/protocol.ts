@@ -10,14 +10,17 @@ import type { Anchor } from './text'
 /** The tag every message carries, with the protocol's version. */
 export const CHANNEL = 'louvre:bridge/1'
 
-/** A thread's passage, as the page asks the bridge to mark it. */
+/** A thread's passage, or a change's, as the page asks the bridge to mark it. */
 export interface Mark {
-    /** The thread's id, or a draft's. */
+    /** The thread's id, a draft's, or a change's. */
     id: string
     /** The passage. */
     anchor: Anchor
-    /** Whether it is open, resolved, or a draft not yet sent. */
-    state: 'open' | 'resolved' | 'draft'
+    /**
+     * A thread open, resolved, or a draft not yet sent; or words a later version added or rewrote (`change`), or the
+     * word beside where it removed some (`removed`), which is found, to place its note, but never painted.
+     */
+    state: 'open' | 'resolved' | 'draft' | 'change' | 'removed'
     /** Its number in the margin, shown after its last word, or null for none. */
     n: number | null
 }
@@ -32,6 +35,10 @@ export interface Colors {
     resolved: string
     /** A thread's number. */
     accent: string
+    /** Words a later version added or rewrote, at rest. */
+    change: string
+    /** Words a later version added or rewrote, hovered or active. */
+    changeStrong: string
 }
 
 /** What the page tells the bridge: the passages to mark, and how. */

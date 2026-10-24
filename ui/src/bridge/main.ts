@@ -66,15 +66,19 @@ function start(): void {
                 `::highlight(louvre-rest){background-color:${colors.rest}}` +
                 `::highlight(louvre-strong){background-color:${colors.strong}}` +
                 `::highlight(louvre-resolved){background-color:${colors.resolved}}` +
+                `::highlight(louvre-change){background-color:${colors.change}}` +
+                `::highlight(louvre-change-strong){background-color:${colors.changeStrong}}` +
                 'html[data-louvre-pointer],html[data-louvre-pointer] *{cursor:pointer!important}'
         }
         const rest: Range[] = []
         const strong: Range[] = []
         const resolved: Range[] = []
+        const change: Range[] = []
+        const changeStrong: Range[] = []
         const shown: [Mark, Range][] = []
         for (const mark of marks) {
             const range = ranges.get(mark.id)
-            if (!range) {
+            if (!range || mark.state === 'removed') {
                 continue
             }
             const lit = mark.id === active || mark.id === hover
@@ -82,6 +86,8 @@ function start(): void {
                 if (lit) {
                     resolved.push(range)
                 }
+            } else if (mark.state === 'change') {
+                ;(lit ? changeStrong : change).push(range)
             } else {
                 ;(lit ? strong : rest).push(range)
             }
@@ -93,6 +99,10 @@ function start(): void {
             lit.priority = 1
             CSS.highlights.set('louvre-strong', lit)
             CSS.highlights.set('louvre-resolved', new Highlight(...resolved))
+            CSS.highlights.set('louvre-change', new Highlight(...change))
+            const changeLit = new Highlight(...changeStrong)
+            changeLit.priority = 1
+            CSS.highlights.set('louvre-change-strong', changeLit)
         }
         const placed: HTMLElement[] = []
         for (const [mark, range] of shown) {
@@ -168,7 +178,8 @@ function start(): void {
     const hit = (x: number, y: number): string | null => {
         for (const mark of marks) {
             const range = ranges.get(mark.id)
-            if (!range) {
+            // A removal's range is the word beside it, which it never paints, so it is never what the reader points at.
+            if (!range || mark.state === 'removed') {
                 continue
             }
             for (const rect of range.getClientRects()) {

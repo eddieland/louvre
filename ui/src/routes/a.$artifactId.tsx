@@ -4,13 +4,25 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncEx
 
 import type { FromBridge, Mark, Place, Selected } from '@/bridge/protocol'
 import type { Anchor } from '@/bridge/text'
+import { ChangeNote } from '@/components/change-note'
+import { ChangesSummary } from '@/components/changes-summary'
 import { Frame } from '@/components/frame'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { ThreadNote } from '@/components/thread-note'
 import type { Draft } from '@/components/thread-note'
-import { ApiError, artifactQuery, boardQuery, request, sessionQuery, threadsQuery, useThreadWrites } from '@/lib/api'
+import {
+    ApiError,
+    artifactQuery,
+    boardQuery,
+    compareQuery,
+    request,
+    sessionQuery,
+    threadsQuery,
+    useThreadWrites,
+} from '@/lib/api'
 import type { Account, Detail, Thread } from '@/lib/api'
+import { changeMarks, notesOf, SUMMARY, tally } from '@/lib/changes'
 import { ago, count, provenance, roman } from '@/lib/format'
 import { clearSelection } from '@/lib/frame'
 import { GAP, place } from '@/lib/layout'
@@ -34,10 +46,12 @@ function noteOf(rail: HTMLElement | null, id: string): HTMLElement | null {
     )
 }
 
-/** Which version the page shows, and the board frame it was opened from, if any. */
+/** Which version the page shows, what it is compared with, and the board frame it was opened from, if any. */
 interface Search {
     /** The version, when it is not the latest. */
     v?: number
+    /** The earlier version whose changes it shows, when it shows them. */
+    changes?: number
     /** The board it was opened from. */
     board?: string
     /** The frame on that board, whose width the page is shown at. */
@@ -48,9 +62,11 @@ interface Search {
 export const Route = createFileRoute('/a/$artifactId')({
     validateSearch: (search: Record<string, unknown>): Search => {
         const v = Number(search['v'])
+        const changes = Number(search['changes'])
         const { board, frame } = search
         return {
             ...(Number.isInteger(v) && v > 0 ? { v } : {}),
+            ...(Number.isInteger(changes) && changes > 0 ? { changes } : {}),
             ...(typeof board === 'string' && typeof frame === 'string' ? { board, frame } : {}),
         }
     },
@@ -101,6 +117,17 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const board = useQuery({ ...boardQuery(search.board ?? ''), enabled: search.board !== undefined })
     const boardFrame = board.data?.frames.find((f) => f.id === search.frame && f.artifact.id === artifact.id)
     const threadsResult = useQuery(threadsQuery(artifact.id, version))
+    // Comparing with an earlier version: its changes are marked and noted in place of the threads.
+    const comparing = search.changes !== undefined && search.changes < version ? search.changes : null
+    const comparisonResult = useQuery({
+        ...compareQuery(artifact.id, comparing ?? 1, version),
+        enabled: comparing !== null,
+    })
+    const comparison = comparing === null ? undefined : comparisonResult.data
+    const changes = comparison ? notesOf(comparison) : []
+    const since = versions.find((v) => v.n === comparing)?.created_at ?? ''
+    // The page as it is, without the comparison: where leaving it, or a link to another version's, goes.
+    const here = { ...(latest ? {} : { v: version }), ...framed }
     const threads = threadsResult.data?.threads ?? []
     const writes = useThreadWrites(artifact.id)
     const theme = useTheme()
@@ -114,6 +141,8 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const [selection, setSelection] = useState<{ selected: Selected; top: number; left: number } | null>(null)
     const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null)
     const [deleting, setDeleting] = useState(false)
+    // A thread opened from the comparison's summary, to scroll to once the page has placed its passage.
+    const pendingScroll = useRef<string | null>(null)
 
     const frameRef = useRef<HTMLIFrameElement>(null)
     const railRef = useRef<HTMLElement>(null)
@@ -129,13 +158,23 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const unplaced = threads.filter((t) => (!t.anchor || (!isGone(t) && !places[t.id])) && visible(t))
     const gone = threads.filter((t) => isGone(t) && visible(t))
     const numbers = new Map(anchored.map((t, i) => [t.id, i + 1]))
-    const order = [...unplaced, ...anchored, ...gone].map((t) => t.id)
+    const placedChanges = changes.filter((c) => c.anchor && places[c.id])
+    placedChanges.sort((a, b) => (places[a.id]?.top ?? 0) - (places[b.id]?.top ?? 0))
+    const unplacedChanges = changes.filter((c) => !c.anchor || !places[c.id])
+    // What the margin holds, in its order: the comparison's summary and changes, or the threads and a draft.
+    const railed: { id: string; anchor: Anchor | null }[] =
+        comparing === null
+            ? [...unplaced, ...anchored, ...(draft ? [draft] : [])]
+            : [{ id: SUMMARY, anchor: null }, ...unplacedChanges, ...placedChanges]
+    const order =
+        comparing === null ? [...unplaced, ...anchored, ...gone].map((t) => t.id) : railed.map((item) => item.id)
     const open = threads.filter((t) => t.state === 'open').length
     const goneOpen = threads.filter((t) => isGone(t) && t.state === 'open')
 
-    const marks: Mark[] = threads.flatMap((t): Mark[] =>
+    const threadMarks = threads.flatMap((t): Mark[] =>
         t.anchor && !isGone(t) ? [{ id: t.id, anchor: t.anchor, state: t.state, n: numbers.get(t.id) ?? null }] : [],
     )
+    const marks: Mark[] = comparing === null ? threadMarks : changeMarks(changes)
     if (draft?.anchor) {
         marks.push({ id: 'draft', anchor: draft.anchor, state: 'draft', n: null })
     }
@@ -179,6 +218,10 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         if (!writable) {
             return
         }
+        if (comparing !== null) {
+            // A comment goes on the page as it is: the comparison makes way for the threads.
+            void navigate({ to: '/a/$artifactId', params: { artifactId: artifact.id }, search: here })
+        }
         setDraft({ id: 'draft', anchor, state: 'draft' })
         setActive('draft')
         setSelection(null)
@@ -188,6 +231,27 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         setDraft(null)
         setActive(null)
     }
+
+    // Leave the comparison for one of the threads its summary lists, open on the page.
+    const openThread = (id: string) => {
+        setHover(null)
+        activate(id)
+        pendingScroll.current = id
+        void navigate({ to: '/a/$artifactId', params: { artifactId: artifact.id }, search: here })
+    }
+    const scrollPending = useEffectEvent(() => {
+        const id = pendingScroll.current
+        const thread = threads.find((t) => t.id === id)
+        if (comparing !== null || !id || !thread) {
+            return
+        }
+        // A thread on a passage waits for the bridge to place it; one on the page, or on words gone, is in the margin.
+        if (places[id] || !thread.anchor || isGone(thread)) {
+            pendingScroll.current = null
+            scrollToPassage(id)
+        }
+    })
+    useEffect(() => scrollPending())
 
     const onKey = (key: string) => {
         if (key === 'Escape') {
@@ -309,7 +373,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
             return
         }
         const offset = frame.getBoundingClientRect().top - rail.getBoundingClientRect().top
-        const items = [...unplaced, ...anchored, ...(draft ? [draft] : [])].flatMap((t) => {
+        const items = railed.flatMap((t) => {
             const node = noteOf(rail, t.id)
             const want = t.id === 'draft' ? draftTop(offset) : t.anchor ? offset + (places[t.id]?.top ?? 0) : 0
             return node ? [{ id: t.id, node, want, height: node.offsetHeight }] : []
@@ -437,7 +501,27 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                     ))}
                 </div>
                 <div className="toolbar-right">
-                    {goneOpen.length > 0 ? (
+                    {version > 1 ? (
+                        <button
+                            type="button"
+                            className="pill"
+                            aria-pressed={comparing !== null}
+                            onClick={() => {
+                                setDraft(null)
+                                setHover(null)
+                                // On a narrow screen the summary opens in the sheet; on a wide one it heads the margin.
+                                setActive(comparing === null && narrow ? SUMMARY : null)
+                                void navigate({
+                                    to: '/a/$artifactId',
+                                    params: { artifactId: artifact.id },
+                                    search: comparing === null ? { ...here, changes: version - 1 } : here,
+                                })
+                            }}
+                        >
+                            Changes
+                        </button>
+                    ) : null}
+                    {comparing === null && goneOpen.length > 0 ? (
                         <button
                             type="button"
                             className="pill text-accent"
@@ -456,35 +540,37 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                             <span className="short">{goneOpen.length} removed</span>
                         </button>
                     ) : null}
-                    {writable ? (
+                    {writable && comparing === null ? (
                         <button type="button" className="pill" onClick={() => startDraft(null)}>
                             <span className="long">Comment on the page</span>
                             <span className="short">Comment</span>
                         </button>
                     ) : null}
-                    <div className="filters">
-                        <button
-                            type="button"
-                            className="pill"
-                            aria-pressed={!showResolved}
-                            onClick={() => {
-                                setShowResolved(false)
-                                if (narrow && active === null) {
-                                    step(1)
-                                }
-                            }}
-                        >
-                            Open <span className="tabular-nums">{open}</span>
-                        </button>
-                        <button
-                            type="button"
-                            className="pill"
-                            aria-pressed={showResolved}
-                            onClick={() => setShowResolved(true)}
-                        >
-                            All
-                        </button>
-                    </div>
+                    {comparing === null ? (
+                        <div className="filters">
+                            <button
+                                type="button"
+                                className="pill"
+                                aria-pressed={!showResolved}
+                                onClick={() => {
+                                    setShowResolved(false)
+                                    if (narrow && active === null) {
+                                        step(1)
+                                    }
+                                }}
+                            >
+                                Open <span className="tabular-nums">{open}</span>
+                            </button>
+                            <button
+                                type="button"
+                                className="pill"
+                                aria-pressed={showResolved}
+                                onClick={() => setShowResolved(true)}
+                            >
+                                All
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </nav>
             {latest ? null : (
@@ -495,6 +581,44 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                     </Link>
                     .
                 </p>
+            )}
+            {comparing === null ? null : (
+                <nav className="compare-bar" aria-label="What changed">
+                    <span className="long">Changes since version</span>
+                    <span className="short">Since</span>
+                    {versions
+                        .filter((v) => v.n < version)
+                        .map((v) => (
+                            <Link
+                                key={v.n}
+                                to="/a/$artifactId"
+                                params={{ artifactId: artifact.id }}
+                                search={{ ...here, changes: v.n }}
+                                className="pill"
+                                data-current={v.n === comparing ? '' : undefined}
+                                aria-label={`Since version ${String(v.n)}`}
+                            >
+                                {roman(v.n)}
+                            </Link>
+                        ))}
+                    {comparison ? (
+                        <button
+                            type="button"
+                            className="action action-primary"
+                            onClick={() => {
+                                activate(SUMMARY)
+                                noteOf(railRef.current, SUMMARY)?.scrollIntoView({
+                                    block: 'center',
+                                    behavior: 'smooth',
+                                })
+                            }}
+                        >
+                            {tally(comparison)}
+                        </button>
+                    ) : (
+                        <span>{comparisonResult.error ? comparisonResult.error.message : 'Comparing…'}</span>
+                    )}
+                </nav>
             )}
             <main className="stage" data-framed={boardFrame ? '' : undefined}>
                 <div
@@ -522,24 +646,51 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                 <aside ref={railRef} className="rail" aria-label="Comments">
                     {narrow ? (
                         <div className="sheet-head">
-                            <span className="label">{activeThread || draft ? 'Comments' : ''}</span>
+                            <span className="label">
+                                {comparing === null ? (activeThread || draft ? 'Comments' : '') : 'Changes'}
+                            </span>
                             <button type="button" className="action" onClick={close}>
                                 Close
                             </button>
                         </div>
                     ) : null}
-                    {threads.length === 0 && !draft && !narrow ? (
+                    {comparing === null ? null : (
+                        <>
+                            {comparison ? (
+                                <ChangesSummary
+                                    comparison={comparison}
+                                    threads={threads}
+                                    since={since}
+                                    active={active === SUMMARY}
+                                    onOpenThread={openThread}
+                                />
+                            ) : null}
+                            {[...unplacedChanges, ...placedChanges].map((change) => (
+                                <ChangeNote
+                                    key={change.id}
+                                    change={change}
+                                    active={active === change.id}
+                                    hovered={hover === change.id}
+                                    onActivate={() => activate(change.id)}
+                                    onHover={(on) => setHover(on ? change.id : null)}
+                                />
+                            ))}
+                        </>
+                    )}
+                    {comparing === null && threads.length === 0 && !draft && !narrow ? (
                         <p className="rail-empty">
                             {writable
                                 ? 'No comments yet. Select words in the page to comment on them.'
                                 : 'No comments yet.'}
                         </p>
                     ) : null}
-                    {[...unplaced, ...anchored].map((t) => note(t))}
+                    {comparing === null ? [...unplaced, ...anchored].map((t) => note(t)) : null}
                     {draft ? note(draft) : null}
                     <div ref={goneRef} className="gone">
-                        {gone.length > 0 ? <p className="gone-title">Not in this version</p> : null}
-                        {gone.map((t) => note(t))}
+                        {comparing === null && gone.length > 0 ? (
+                            <p className="gone-title">Not in this version</p>
+                        ) : null}
+                        {comparing === null ? gone.map((t) => note(t)) : null}
                     </div>
                 </aside>
             </main>

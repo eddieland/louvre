@@ -19,6 +19,8 @@
     --color-accent-ink: var(--accent-ink);
     --color-hl: var(--hl);
     --color-hl-strong: var(--hl-strong);
+    --color-chg: var(--chg);
+    --color-chg-strong: var(--chg-strong);
     --font-display: 'Fraunces Variable', Georgia, serif;
     --font-serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
     --font-ui: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -307,6 +309,23 @@
         color: var(--accent);
     }
 
+    /* Comparing with an earlier version: which one, as pills, and how much changed (ui/DESIGN.md, "Changes"). */
+    .compare-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.25rem 0.5rem;
+        max-width: 73.75rem;
+        margin: -0.5rem auto 1rem;
+        padding: 0 2rem;
+        font-family: var(--font-ui);
+        font-size: 0.8125rem;
+        color: var(--muted);
+        & > .action {
+            font-size: inherit;
+        }
+    }
+
     /* A board: the header and toolbar above a canvas that takes the rest of the screen (ui/DESIGN.md, "Boards"). */
     .board-page {
         display: flex;
@@ -561,6 +580,79 @@
         text-decoration: line-through;
         text-decoration-color: var(--faint);
     }
+    /* A change in the margin: its kind as a label, the words it removed struck through, the words it added. */
+    .change-kind {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-family: var(--font-ui);
+        font-size: 0.6875rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+    .change-added {
+        overflow-wrap: anywhere;
+        text-decoration: underline;
+        text-decoration-color: var(--chg-strong);
+        text-decoration-thickness: 0.35em;
+        text-underline-offset: -0.15em;
+        text-decoration-skip-ink: none;
+    }
+    .change .gone-quote {
+        overflow-wrap: anywhere;
+    }
+    /* A long passage shows its first four lines. */
+    .clamp {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
+    }
+    .changes-tally {
+        display: block;
+        margin-bottom: 0.875rem;
+    }
+    .fates {
+        display: grid;
+        gap: 0.625rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .fate {
+        display: block;
+        width: 100%;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        &:hover .fate-body {
+            color: var(--ink);
+        }
+    }
+    .fate-body {
+        display: -webkit-box;
+        overflow: hidden;
+        color: var(--muted);
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+    .fate-outcome {
+        display: block;
+        font-family: var(--font-ui);
+        font-size: 0.6875rem;
+        color: var(--muted);
+        &[data-outcome='passage_gone'],
+        &[data-outcome='near_change'] {
+            color: var(--accent);
+        }
+    }
+
     .composer {
         margin-top: 0.5rem;
         & textarea {
@@ -673,7 +765,8 @@
             margin-bottom: 0.5rem;
         }
         .toolbar,
-        .older {
+        .older,
+        .compare-bar {
             padding: 0 1rem;
         }
     }

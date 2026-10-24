@@ -168,6 +168,41 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
     assert {a["on_behalf_of_name"] for a in agents} == {"Sam Okafor"}
 
 
+def test_the_demos_report_compares_its_versions(web: MakeWeb) -> None:
+    client = web(demo=True)
+    report = next(a for a in client.get("/api/artifacts").json()["artifacts"] if a["latest_version"] == 2)["id"]
+
+    compared = client.get(f"/api/artifacts/{report}/compare", params={"base": 1}).json()
+
+    assert (compared["base"], compared["head"]) == (1, 2)
+    assert [(c["kind"], c["removed"], c["added"]) for c in compared["changes"]] == [
+        ("added", "", "The figure is from its status panel, psp.latency, for 14 to 21 October."),
+        ("removed", "A day's work.", ""),
+        ("changed", "60 s", "five minutes"),
+    ]
+    outcomes = [t["outcome"] for t in compared["threads"]]
+    assert outcomes.count("passage_gone") == 1
+    assert None in outcomes
+
+
+@pytest.mark.parametrize(
+    ("params", "status", "code"),
+    [({}, 422, "invalid"), ({"base": 2}, 422, "invalid"), ({"base": 1, "head": 3}, 404, "not_found")],
+)
+def test_a_comparison_that_cannot_be_made_says_why(
+    web: MakeWeb,
+    params: dict[str, int],
+    status: int,
+    code: str,
+) -> None:
+    client = web(demo=True)
+    report = next(a for a in client.get("/api/artifacts").json()["artifacts"] if a["latest_version"] == 2)["id"]
+
+    response = client.get(f"/api/artifacts/{report}/compare", params=params)
+
+    assert (response.status_code, response.json()["code"]) == (status, code)
+
+
 def test_the_demos_board_is_listed_and_shown_with_its_frames(web: MakeWeb) -> None:
     client = web(demo=True)
 

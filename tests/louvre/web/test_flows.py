@@ -201,6 +201,71 @@ def test_a_reader_of_the_demo_is_asked_to_sign_in_to_reply(browser: Browser, liv
         context.close()
 
 
+def changes_shown(page: Page) -> None:
+    """Open the demo's report, compare its versions, and wait until the bridge has marked what changed."""
+    page.goto("/")
+    page.click("text=Checkout latency")
+    shown(page)
+    page.get_by_role("button", name="Changes", exact=True).click()
+    page.wait_for_url(re.compile(r"changes=1$"))
+    expect(page.get_by_role("button", name="Changes", exact=True)).to_have_attribute("aria-pressed", "true")
+    frame = next(f for f in page.frames if "/content/" in f.url)
+    frame.wait_for_function("() => CSS.highlights.get('louvre-change')?.size === 2")
+
+
+def test_a_reader_compares_versions_steps_through_the_changes_and_opens_a_thread(context: BrowserContext) -> None:
+    page = context.new_page()
+    changes_shown(page)
+
+    expect(page.locator(".changes-summary")).to_contain_text("3 changes: 15 words added, 5 removed")
+    notes = page.locator(".rail > .thread.change")
+    expect(notes.locator(".change-kind")).to_have_text(["Added", "Removed", "Rewritten"])
+    expect(notes.nth(2)).to_contain_text("60 s")
+    expect(notes.nth(2)).to_contain_text("five minutes")
+    # Each note is level with its passage, so the notes run down the margin in the page's order.
+    tops = [notes.nth(i).bounding_box()["y"] for i in range(3)]  # type: ignore[index]
+    assert tops == sorted(tops)
+    expect(page.locator(".changes-summary .fate-outcome").first).to_contain_text("Passage reworded or removed")
+    expect(page.locator("button.add")).to_have_count(0)
+
+    page.evaluate("document.activeElement.blur()")
+    page.keyboard.press("j")
+    expect(page.locator(".changes-summary.is-active")).to_be_visible()
+    page.keyboard.press("j")
+    expect(page.locator(".thread.change.is-active")).to_have_attribute("data-kind", "added")
+    frame = next(f for f in page.frames if "/content/" in f.url)
+    frame.wait_for_function("() => CSS.highlights.get('louvre-change-strong')?.size === 1")
+
+    page.locator(".fate", has_text="Which dashboard").click()
+    page.wait_for_url(re.compile(r"/a/a_[0-9a-f]+$"))
+    expect(page.locator(".thread.is-active")).to_contain_text("Which dashboard is this from?")
+    expect(page.locator(".thread.change")).to_have_count(0)
+    expect(page.get_by_role("button", name="Changes", exact=True)).to_have_attribute("aria-pressed", "false")
+
+
+def test_on_a_phone_the_comparison_opens_in_the_sheet_and_leaves_for_a_thread(browser: Browser, live_app: str) -> None:
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        changes_shown(page)
+
+        expect(page.locator(".changes-summary.is-active")).to_be_in_viewport()
+        expect(page.locator(".thread.change").first).to_be_hidden()
+        page.locator(".fate", has_text="Has the risk team").tap()
+
+        page.wait_for_url(re.compile(r"/a/a_[0-9a-f]+$"))
+        expect(page.locator(".thread.is-active")).to_contain_text("Has the risk team signed off on this?")
+        expect(page.locator(".thread.is-active")).to_be_in_viewport()
+    finally:
+        context.close()
+
+
 def board(page: Page) -> None:
     """Open the demo's board, and wait until it is fitted to the screen and its frames' pages have loaded."""
     page.goto("/b/design-study")

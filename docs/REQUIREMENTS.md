@@ -57,6 +57,16 @@ server they already reach Louvre by, so nothing is installed and it never lags L
 it. An artifact that opts in names a version, so a later style never restyles a published page. The `style_get` tool
 hands over the stylesheet and its rules, which the artifact inlines; a Markdown artifact is shown in it already.
 
+### U7. What a new version changed, and what became of each thread
+
+Built (M7), awaiting the operator's word. The loop canopy runs (2026-10-24): a person comments, the agent publishes a
+new version that answers, and the person checks it. Louvre compares any version with an earlier one by their visible
+text, word by word, so markup and reflowed whitespace never show as a change, and marks what changed inside the
+artifact's own frame, so it keeps its author's look; what was removed is noted in the margin where it was. For each
+thread on the earlier version's text it says what became of its passage (unchanged, changed beside it, or gone), whether
+it is resolved, and its replies since. A comparison is a link, `?changes=N`, so an agent can point a person at what it
+changed. Not over MCP: the contract's tools are canopy's (L1), and an agent knows what it changed.
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP

@@ -92,6 +92,88 @@ def test_a_reworded_passage_is_gone_from_the_new_version_and_found_in_the_old(ag
     refused(Code.ANCHOR_NOT_FOUND, lambda: ana.comment(artifact, Anchor.of("twice before"), "Gone already."))
 
 
+def test_a_comparison_says_what_changed_and_what_became_of_each_threads_passage(agent: MakeAgent, ana: Store) -> None:
+    worker = agent()
+    artifact = str(worker.publish(title="R", content_type="text/html", content=V1)["artifact_id"])
+    reworded = ana.comment(artifact, Anchor.of("retry the fraud check twice"), "Two doubles it.")
+    across = ana.comment(artifact, Anchor.of("We will retry the fraud check"), "Which check?")
+    kept = ana.comment(artifact, Anchor.of("p95 rose to 1.2 s."), "Since when?")
+    page = ana.comment(artifact, None, "Overall, good.")
+    ana.resolve(str(page["thread_id"]), resolved=True)
+    worker.publish(title="R", content_type="text/html", content=V2, artifact_id=artifact)
+    later = ana.comment(artifact, Anchor.of("once"), "Better.")
+
+    compared = ana.compare(artifact, 1)
+
+    assert compared == {
+        "artifact_id": artifact,
+        "base": 1,
+        "head": 2,
+        "changes": [
+            {
+                "kind": "changed",
+                "anchor": {
+                    "exact": "once.",
+                    "prefix": "t We will retry the fraud check",
+                    "suffix": "p95 rose to 1.2 s.",
+                },
+                "added": "once.",
+                "removed": "twice before declining.",
+            },
+        ],
+        "words_added": 1,
+        "words_removed": 3,
+        # The thread opened on version 2 is no news of what changed since version 1.
+        "threads": [
+            {"thread_id": reworded["thread_id"], "state": "open", "outcome": "passage_gone"},
+            {"thread_id": across["thread_id"], "state": "open", "outcome": "near_change"},
+            {"thread_id": kept["thread_id"], "state": "open", "outcome": "near_change"},
+            {"thread_id": page["thread_id"], "state": "resolved", "outcome": None},
+        ],
+    }
+    assert later["thread_id"] not in [t["thread_id"] for t in compared["threads"]]  # type: ignore[union-attr]
+
+
+def test_a_thread_is_near_a_change_within_its_anchors_context_of_it(agent: MakeAgent, ana: Store) -> None:
+    worker = agent()
+    first = "<p>Batch the tax quote into one call per cart.</p><p>Warm the pool at deploy.</p><p>Cache it for 60 s.</p>"
+    second = first.replace("60 s", "five minutes")
+    artifact = str(worker.publish(title="R", content_type="text/html", content=first)["artifact_id"])
+    far = ana.comment(artifact, Anchor.of("Batch the tax quote"), "A day's work?")
+    near = ana.comment(artifact, Anchor.of("Warm the pool at deploy."), "How long does it take?")
+    worker.publish(title="R", content_type="text/html", content=second, artifact_id=artifact)
+
+    assert ana.compare(artifact, 1)["threads"] == [
+        {"thread_id": far["thread_id"], "state": "open", "outcome": "unchanged"},
+        {"thread_id": near["thread_id"], "state": "open", "outcome": "near_change"},
+    ]
+
+
+def test_a_thread_whose_passage_left_before_the_earlier_version_is_no_news(agent: MakeAgent, ana: Store) -> None:
+    worker = agent()
+    artifact = str(worker.publish(title="R", content_type="text/html", content=V1)["artifact_id"])
+    ana.comment(artifact, Anchor.of("twice before declining."), "Why twice?")
+    worker.publish(title="R", content_type="text/html", content=V2, artifact_id=artifact)
+    worker.publish(title="R", content_type="text/html", content=V2 + "<p>Ship it.</p>", artifact_id=artifact)
+
+    assert ana.compare(artifact, 2)["threads"] == []
+    assert [t["outcome"] for t in ana.compare(artifact, 1)["threads"]] == ["passage_gone"]  # type: ignore[union-attr]
+
+
+def test_a_comparison_is_held_to_the_scope_and_to_versions_in_order(agent: MakeAgent, ana: Store) -> None:
+    worker = agent()
+    artifact = str(worker.publish(title="R", content_type="text/html", content=V1)["artifact_id"])
+    worker.publish(title="R", content_type="text/html", content=V2, artifact_id=artifact)
+
+    refused(Code.INVALID, lambda: ana.compare(artifact, 2))
+    refused(Code.INVALID, lambda: ana.compare(artifact, 2, 1))
+    refused(Code.INVALID, lambda: ana.compare(artifact, 0))
+    refused(Code.NOT_FOUND, lambda: ana.compare(artifact, 1, 3))
+    refused(Code.NOT_FOUND, lambda: ana.compare("a_none", 1))
+    refused(Code.OUT_OF_SCOPE, lambda: agent("canopy/other").compare(artifact, 1))
+    assert worker.compare(artifact, 1, 2)["head"] == 2
+
+
 def test_a_thread_on_the_whole_artifact_has_no_anchor(agent: MakeAgent, ana: Store) -> None:
     artifact = str(agent().publish(title="R", content_type="text/html", content=V1)["artifact_id"])
 

@@ -11,7 +11,8 @@ A gallery at night. The artifact is the exhibit, hung on a warm wall in a frame 
 label beside it, quiet and small. The conversation is marginalia: notes set in the margin level with the passage they
 speak to, numbered like sidenotes, with no boxes around them. Serif for what people read, a small sans for what Louvre
 says about it. One accent, oxblood, marks what is live, selected, or the action to take; nothing else is colored for
-decoration. Dark is the theme the operator lives in (REQUIREMENTS U2); light is its equal, from the same tokens.
+decoration. The one other hue, a quiet sage, marks words a version changed, and only while versions are compared
+(Changes). Dark is the theme the operator lives in (REQUIREMENTS U2); light is its equal, from the same tokens.
 
 An artifact keeps its author's look. Louvre styles its own chrome and the margin, never what is inside the frame.
 
@@ -33,6 +34,8 @@ and a theme difference is a token change, never a rule written for one theme.
 | `hl` | accent at 16% | accent at 13% | An anchored passage at rest, as a low underline band. |
 | `hl-strong` | accent at 30% | accent at 24% | An anchored passage hovered or active, as a full band. |
 | `shadow` | black at 60% | ink at 28% | The frame's and an active thread's shadow. |
+| `chg` | sage at 20% | green at 16% | Words a later version added or rewrote, at rest, while comparing versions. |
+| `chg-strong` | sage at 38% | green at 30% | Those words hovered or active. |
 
 Text reads at 4.5:1 or better (WCAG AA) on `wall` and `paper` in both themes: `ink` 14 to 17, `muted` 5.0 to 7.0,
 `accent` 5.7 to 8.2. `faint` does not (2.2 to 3.4), which is why it is never text; the mock-up uses it for three small
@@ -92,6 +95,28 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
   Tokens, signing in or out) at its right, in Instrument Sans.
 - Threads on the whole artifact sit at the top of the margin; "Comment on the page" in the toolbar starts one.
 - An older version says so under the toolbar, in `accent`, with a link to the latest: comments go on the latest only.
+- From version II on, "Changes" in the toolbar compares the version shown with the one before it (Changes).
+
+## Changes
+
+What a revision changed, for the reader who commented on the version before it (REQUIREMENTS U7). Comparing is a
+state of the artifact's page, linked by `?changes=N`, the earlier version's number: the frame, the toolbar, and the
+margin are the page's own, and the artifact keeps its author's look.
+
+- **In the frame**, the bridge paints the words the later version added or rewrote with a `chg` band, `chg-strong`
+  hovered or active, as it paints a thread's passage, changing none of the author's markup. Words removed are not on
+  the page to paint; their note sits level with where they were.
+- **In the margin**, the threads make way. A summary heads it: since which version, how many changes and words, and
+  each thread on the earlier version's text by who started it and what they said, then what became of its passage
+  (unchanged, changed beside it, or reworded or removed, the last two in `accent`), whether it is resolved, and its
+  replies since. Activating one leaves the comparison with that thread open. Below the summary, each change is a note
+  level with its passage, like a thread's: its kind as a label (Added, Removed, Rewritten), the words it removed
+  struck through, and the words it added on a `chg-strong` underline, four lines of each at most.
+- **The bar** under the toolbar names the earlier version as a row of roman pills, any earlier one to pick, and how
+  much changed, which activates the summary.
+- **Moving.** `j` and `k` step through the summary and the changes in page order; on a narrow screen each opens in
+  the sheet, and the summary opens with the comparison. The toolbar's Open and All, and commenting on the page, wait
+  until the comparison is left; selecting words and commenting leaves it, the comment on the page as it is.
 
 ## Catalogue
 
