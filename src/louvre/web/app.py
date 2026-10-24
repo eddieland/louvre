@@ -12,21 +12,26 @@ token in `Authorization`, never a cookie.
 """
 
 import html
+from collections.abc import Iterator
+from contextlib import contextmanager
 from importlib.metadata import version
 from importlib.resources import files
-from typing import Annotated
+from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from mcp.server.context import ServerRequestContext
+from starlette import types as asgi
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.routing import Route
 
 from louvre.core import accounts, explorations
-from louvre.core.store import Code, Refused, Store
+from louvre.core.store import Code, Refused, Scope, Store
 from louvre.mcp import server
 from louvre.web import api, auth, ui
-from louvre.web.caller import Database, Reader, database
+from louvre.web.caller import Database, Reader
 from louvre.web.settings import Settings
 
 #: Where Louvre's own server-made pages live, beside this module.
@@ -91,16 +96,12 @@ def create(settings: Settings | None = None) -> FastAPI:
             headers={"Content-Security-Policy": ARTIFACT_POLICY, "Cache-Control": "private, no-cache", **_NO_SNIFF},
         )
 
-    @app.post("/mcp")
-    async def mcp(request: Request, found: Annotated[Database, Depends(database)]) -> Response:
-        """The MCP server, over streamable HTTP: one JSON-RPC message a request, answered as JSON."""
-        body = await request.body()
-        # The store is synchronous: it runs in a worker thread, as a synchronous route would.
-        return await run_in_threadpool(_mcp, request, found, body)
+    # The MCP server, over streamable HTTP, for a request with a token: an ASGI app of the SDK's (louvre.mcp.server).
+    app.router.routes.append(Route("/mcp", _Mcp(app.state.database), methods=["POST"]))
 
     @app.get("/mcp")
     def mcp_stream() -> Response:
-        """No stream: the server sends nothing a client did not ask for."""
+        """No stream: the server sends nothing a client did not ask for, and a stream left open holds a function."""
         return Response(status_code=405, headers={"Allow": "POST"})
 
     _design_study(app)
@@ -176,19 +177,41 @@ def _design_study(app: FastAPI) -> None:
         )
 
 
-def _mcp(request: Request, found: Database, body: bytes) -> Response:
-    secret = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-    if not secret:
-        return _unauthorized("a token is required: Authorization: Bearer lvt_...")
+class _Mcp:
+    """The MCP server, for a request whose token works, as that token's scope; any other is refused 401.
+
+    An ASGI app, not a function, so the route hands it the request whole: the SDK answers it.
+    """
+
+    def __init__(self, found: Database) -> None:
+        """Serve the MCP server over `found`, the app's database."""
+        self.found = found
+        self.app = server.http(server.server(self._open_store))
+
+    async def __call__(self, scope: asgi.Scope, receive: asgi.Receive, send: asgi.Send) -> None:
+        """Answer one request."""
+        request = Request(scope)
+        secret = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+        token_scope = await run_in_threadpool(_token_scope, self.found, secret) if secret else None
+        if token_scope is None:
+            why = "the token is unknown or revoked" if secret else "a token is required: Authorization: Bearer lvt_..."
+            await _unauthorized(why)(scope, receive, send)
+            return
+        request.state.token_scope = token_scope
+        request.state.base_url = self.found.settings.base_url or str(request.base_url).rstrip("/")
+        await self.app(scope, receive, send)
+
+    @contextmanager
+    def _open_store(self, ctx: ServerRequestContext[Any, Any]) -> Iterator[Store]:
+        request = ctx.request
+        assert isinstance(request, Request)  # noqa: S101  (the HTTP transport passes its request)
+        with self.found.opened() as conn:
+            yield Store(conn, request.state.token_scope, base_url=request.state.base_url)
+
+
+def _token_scope(found: Database, secret: str) -> Scope | None:
     with found.opened() as conn:
-        scope = accounts.token_scope(conn, secret)
-        if scope is None:
-            return _unauthorized("the token is unknown or revoked")
-        base_url = found.settings.base_url or str(request.base_url).rstrip("/")
-        answered = server.answer(body, Store(conn, scope, base_url=base_url))
-    if answered is None:
-        return Response(status_code=202)
-    return JSONResponse(answered)
+        return accounts.token_scope(conn, secret)
 
 
 def _unauthorized(message: str) -> JSONResponse:
