@@ -56,8 +56,10 @@ class Scene:
     path: str
     #: What to do on the page before it is checked, such as opening a thread.
     act: Callable[[Page], None] | None = None
-    #: Whether the reader is signed in, as Ana, or reads the demo without signing in.
+    #: Whether the reader is signed in, or reads the demo without signing in.
     signed_in: bool = True
+    #: Who signs in: Ana, unless a scene's act would leave what other scenes show changed for her.
+    login: str = "ana"
 
 
 def _open_thread(page: Page) -> None:
@@ -105,6 +107,39 @@ def _decisions_listed(page: Page) -> None:
     page.wait_for_selector("#decisions-decided", state="visible")
 
 
+def _inbox_news(page: Page) -> None:
+    """News in Kim's inbox: Raj replies to her on the weekly report and resolves it, so no other scene shows it.
+
+    Kim has read the report, her thread on it included, before Raj answers: each screen shows the same two changes.
+    """
+    origin = page.url.split("/inbox")[0]
+    kim = page.context.request
+    listed = kim.get(f"{origin}/api/artifacts?namespace=demo").json()["artifacts"]
+    weekly = next(a["id"] for a in listed if a["title"].startswith(DEMO["weekly"]))
+    made = kim.post(
+        f"{origin}/api/artifacts/{weekly}/threads",
+        data={
+            "anchor": {"exact": "The tax quote now makes one call per cart."},
+            "body": "Does this hold for carts with a promotion?",
+        },
+        headers=WRITES,
+    ).json()
+    assert kim.post(f"{origin}/api/inbox/read", headers=WRITES).ok
+    browser = page.context.browser
+    assert browser is not None
+    raj = browser.new_context()
+    try:
+        assert raj.request.post(f"{origin}/auth/dev", data={"login": "raj", "name": "Raj Patel"}, headers=WRITES).ok
+        thread = made["thread_id"]
+        reply = {"body": "It does: the promotion's version is in the cache key, so a cart quotes once either way."}
+        assert raj.request.post(f"{origin}/api/threads/{thread}/replies", data=reply, headers=WRITES).ok
+        assert raj.request.post(f"{origin}/api/threads/{thread}/resolve", data={"resolved": True}, headers=WRITES).ok
+    finally:
+        raj.close()
+    page.reload(wait_until="networkidle")
+    page.wait_for_selector(".news-item", state="visible")
+
+
 #: Every screen, dark first; light at one phone and one laptop size.
 SCREENS = (
     Screen("phone-small-dark", "Small phone, 360", 360, 780, "dark", touch=True),
@@ -138,6 +173,7 @@ SCENES = (
         "/a/{gallery}?board=design-study&frame=gallery-phone",
         _artifact_shown,
     ),
+    Scene("inbox", "The inbox, with a reply and a thread resolved", "/inbox", _inbox_news, login="kim"),
     Scene("tokens", "Tokens", "/tokens"),
     Scene("directions", "Design directions", "/directions"),
     Scene("directions-board", "Design directions, as a board", "/directions/board", _board_shown, signed_in=False),
@@ -201,7 +237,8 @@ def test_a_page_fits_the_screen(
         reduced_motion="reduce",
     )
     if scene.signed_in:
-        signed = context.request.post(f"{live_app}/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES)
+        who = {"login": scene.login, "name": {"ana": "Ana Ruiz", "kim": "Kim Lee"}[scene.login]}
+        signed = context.request.post(f"{live_app}/auth/dev", data=who, headers=WRITES)
         assert signed.status == 204
     errors: list[str] = []
     page = context.new_page()

@@ -15,6 +15,8 @@ export interface ThreadNoteProps {
     active: boolean
     /** Whether it or its passage is hovered. */
     hovered: boolean
+    /** Whether it has news for the reader on this visit. */
+    fresh?: boolean
     /** Whether its passage is gone from the version shown. */
     gone: boolean
     /** The version shown. */
@@ -80,12 +82,13 @@ export function ThreadNote(props: ThreadNoteProps) {
 }
 
 function Body(props: ThreadNoteProps) {
-    const { thread, active, gone, version, account, writable } = props
+    const { thread, active, gone, version, account, writable, fresh } = props
     if (thread.state === 'draft') {
         return <DraftBody {...props} />
     }
     return (
         <>
+            {fresh ? <span className="thread-new">New</span> : null}
             {gone ? (
                 <>
                     <span className="gone-note">

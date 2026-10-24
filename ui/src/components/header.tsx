@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { SignInLink } from '@/components/sign-in'
-import { decisionsQuery, sessionQuery, useSignIn } from '@/lib/api'
+import { decisionsQuery, inboxQuery, sessionQuery, useSignIn } from '@/lib/api'
 import { setTheme, useTheme } from '@/lib/theme'
 
 /** What the header says about the page, beside the wordmark: where an artifact came from, say. */
@@ -20,6 +20,7 @@ export function Header({ provenance }: HeaderProps) {
     const theme = useTheme()
     const { out } = useSignIn()
     const account = session?.account ?? null
+    const news = useQuery({ ...inboxQuery, enabled: account !== null }).data?.entries.length ?? 0
     // How many open decisions ask the reader, who has not answered: Louvre's one call for their attention.
     // Read without polling: every page has the header, and an answer or a close reads it again by itself.
     const awaiting =
@@ -44,6 +45,14 @@ export function Header({ provenance }: HeaderProps) {
                 </button>
                 {account ? (
                     <>
+                        <Link
+                            to="/inbox"
+                            className="action"
+                            activeProps={{ className: 'action text-ink' }}
+                            aria-label={news > 0 ? `Inbox, ${String(news)} new` : 'Inbox'}
+                        >
+                            Inbox{news > 0 ? <span className="news-count">{news}</span> : null}
+                        </Link>
                         <Link
                             to="/decisions"
                             className="action"

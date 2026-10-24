@@ -240,6 +240,40 @@ def test_a_selection_across_blocks_comments_too(context: BrowserContext) -> None
     assert any(t["anchor"] and t["anchor"]["exact"] == "shard it. Then measure" for t in threads)
 
 
+def test_a_reply_reaches_the_inbox_and_opens_at_its_thread_marked_new(
+    browser: Browser,
+    live_app: str,
+    context: BrowserContext,
+) -> None:
+    artifact = publish(context)
+    raj = browser.new_context(base_url=live_app)
+    assert raj.request.post("/auth/dev", data={"login": "raj", "name": "Raj Patel"}, headers=WRITES).ok
+    asked = raj.request.post(
+        f"/api/artifacts/{artifact}/threads",
+        data={"anchor": {"exact": "Then measure again."}, "body": "Measure what, exactly?"},
+        headers=WRITES,
+    ).json()
+    raj.close()
+
+    page = context.new_page()
+    page.goto("/inbox")
+    entry = page.locator(".entry", has_text="Measure what, exactly?")
+    expect(entry).to_contain_text("Raj Patel")
+    expect(entry).to_contain_text("Then measure again.")
+    expect(page.get_by_role("link", name=re.compile(r"^Inbox, \d+ new$"))).to_be_visible()
+    entry.locator("a").click()
+
+    expect(page).to_have_url(re.compile(rf"/a/{artifact}\?t={asked['thread_id']}$"))
+    note = page.locator(f'.thread.is-active[data-id="{asked["thread_id"]}"]')
+    expect(note).to_contain_text("New")
+    expect(note).to_contain_text("Measure what, exactly?")
+    expect(page.get_by_role("button", name="1 new")).to_be_visible()
+    deadline = time.monotonic() + DEADLINE
+    while any(e["artifact"]["id"] == artifact for e in context.request.get("/api/inbox").json()["entries"]):
+        assert time.monotonic() < deadline, "opening the artifact did not mark it read"
+        time.sleep(0.1)
+
+
 def test_a_token_is_shown_once_and_revoked(context: BrowserContext) -> None:
     page = context.new_page()
     page.goto("/tokens")

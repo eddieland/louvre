@@ -10,7 +10,8 @@ operator shares an artifact with, serving the same MCP tools, so a skill written
 
 - **Agents** reach Louvre over MCP's streamable HTTP, with a token a person minted, bound to their account and one
   namespace.
-- **People** sign in on the web, read an artifact's versions, and comment on its passages.
+- **People** sign in on the web, read an artifact's versions, and comment on its passages. Their inbox gathers the
+  replies and new versions on what they take part in.
 - **Decisions** are questions an agent asks people on an artifact, to answer by choosing; the agent reads the answers
   back over MCP, and each person sees what waits on them.
 - **Readers of comments**, such as canopy's loop, pull the comment feed; Louvre never calls them.
