@@ -13,6 +13,15 @@ Reach it from this machine:
   then open http://127.0.0.1:8000/
 {{- end }}
 
+{{- if .Values.config.devSignIn }}
+
+Anyone who can reach it may sign in as anyone (config.devSignIn): keep this release on a local cluster.
+{{- end }}
+{{- if not (or .Values.config.github.clientId .Values.config.devSignIn) }}
+
+No one can sign in yet: set config.github to a GitHub OAuth app (docs/DEPLOY.md).
+{{- end }}
+
 Check the release: helm test {{ .Release.Name }} --namespace {{ .Release.Namespace }} --logs
 {{- if .Values.postgresql.enabled }}
 

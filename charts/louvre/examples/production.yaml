@@ -1,6 +1,7 @@
-# Production: a pinned image, two replicas behind TLS, and a managed PostgreSQL (D007) whose password is a Secret made
-# outside the chart, for example:
+# Production: a pinned image, two replicas behind TLS, sign-in with GitHub, and a managed PostgreSQL (D007), with
+# their secrets in Secrets made outside the chart, for example:
 #   kubectl create secret generic louvre-database --from-literal=password='...'
+#   kubectl create secret generic louvre-github --from-literal=client-secret='...'
 #   helm upgrade --install louvre charts/louvre -f charts/louvre/examples/production.yaml --wait
 # Replace every example.com value with your own.
 image:
@@ -43,6 +44,15 @@ resources:
   limits:
     memory: 1Gi
 
+config:
+  baseUrl: https://louvre.example.com
+  allowedLogins: [octocat]
+  secureCookies: true
+  github:
+    clientId: Iv1.0123456789abcdef
+    existingSecret: louvre-github
+    existingSecretKey: client-secret
+
 postgresql:
   enabled: false
 
@@ -56,3 +66,5 @@ externalDatabase:
   sslMode: require
   existingSecret: louvre-database
   existingSecretPasswordKey: password
+  # Or, for a provider that gives a whole URL: a Secret holding it, named by this key, and no host above.
+  # existingSecretUrlKey: url

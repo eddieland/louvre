@@ -1,6 +1,6 @@
 {{- /*
-`helm test`: Louvre answers on its Service, and the database the chart gives it takes the credentials it is given,
-over the same libpq variables Louvre reads. Each check runs in an image the release already uses.
+`helm test`: Louvre answers on its Service and says it has a database, and the database takes the DATABASE_URL and
+password Louvre is given. Each check runs in an image the release already uses.
 */}}
 apiVersion: v1
 kind: Pod
@@ -33,17 +33,28 @@ spec:
       args:
         - |
           import json, urllib.request
-          url = "http://{{ include "louvre.fullname" . }}:{{ .Values.service.port }}/healthz"
-          with urllib.request.urlopen(url, timeout=10) as response:
-              body = json.load(response)
-          assert body["status"] == "ok", body
-          print("louvre", body["version"], "is healthy")
+          base = "http://{{ include "louvre.fullname" . }}:{{ .Values.service.port }}"
+          def get(path):
+              with urllib.request.urlopen(base + path, timeout=10) as response:
+                  return json.load(response)
+          health = get("/healthz")
+          assert health["status"] == "ok", health
+          session = get("/api/session")
+          assert session["configured"], session
+          print("louvre", health["version"], "is healthy, with a database")
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
     - name: database
       image: {{ include "louvre.imageRef" (list .Values.postgresql.image "") | quote }}
       imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
-      command: [psql, --no-psqlrc, --tuples-only, --command, "select 'database ' || current_database() || ' answers'"]
+      # $(DATABASE_URL) is Kubernetes' own expansion, from the container's env.
+      command:
+        - psql
+        - $(DATABASE_URL)
+        - --no-psqlrc
+        - --tuples-only
+        - --command
+        - select 'database ' || current_database() || ' answers'
       env:
         {{- include "louvre.database.env" . | trim | nindent 8 }}
       securityContext:

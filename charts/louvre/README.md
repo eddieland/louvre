@@ -5,9 +5,10 @@ either bundled, a single PostgreSQL in a StatefulSet for local clusters and tria
 PostgreSQL for production (D007). The image is the repository's `Dockerfile`, which the Image workflow pushes to
 `ghcr.io/eddieland/louvre`.
 
-Louvre reads its database from libpq's standard variables, `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`,
-and `PGSSLMODE`, which the chart sets from whichever database is in use. Until the store is built (roadmap M4) the app
-does not connect yet; the chart's `helm test` checks the database takes those credentials all the same.
+Louvre's settings are the environment variables [docs/DEPLOY.md](../../docs/DEPLOY.md) names, which the chart sets
+from `config` and from whichever database is in use: `DATABASE_URL`, with the password in libpq's `PGPASSWORD` so it is
+never spliced into the URL. Louvre makes its tables itself, on its first request. The chart's `helm test` checks that
+Louvre answers and has its database, and that the database takes those credentials.
 
 ## Local
 
@@ -19,24 +20,29 @@ kubectl --context kind-louvre port-forward svc/louvre 8000:80   # then open http
 make kind-down    # delete the cluster, and the bundled database with it
 ```
 
-`make kind-up` again after a change rebuilds the image and rolls it out. Another local cluster (k3d, minikube) takes
-the same values, `examples/local.yaml`, once the image is loaded into it.
+`examples/local.yaml` publishes the demo's artifacts and lets anyone sign in by typing a name, with cookies over
+plain HTTP for the port-forward. `make kind-up` again after a change rebuilds the image and rolls it out. Another
+local cluster (k3d, minikube) takes the same values once the image is loaded into it.
 
 ## Production
 
-Start from `examples/production.yaml`: a pinned image, two replicas spread across nodes, an Ingress with TLS, and a
-managed PostgreSQL whose password is a Secret made outside the chart.
+Start from `examples/production.yaml`: a pinned image, two replicas spread across nodes, an Ingress with TLS, sign-in
+with a GitHub OAuth app, and a managed PostgreSQL, with their secrets in Secrets made outside the chart.
 
 ```sh
 kubectl create secret generic louvre-database --from-literal=password='...'
+kubectl create secret generic louvre-github --from-literal=client-secret='...'
 helm upgrade --install louvre charts/louvre -f my-values.yaml --wait
 helm test louvre --logs
 ```
 
 - **Image.** Pin `image.tag` to a released version, or `image.digest`. A new GHCR package is private: make it public,
   or give the cluster a pull secret through `imagePullSecrets`.
+- **Sign-in.** `config.baseUrl` is the Ingress's URL, the OAuth app's callback is that URL with
+  `/auth/github/callback`, and `config.allowedLogins` names who may sign in. `config.secureCookies` stays on behind TLS.
 - **Database.** With `postgresql.enabled: false`, `externalDatabase.host` and a password (`existingSecret`, or
-  `password`, which is stored in the release) are required; the chart refuses to render without them. `sslMode`
+  `password`, which is stored in the release) are required; the chart refuses to render without them. A provider's
+  whole URL goes in a Secret instead, named by `existingSecret` and `existingSecretUrlKey`. `sslMode`
   defaults to `require`; `verify-full` also needs the provider's CA, through `PGSSLROOTCERT` in `extraEnv`.
 - **Backups** are the managed database's. The bundled PostgreSQL has none, no replicas, and no upgrade between major
   versions, which is why production does not use it.
@@ -59,6 +65,10 @@ start empty. `postgresql.networkPolicy.enabled` lets only Louvre's pods, and the
 | `replicaCount` | `1` | Louvre's replicas. |
 | `ingress.enabled`, `ingress.hosts`, `ingress.tls` | off | Serve Louvre on a host name. |
 | `podDisruptionBudget.enabled` | off | Keep `minAvailable` replicas through a node drain. |
+| `config.baseUrl`, `config.allowedLogins` | empty | Louvre's URL, and who may sign in. |
+| `config.github.*` | off | The GitHub OAuth app people sign in with. |
+| `config.secureCookies` | on | The session cookie over HTTPS only. |
+| `config.demo`, `config.devSignIn` | off | The demo's artifacts, and sign-in by name, for a local cluster. |
 | `postgresql.enabled` | `true` | Run the bundled PostgreSQL. |
 | `externalDatabase.*` | | The database to use when the bundled one is off. |
 | `extraEnv` | `[]` | More environment variables for Louvre's container. |

@@ -76,6 +76,27 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
 
+# Louvre's settings (docs/DEPLOY.md), each set as its LOUVRE_* variable only when given.
+config:
+  # Where Louvre is served, such as https://louvre.example.com, for the links a publish returns; empty uses the address
+  # each request came to.
+  baseUrl: ""
+  # The GitHub logins who may sign in; ["*"] lets anyone with a GitHub account in.
+  allowedLogins: []
+  # The session cookie over HTTPS only: right behind a TLS Ingress, wrong for a plain-HTTP port-forward.
+  secureCookies: true
+  # Publish the demo's artifacts, which anyone may read without signing in.
+  demo: false
+  # Let anyone sign in as anyone by typing a name: for a local cluster only, never a deployment people use.
+  devSignIn: false
+  # The GitHub OAuth app people sign in with. Its callback URL is baseUrl with /auth/github/callback.
+  github:
+    clientId: ""
+    # Prefer existingSecret: a secret here is stored in the release.
+    clientSecret: ""
+    existingSecret: ""
+    existingSecretKey: client-secret
+
 # Extra environment variables for Louvre's container, as a list of EnvVar objects.
 extraEnv: []
 
@@ -88,8 +109,8 @@ tolerations: []
 affinity: {}
 topologySpreadConstraints: []
 
-# Louvre reads its database from libpq's standard variables (PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD,
-# PGSSLMODE), which the chart sets from one of the two blocks below. One of them must name a database.
+# Louvre reads its database as DATABASE_URL, which the chart sets from one of the two blocks below, with the password
+# in PGPASSWORD. One of them must name a database. Louvre makes its tables itself, on its first request.
 
 # A PostgreSQL run by this chart, as one StatefulSet with its own volume: for local clusters and trials. It has no
 # backups, replicas, or upgrades between major versions; production uses externalDatabase.
@@ -152,3 +173,5 @@ externalDatabase:
   password: ""
   existingSecret: ""
   existingSecretPasswordKey: password
+  # Instead of all the above: the key of existingSecret holding a whole postgresql:// URL, as a provider gives one.
+  existingSecretUrlKey: ""

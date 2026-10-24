@@ -92,36 +92,77 @@ the bundled database's generated one, lives in the chart's own Secret.
 {{- end }}
 {{- end }}
 
-{{/* libpq's variables for the database in use: Louvre's container and the chart's test both read them. */}}
+{{/*
+The database Louvre reads, as DATABASE_URL (docs/DEPLOY.md). A URL the chart composes carries no password: libpq takes
+it from PGPASSWORD, so a password from a Secret never has to be spliced into a string. Louvre's container and the
+chart's test both read these.
+*/}}
 {{- define "louvre.database.env" -}}
+{{- $external := .Values.externalDatabase }}
+{{- if and (not .Values.postgresql.enabled) $external.existingSecretUrlKey }}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      {{- $missing := "externalDatabase.existingSecretUrlKey needs externalDatabase.existingSecret." }}
+      name: {{ required $missing $external.existingSecret }}
+      key: {{ $external.existingSecretUrlKey }}
+{{- else }}
+- name: DATABASE_URL
 {{- if .Values.postgresql.enabled }}
-- name: PGHOST
-  value: {{ include "louvre.postgresql.fullname" . | quote }}
-- name: PGPORT
-  value: "5432"
-- name: PGDATABASE
-  value: {{ .Values.postgresql.auth.database | quote }}
-- name: PGUSER
-  value: {{ .Values.postgresql.auth.username | quote }}
-# Inside the cluster, to a database without a certificate.
-- name: PGSSLMODE
-  value: disable
+{{- $auth := .Values.postgresql.auth }}
+  {{- /* Inside the cluster, to a database without a certificate. */}}
+  {{- $host := include "louvre.postgresql.fullname" . }}
+  {{- $where := printf "%s:5432/%s" $host (urlquery $auth.database) }}
+  value: {{ printf "postgresql://%s@%s?sslmode=disable" (urlquery $auth.username) $where | quote }}
 {{- else }}
 {{- $missing := "Name a database: set externalDatabase.host, or postgresql.enabled=true for a bundled one." }}
-- name: PGHOST
-  value: {{ required $missing .Values.externalDatabase.host | quote }}
-- name: PGPORT
-  value: {{ .Values.externalDatabase.port | quote }}
-- name: PGDATABASE
-  value: {{ .Values.externalDatabase.database | quote }}
-- name: PGUSER
-  value: {{ .Values.externalDatabase.username | quote }}
-- name: PGSSLMODE
-  value: {{ .Values.externalDatabase.sslMode | quote }}
+{{- $host := required $missing $external.host }}
+  {{- $where := printf "%s:%v/%s" $host $external.port (urlquery $external.database) }}
+  value: {{ printf "postgresql://%s@%s?sslmode=%s" (urlquery $external.username) $where $external.sslMode | quote }}
 {{- end }}
 - name: PGPASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "louvre.database.secretName" . }}
       key: {{ include "louvre.database.secretKey" . }}
+{{- end }}
+{{- end }}
+
+{{/* Louvre's own settings (docs/DEPLOY.md), each set only when it is given. */}}
+{{- define "louvre.config.env" -}}
+{{- $config := .Values.config }}
+{{- with $config.baseUrl }}
+- name: LOUVRE_BASE_URL
+  value: {{ . | trimSuffix "/" | quote }}
+{{- end }}
+{{- with $config.allowedLogins }}
+- name: LOUVRE_ALLOWED_LOGINS
+  value: {{ join "," . | quote }}
+{{- end }}
+{{- if $config.secureCookies }}
+- name: LOUVRE_SECURE_COOKIES
+  value: "1"
+{{- end }}
+{{- if $config.demo }}
+- name: LOUVRE_DEMO
+  value: "1"
+{{- end }}
+{{- if $config.devSignIn }}
+- name: LOUVRE_DEV_SIGN_IN
+  value: "1"
+{{- end }}
+{{- with $config.github.clientId }}
+- name: LOUVRE_GITHUB_CLIENT_ID
+  value: {{ . | quote }}
+- name: LOUVRE_GITHUB_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      {{- if $config.github.existingSecret }}
+      name: {{ $config.github.existingSecret }}
+      key: {{ $config.github.existingSecretKey }}
+      {{- else }}
+      name: {{ printf "%s-github" (include "louvre.fullname" $) }}
+      key: client-secret
+      {{- end }}
+{{- end }}
 {{- end }}

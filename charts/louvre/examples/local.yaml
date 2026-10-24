@@ -1,4 +1,5 @@
-# A local cluster (kind, k3d, minikube): the image `make image` built and loaded, and the bundled PostgreSQL.
+# A local cluster (kind, k3d, minikube): the image `make image` built and loaded, the bundled PostgreSQL, the demo's
+# artifacts, and sign-in by typing a name, over a plain-HTTP port-forward.
 #   make kind-up
 # does it all; by hand:
 #   helm upgrade --install louvre charts/louvre -f charts/louvre/examples/local.yaml --wait
@@ -7,6 +8,11 @@ image:
   tag: dev
   # The image is loaded into the cluster's nodes, never pulled.
   pullPolicy: Never
+
+config:
+  demo: true
+  devSignIn: true
+  secureCookies: false
 
 postgresql:
   enabled: true

@@ -40,6 +40,9 @@ spec:
               protocol: TCP
           env:
             {{- include "louvre.database.env" . | trim | nindent 12 }}
+            {{- with include "louvre.config.env" . | trim }}
+            {{- . | nindent 12 }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
