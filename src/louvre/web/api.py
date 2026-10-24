@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from louvre.core import accounts, boards, demo, style
+from louvre.core import accounts, boards, demo, explorations, style
 from louvre.core.store import MAX_BODY, MAX_EXACT, iso
 from louvre.core.text import CONTEXT, Anchor
 from louvre.web.caller import SESSION_COOKIE, Conn, Database, Person, Reader, database
@@ -139,6 +139,32 @@ def board_list(store: Reader, found: Annotated[Database, Depends(database)]) -> 
 def board(store: Reader, found: Annotated[Database, Depends(database)], board_id: str) -> dict[str, object]:
     """A board, and each of its frames the request reaches, with its artifact."""
     return boards.shown(store, _boards(found), board_id)
+
+
+@router.get("/directions/board")
+def directions_board() -> dict[str, object]:
+    """The design study as a board, from the repository's pages alone: it needs no database, and takes no comments.
+
+    Its frames are laid out as the demo's board is, each showing a direction's page as the design study serves it.
+    """
+    frames = [
+        {
+            "id": frame.id,
+            "label": frame.label,
+            "x": frame.x,
+            "y": frame.y,
+            "width": frame.width,
+            "height": frame.height,
+            "title": demo.DIRECTIONS[page.name],
+            "src": f"/directions/{page.group}/{page.name}",
+        }
+        for frame in demo.BOARD.frames
+        if (page := explorations.find(demo.STUDY, frame.origin["direction"])) is not None
+    ]
+    return {
+        "board": {"id": "directions", "title": demo.BOARD.title, "namespace": "docs/ui-explorations"},
+        "frames": frames,
+    }
 
 
 @router.post("/threads/{thread_id}/replies", status_code=201)

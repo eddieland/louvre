@@ -117,6 +117,9 @@ but the canvas, to the screen's edges, under one hairline.
   frame's page is inert there. A tap or a click opens it on the artifact's page, at the frame's width when that is
   narrower than the page's, with its threads in the margin as on any artifact's page, and the way back to the board
   first in the toolbar. A drag that ends on a frame does not open it.
+- **The design study's board**, `/directions/board`, is the same canvas over the repository's pages alone, so every
+  deployment shows it, with no database and no demo: a frame opens its direction's own page, and nothing takes a
+  comment.
 - **The catalogue** lists boards above artifacts, in the same entries: the title, the namespace, how many frames, and
   the open threads at the right.
 

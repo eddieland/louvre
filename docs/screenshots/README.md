@@ -246,6 +246,28 @@ Light:
 | --- | --- |
 | ![Design directions, Phone, 390, light](directions/phone-light.png) | ![Design directions, Laptop, 1440, light](directions/laptop-light.png) |
 
+## Design directions, as a board
+
+`/directions/board`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![Design directions, as a board, Small phone, 360, dark](directions-board/phone-small-dark.png) | ![Design directions, as a board, Phone, 390, dark](directions-board/phone-dark.png) | ![Design directions, as a board, Tablet, 820, dark](directions-board/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![Design directions, as a board, Tablet landscape, 1180, dark](directions-board/tablet-landscape-dark.png) | ![Design directions, as a board, Laptop, 1440, dark](directions-board/laptop-dark.png) | ![Design directions, as a board, Wide, 1920, dark](directions-board/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![Design directions, as a board, Phone, 390, light](directions-board/phone-light.png) | ![Design directions, as a board, Laptop, 1440, light](directions-board/laptop-light.png) |
+
 ## Direction: Gallery, a thread open
 
 `/directions/2026-10-23-directions/gallery`

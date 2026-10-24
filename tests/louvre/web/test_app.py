@@ -32,6 +32,7 @@ def test_directions_lists_each_exploration_page(client: TestClient) -> None:
     for name in ("gallery", "margins", "studio"):
         assert f'href="/directions/2026-10-23-directions/{name}"' in response.text
     assert "Louvre: Studio" in response.text
+    assert 'href="/directions/board"' in response.text
 
 
 def test_an_exploration_page_is_served_whole(client: TestClient) -> None:
@@ -39,7 +40,20 @@ def test_an_exploration_page_is_served_whole(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert "<title>Louvre: Studio</title>" in response.text
-    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    # Framed by Louvre alone: the design study's board shows it.
+    assert "frame-ancestors 'self'" in response.headers["content-security-policy"]
+
+
+def test_the_design_study_is_a_board_with_no_database(client: TestClient) -> None:
+    board = client.get("/api/directions/board").json()
+
+    assert board["board"]["title"] == "Design study, 2026-10-23"
+    assert [(f["id"], f["title"], f["src"]) for f in board["frames"]][:2] == [
+        ("gallery-laptop", "Direction: Gallery", "/directions/2026-10-23-directions/gallery"),
+        ("gallery-phone", "Direction: Gallery", "/directions/2026-10-23-directions/gallery"),
+    ]
+    assert len(board["frames"]) == 6
+    assert all(client.get(f["src"]).status_code == 200 for f in board["frames"])
 
 
 @pytest.mark.parametrize(
@@ -62,7 +76,7 @@ def built(tmp_path: Path) -> Iterator[Path]:
         yield tmp_path
 
 
-@pytest.mark.parametrize("path", ["/", "/a/a_123", "/tokens", "/a/a_123?v=2"])
+@pytest.mark.parametrize("path", ["/", "/a/a_123", "/tokens", "/a/a_123?v=2", "/directions/board"])
 def test_the_app_is_its_index_at_every_route(client: TestClient, built: Path, path: str) -> None:
     response = client.get(path)
 

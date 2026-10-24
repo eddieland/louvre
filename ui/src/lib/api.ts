@@ -140,6 +140,26 @@ export interface Board {
     frames: BoardFrame[]
 }
 
+/** One page of the design study on its board, from the repository's pages: no artifact, nothing stored. */
+export interface DirectionsFrame {
+    /** Unique on the board. */
+    id: string
+    /** The direction's title. */
+    title: string
+    /** What the board calls it beside the title, such as "Phone, 390". */
+    label: string
+    /** Its left edge on the canvas. */
+    x: number
+    /** Its top edge on the canvas. */
+    y: number
+    /** The width it is shown at. */
+    width: number
+    /** The height it is shown at. */
+    height: number
+    /** The direction's page, as /directions serves it. */
+    src: string
+}
+
 /** A signed-in person. */
 export interface Account {
     /** Their id, such as gh:583231. */
@@ -248,6 +268,16 @@ export function boardQuery(id: string) {
         queryFn: () => request<Board>('GET', `/api/boards/${encodeURIComponent(id)}`),
     })
 }
+
+/** The design study as a board, which needs no database. */
+export const directionsBoardQuery = queryOptions({
+    queryKey: ['directions-board'],
+    queryFn: () =>
+        request<{ board: { id: string; title: string; namespace: string }; frames: DirectionsFrame[] }>(
+            'GET',
+            '/api/directions/board',
+        ),
+})
 
 /** An artifact and its versions. */
 export function artifactQuery(id: string) {
