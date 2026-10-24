@@ -31,6 +31,8 @@ CLOSE = 0.001
 DEADLINE = 5.0
 #: The board's least zoom (ui/src/lib/canvas.ts, MIN_SCALE).
 MIN_SCALE = 0.05
+#: How many frames' pages a phone draws live at most (ui/src/lib/canvas.ts, LIVE_COUNT).
+LIVE_COUNT = 2
 #: How far past its frame a frame's shadows may reach on the canvas, in canvas pixels: the sheet's shadow's reach.
 SHADOW_REACH = 48
 
@@ -202,10 +204,12 @@ def test_a_reader_of_the_demo_is_asked_to_sign_in_to_reply(browser: Browser, liv
 
 
 def board(page: Page) -> None:
-    """Open the demo's board, and wait until it is fitted to the screen and its frames' pages have loaded."""
+    """Open the demo's board, and wait until it is fitted to the screen and the pages it draws have loaded."""
     page.goto("/b/design-study")
-    page.wait_for_selector(".world[data-ready]", state="attached")
-    expect(page.locator(".board-frame iframe")).to_have_count(6)
+    page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
+    expect(page.locator(".board-frame")).to_have_count(6)
+    for frame in page.frames[1:]:
+        frame.wait_for_load_state()
 
 
 def view(page: Page) -> tuple[float, float, float]:
@@ -326,16 +330,17 @@ def test_on_a_phone_a_board_zoomed_out_paints_little_past_its_frames(browser: Br
         context.close()
 
 
-def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading_them(
+def test_on_a_tablet_a_pinch_puts_the_pages_away_until_it_stops_without_reloading_them(
     browser: Browser,
     live_app: str,
 ) -> None:
     """While a pinch zooms, a frame is its sheet alone; once it stops, each page is drawn again as it was, not reloaded.
 
-    Each step of a zoom redrew all six pages at the new size, and a phone's browser ran out of memory doing it.
+    Each step of a zoom redrew all six pages at the new size, and a phone's browser ran out of memory doing it. A
+    tablet draws all six, where a phone draws two at most.
     """
     context = browser.new_context(
-        viewport={"width": 390, "height": 844},
+        viewport={"width": 820, "height": 1180},
         color_scheme="dark",
         is_mobile=True,
         has_touch=True,
@@ -344,8 +349,7 @@ def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading
     try:
         page = context.new_page()
         board(page)
-        for frame in page.frames:
-            frame.wait_for_load_state()
+        expect(page.locator(".board-frame iframe")).to_have_count(6)
         page.evaluate(
             "() => { window.loads = 0; window.hid = false;"
             " for (const f of document.querySelectorAll('.board-frame iframe'))"
@@ -363,6 +367,34 @@ def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading
         expect(page.locator(".world[data-zooming]")).to_have_count(0)
         expect(page.locator(".board-frame iframe").first).to_be_visible()
         assert page.evaluate("window.loads") == 0, "a page was loaded again"
+    finally:
+        context.close()
+
+
+def test_on_a_phone_a_board_draws_a_page_only_zoomed_in_to_it_and_two_at_most(browser: Browser, live_app: str) -> None:
+    """Fitted to a phone, a board draws its frames' sheets alone; zoomed in, the pages it shows most of, two at most.
+
+    Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded.
+    """
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        expect(page.locator(".board-frame iframe")).to_have_count(0)
+
+        for _ in range(3):
+            page.get_by_role("button", name="Zoom in").tap()
+        expect(page.locator(".board-frame[data-live] iframe").first).to_be_visible()
+        assert 1 <= page.locator(".board-frame iframe").count() <= LIVE_COUNT
+
+        page.get_by_role("button", name="Fit to screen").tap()
+        expect(page.locator(".board-frame iframe")).to_have_count(0)
     finally:
         context.close()
 

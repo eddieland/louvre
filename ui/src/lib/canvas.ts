@@ -13,6 +13,15 @@ export const MIN_SCALE = 0.05
 export const MAX_SCALE = 1
 /** How much one press of a zoom control zooms. */
 export const ZOOM_STEP = 1.25
+/** The longest a phone's screen is on its shorter side, in screen pixels, as ui/DESIGN.md has it. */
+export const PHONE = 600
+/**
+ * How many frames' pages a phone draws live at most, and the least zoom it draws one at: six pages at once are more
+ * than its browser has the memory for, and one smaller than this cannot be read.
+ */
+export const LIVE_COUNT = 2
+/** See LIVE_COUNT. */
+export const LIVE_SCALE = 0.25
 
 /** How the canvas is drawn on the screen: its offset, and its scale. */
 export interface View {
@@ -79,11 +88,39 @@ export function panBy(view: View, dx: number, dy: number): View {
     return { ...view, x: view.x + dx, y: view.y + dy }
 }
 
+/**
+ * The boxes whose pages are drawn live at a view, on a screen `width` by `height`: on a phone's, only those on the
+ * screen at LIVE_SCALE or more, LIVE_COUNT at most, the most of each shown first; on any other, every one.
+ */
+export function live<T extends Box>(boxes: readonly T[], view: View, width: number, height: number): T[] {
+    if (Math.min(width, height) > PHONE) {
+        return [...boxes]
+    }
+    if (view.scale < LIVE_SCALE) {
+        return []
+    }
+    return boxes
+        .map((box) => ({ box, shown: shownArea(box, view, width, height) }))
+        .filter(({ shown }) => shown > 0)
+        .toSorted((a, b) => b.shown - a.shown)
+        .slice(0, LIVE_COUNT)
+        .map(({ box }) => box)
+}
+
 /** How much a wheel's turn zooms: in for a turn up, out for one down; a trackpad's pinch, with ctrl, more finely. */
 export function wheelFactor(deltaY: number, deltaMode: number, ctrlKey: boolean): number {
     // A line is about 16 pixels, a page about 800: a mouse's notch and a trackpad's scroll then zoom alike.
     const pixels = deltaY * (deltaMode === 1 ? 16 : deltaMode === 2 ? 800 : 1)
     return Math.exp(-pixels * (ctrlKey ? 0.01 : 0.002))
+}
+
+/** How much of a box is on a screen `width` by `height` at a view, in screen pixels. */
+function shownArea(box: Box, view: View, width: number, height: number): number {
+    const left = Math.max(view.x + box.x * view.scale, 0)
+    const right = Math.min(view.x + (box.x + box.width) * view.scale, width)
+    const top = Math.max(view.y + box.y * view.scale, 0)
+    const bottom = Math.min(view.y + (box.y + box.height) * view.scale, height)
+    return Math.max(right - left, 0) * Math.max(bottom - top, 0)
 }
 
 function clamp(scale: number): number {
