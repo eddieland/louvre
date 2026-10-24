@@ -50,6 +50,7 @@ TOOLS = [
     "decision_close",
     "decision_feed",
     "files_publish",
+    "map_publish",
 ]
 
 
@@ -330,6 +331,25 @@ def test_files_publish_publishes_a_page_with_its_files_beside_it(client: Client)
     assert client.call("artifact_read", artifact_id=made["artifact_id"])["content"] == page
     assert bad == "invalid"
     assert wrong == "invalid"
+
+
+def test_map_publish_publishes_geojson_that_louvre_draws_and_refuses_what_is_not(client: Client) -> None:
+    pole = {"type": "Feature", "properties": {"name": "P-103", "status": "lamp out"}, "geometry": None}
+    data = {
+        "type": "FeatureCollection",
+        "features": [{**pole, "geometry": {"type": "Point", "coordinates": [-9.1, 38.7]}}],
+    }
+
+    made = client.call("map_publish", title="One lamp is out", data=data)
+    read = client.call("artifact_read", artifact_id=made["artifact_id"])
+    off = {**data, "features": [{**pole, "geometry": {"type": "Point", "coordinates": [38.7, -91]}}]}
+
+    assert read["version"]["content_type"] == "application/geo+json"
+    assert json.loads(read["content"]) == data
+    assert "P-103 status lamp out" in read["text"]
+    assert client.refused("map_publish", title="Off the earth", data=off) == "invalid"
+    assert client.refused("map_publish", title="Not GeoJSON", data={"type": "Topology"}) == "invalid"
+    assert client.refused("artifact_publish", title="t", content_type="application/geo+json", content="{}") == "invalid"
 
 
 def test_style_check_holds_a_page_to_the_files_published_beside_it(client: Client) -> None:

@@ -91,7 +91,7 @@ export interface Version {
     /** Its number, from 1. */
     n: number
     /** What it is written in. */
-    content_type: 'text/html' | 'text/markdown'
+    content_type: 'text/html' | 'text/markdown' | 'application/geo+json'
     /** When it was published. */
     created_at: string
 }

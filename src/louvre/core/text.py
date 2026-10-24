@@ -21,8 +21,10 @@ from typing import Literal, override
 
 #: The most of the text either side of a passage an anchor keeps.
 CONTEXT = 32
-#: The content types a version may have.
-type ContentType = Literal["text/html", "text/markdown"]
+#: The content types of a page an agent writes, which canopy's contract publishes.
+type PageType = Literal["text/html", "text/markdown"]
+#: The content types a version may have: a page, or GeoJSON that Louvre draws as a map (louvre.core.geodata).
+type ContentType = Literal["text/html", "text/markdown", "application/geo+json"]
 #: Elements whose contents a page does not show.
 _HIDDEN = frozenset({"noscript", "script", "style", "template", "title"})
 #: Elements that sit inside a line of text, so their tags part no words. Any other tag starts or ends a block, or is

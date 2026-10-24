@@ -1,0 +1,392 @@
+# serializer version: 1
+# name: test_its_page_is_its_map_its_key_and_each_feature_under_it
+  '''
+  <!doctype html>
+  <html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One pole needs a crew</title>
+  <style>
+  /* louvre-1: Louvre's house style for artifacts. Put class="louvre" on <body>. */
+  /* Louvre's faces, which Louvre serves to its artifacts; elsewhere the reader's own serif and sans stand in. */
+  @font-face {
+      font-display: swap;
+      font-family: Fraunces;
+      font-weight: 100 900;
+      src: url("/style/louvre-1/fonts/fraunces.woff2") format("woff2");
+  }
+  @font-face {
+      font-display: swap;
+      font-family: "Source Serif 4";
+      font-weight: 200 900;
+      src: url("/style/louvre-1/fonts/source-serif-4.woff2") format("woff2");
+  }
+  @font-face {
+      font-display: swap;
+      font-family: "Source Serif 4";
+      font-style: italic;
+      font-weight: 200 900;
+      src: url("/style/louvre-1/fonts/source-serif-4-italic.woff2") format("woff2");
+  }
+  @font-face {
+      font-display: swap;
+      font-family: "Instrument Sans";
+      font-weight: 400 700;
+      src: url("/style/louvre-1/fonts/instrument-sans.woff2") format("woff2");
+  }
+  :root {
+      color-scheme: dark light;
+      --l-bg: #1c1915;
+      --l-card: #23201b;
+      --l-ink: #ece5d8;
+      --l-muted: #a69c8c;
+      --l-rule: #322c24;
+      --l-accent: #d9776c;
+      --l-good: #6fbf8e;
+      --l-bad: #e0915a;
+      --l-serif: "Source Serif 4", "Iowan Old Style", Georgia, "Times New Roman", serif;
+      --l-display: Fraunces, "Iowan Old Style", Georgia, serif;
+      --l-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --l-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+      :root {
+          --l-bg: #fffdf8;
+          --l-card: #f6f1e7;
+          --l-ink: #1f1b16;
+          --l-muted: #6d6458;
+          --l-rule: #e0d6c4;
+          --l-accent: #8a2f2a;
+          --l-good: #2f7a4d;
+          --l-bad: #a5521b;
+      }
+  }
+  * { box-sizing: border-box; }
+  body.louvre {
+      margin: 0;
+      background: var(--l-bg);
+      color: var(--l-ink);
+      font: 17px/1.6 var(--l-serif);
+      -webkit-text-size-adjust: 100%;
+  }
+  .louvre main, .louvre .l-page {
+      max-width: 42.5rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+  }
+  @media (min-width: 600px) {
+      body.louvre { font-size: 19px; line-height: 1.62; }
+      .louvre main, .louvre .l-page { padding: 3rem 2rem 4.5rem; }
+  }
+  .louvre h1, .louvre h2, .louvre h3 {
+      font-family: var(--l-display);
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+  }
+  .louvre h1 { margin: 0 0 1rem; font-size: 1.75em; }
+  .louvre h2 { margin: 2.2em 0 0.4em; font-size: 1.25em; }
+  .louvre h3 { margin: 1.8em 0 0.3em; font-size: 1.05em; }
+  .louvre p, .louvre ul, .louvre ol { margin: 0 0 1em; }
+  .louvre a { color: var(--l-accent); text-underline-offset: 0.2em; }
+  .louvre .l-kicker {
+      margin: 0 0 0.5rem;
+      color: var(--l-muted);
+      font: 600 0.72rem/1.4 var(--l-sans);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+  }
+  .louvre .l-lede { font-size: 1.1em; }
+  .louvre .l-muted { color: var(--l-muted); }
+  .louvre blockquote {
+      margin: 1.2em 0;
+      padding: 0.2em 0 0.2em 1em;
+      border-left: 2px solid var(--l-rule);
+      color: var(--l-muted);
+  }
+  .louvre code {
+      padding: 0.1em 0.3em;
+      border-radius: 4px;
+      background: var(--l-card);
+      font: 0.88em var(--l-mono);
+  }
+  .louvre pre {
+      overflow-x: auto;
+      padding: 1em;
+      border: 1px solid var(--l-rule);
+      border-radius: 8px;
+      background: var(--l-card);
+  }
+  .louvre pre code { padding: 0; background: none; }
+  .louvre table {
+      width: 100%;
+      margin: 1em 0;
+      border-collapse: collapse;
+      font: 0.8em/1.5 var(--l-sans);
+      font-variant-numeric: tabular-nums;
+  }
+  .louvre th, .louvre td {
+      padding: 0.5em 0.75em 0.5em 0;
+      border-bottom: 1px solid var(--l-rule);
+      text-align: left;
+  }
+  .louvre th { color: var(--l-muted); font-weight: 500; }
+  .louvre hr { margin: 2em 0; border: 0; border-top: 1px solid var(--l-rule); }
+  .louvre img, .louvre svg { max-width: 100%; height: auto; }
+  .louvre .l-figure, .louvre figure {
+      margin: 1.2em 0;
+      padding: 1em;
+      border: 1px solid var(--l-rule);
+      border-radius: 12px;
+      background: var(--l-card);
+  }
+  .louvre figcaption { margin-bottom: 0.6em; font: 600 0.8em/1.4 var(--l-sans); }
+  .louvre .l-callout {
+      margin: 1.2em 0;
+      padding: 0.8em 1em;
+      border-left: 3px solid var(--l-good);
+      border-radius: 0 10px 10px 0;
+      background: var(--l-card);
+  }
+  .louvre .l-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+      gap: 0.75rem;
+      margin: 1.5em 0;
+  }
+  .louvre .l-kpi {
+      padding: 0.9em 1em;
+      border: 1px solid var(--l-rule);
+      border-radius: 12px;
+      background: var(--l-card);
+      font-family: var(--l-sans);
+  }
+  .louvre .l-kpi b { display: block; font-size: 1.5em; font-variant-numeric: tabular-nums; }
+  .louvre .l-kpi span { display: block; color: var(--l-muted); font-size: 0.78em; line-height: 1.35; }
+  
+  /* What follows the opening: who wrote it, when, and from what. */
+  .louvre .l-meta { margin: -0.4em 0 1.5em; color: var(--l-muted); font: 0.8em/1.5 var(--l-sans); }
+  
+  /* A change, and whether it is good news. Color says it once; the sign and the words say it again. */
+  .louvre .l-kpi em { display: block; margin-top: 0.2em; font-size: 0.78em; font-style: normal; line-height: 1.35; }
+  .louvre .l-good { color: var(--l-good); }
+  .louvre .l-bad { color: var(--l-bad); }
+  .louvre .l-callout.l-risk { border-left-color: var(--l-bad); }
+  
+  /* A status, in a word. */
+  .louvre .l-tag {
+      display: inline-block;
+      padding: 0.1em 0.6em;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font: 600 0.68rem/1.5 var(--l-sans);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      vertical-align: 0.15em;
+      white-space: nowrap;
+  }
+  
+  /* Options side by side, which stack on a phone; the one recommended is outlined in the accent. */
+  .louvre .l-compare {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+      gap: 0.75rem;
+      margin: 1.5em 0;
+  }
+  .louvre .l-option {
+      padding: 0.9em 1em;
+      border: 1px solid var(--l-rule);
+      border-radius: 12px;
+      background: var(--l-card);
+      font-size: 0.9em;
+  }
+  .louvre .l-option.l-chosen { border-color: var(--l-accent); box-shadow: inset 0 0 0 1px var(--l-accent); }
+  .louvre .l-chosen .l-tag { color: var(--l-accent); }
+  .louvre .l-option h3 { margin-top: 0; }
+  .louvre .l-option ul { padding-left: 1.1em; }
+  .louvre .l-option > :last-child { margin-bottom: 0; }
+  
+  /* Steps in order, each numbered in the margin. */
+  .louvre .l-steps { margin: 1.2em 0; padding: 0; list-style: none; counter-reset: l-step; }
+  .louvre .l-steps > li {
+      position: relative;
+      margin: 0;
+      padding: 0 0 1em 2.6em;
+      counter-increment: l-step;
+  }
+  .louvre .l-steps > li::before {
+      position: absolute;
+      top: 0.1em;
+      left: 0;
+      width: 1.7em;
+      height: 1.7em;
+      border: 1px solid var(--l-accent);
+      border-radius: 50%;
+      color: var(--l-accent);
+      content: counter(l-step);
+      font: 600 0.8em/1.7 var(--l-sans);
+      text-align: center;
+  }
+  .louvre .l-steps > li:not(:last-child)::after {
+      position: absolute;
+      top: 1.75em;
+      bottom: 0.2em;
+      left: 0.67em;
+      border-left: 1px solid var(--l-rule);
+      content: "";
+  }
+  
+  /* Facts as label and value: two columns, one on a narrow screen. */
+  .louvre dl {
+      display: grid;
+      grid-template-columns: minmax(6rem, max-content) 1fr;
+      gap: 0.35em 1.25em;
+      margin: 1.2em 0;
+  }
+  .louvre dt { color: var(--l-muted); font: 500 0.8em/1.9 var(--l-sans); }
+  .louvre dd { margin: 0; }
+  @media (max-width: 420px) {
+      .louvre dl { grid-template-columns: 1fr; gap: 0; }
+      .louvre dd { margin-bottom: 0.6em; }
+  }
+  
+  /* Words added and taken out, as in a diff or a redline. */
+  .louvre ins { background: color-mix(in srgb, var(--l-good) 18%, transparent); text-decoration: none; }
+  .louvre del { background: color-mix(in srgb, var(--l-bad) 18%, transparent); }
+  
+  /* Numbers in a table line up on the right; a table too wide for a phone scrolls inside its wrapper, not the page. */
+  .louvre th.l-num, .louvre td.l-num { padding-right: 0; padding-left: 0.75em; text-align: right; }
+  .louvre .l-scroll { overflow-x: auto; margin: 1em 0; }
+  .louvre .l-scroll table { margin: 0; }
+  
+  /* A chart, as style_chart draws it: its finding over what it measures, the chart, its notes, and its source. */
+  /* It sits between hairlines rather than in a box, and one accent marks what it is about. */
+  .louvre figure.l-plot {
+      margin: 2.2em 0;
+      padding: 0.9em 0 0;
+      border: 0;
+      border-top: 1px solid var(--l-rule);
+      border-radius: 0;
+      background: none;
+  }
+  .louvre .l-plot figcaption { margin: 0 0 0.7em; font: inherit; }
+  .louvre .l-say { display: block; font: 600 1.02em/1.3 var(--l-display); }
+  .louvre .l-measure { display: block; margin-top: 0.2em; color: var(--l-muted); font: 0.72em/1.4 var(--l-sans); }
+  /* The SVG's text: Louvre's sans in the muted ink, unless a mark says otherwise. */
+  /* It is set larger on a phone, where the chart is drawn smaller. */
+  .louvre .l-chart {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      fill: var(--l-muted);
+      font: 12px var(--l-sans);
+      font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 600px) {
+      .louvre .l-chart { font-size: 14.5px; }
+  }
+  .louvre .l-chart .l-name { font-family: var(--l-serif); font-size: 1.17em; }
+  .louvre .l-chart .l-label { font-family: var(--l-serif); font-size: 1.17em; font-style: italic; }
+  .louvre .l-chart .l-value { font-weight: 600; }
+  .louvre .l-chart .l-mark { fill: var(--l-accent); font-size: 0.92em; font-weight: 600; }
+  .louvre .l-notes {
+      margin: 0.7em 0 0;
+      padding: 0;
+      font-size: 0.82em;
+      line-height: 1.45;
+      list-style: none;
+      counter-reset: l-note;
+  }
+  .louvre .l-notes li { position: relative; margin: 0.25em 0; padding-left: 1.3em; counter-increment: l-note; }
+  .louvre .l-notes li::before {
+      position: absolute;
+      left: 0;
+      color: var(--l-accent);
+      content: counter(l-note);
+      font: 600 0.8em/1.9 var(--l-sans);
+  }
+  .louvre .l-source { margin: 0.5em 0 0; color: var(--l-muted); font: 0.7em/1.4 var(--l-sans); }
+  /* A map, as the map kit draws it (louvre-map-1), in an l-plot figure: the box it draws in, with its land as a card. */
+  .louvre .l-map {
+      position: relative;
+      height: 22rem;
+      overflow: hidden;
+      border: 1px solid var(--l-rule);
+      border-radius: 4px;
+      background: var(--l-bg);
+  }
+  @media (max-width: 600px) {
+      .louvre .l-map { height: 18rem; }
+  }
+  /* A map's key, under it: what the accent marks, and what the muted rest are, each with the mark the map draws. */
+  .louvre .l-key { display: flex; flex-wrap: wrap; gap: 0.3em 1.2em; margin: 0.6em 0 0; font: 0.78em/1.4 var(--l-sans); }
+  .louvre .l-key span { display: inline-flex; align-items: center; gap: 0.45em; color: var(--l-muted); }
+  .louvre .l-key span::before {
+      width: 0.62em;
+      height: 0.62em;
+      box-sizing: border-box;
+      border: 1.5px solid var(--l-muted);
+      border-radius: 50%;
+      background: var(--l-bg);
+      content: "";
+  }
+  .louvre .l-key .l-focus { color: var(--l-ink); }
+  .louvre .l-key .l-focus::before { border-color: var(--l-accent); background: var(--l-accent); }
+  /* A ramp in the key: one property's least, a bar from the muted ink to the accent, and its most. */
+  .louvre .l-key .l-ramp::before { display: none; }
+  .louvre .l-key .l-ramp i {
+      width: 4.5em;
+      height: 0.5em;
+      border-radius: 2px;
+      background: linear-gradient(to right, var(--l-muted), var(--l-accent));
+  }
+  /* A map's features, under it, as Louvre draws GeoJSON: each one's label, then its properties as facts. */
+  .louvre .l-features { padding-left: 1.4em; font-size: 0.92em; }
+  .louvre .l-features li { margin: 0.7em 0; scroll-margin-top: 1em; }
+  .louvre .l-features li:target { outline: 1px solid var(--l-accent); outline-offset: 0.3em; }
+  /* Its facts flow on a line or two, each name small and muted before its value, rather than one to a row. */
+  .louvre .l-features dl { display: block; margin: 0.15em 0 0; font-size: 0.92em; line-height: 1.5; }
+  /* A name and its value keep together, as "lamp LED 60 W" should; a long one wraps within itself. */
+  .louvre .l-features dl div { display: inline-block; max-width: 100%; margin-right: 0.9em; vertical-align: top; }
+  .louvre .l-features dt { display: inline; margin: 0 0.35em 0 0; color: var(--l-muted); font: 0.78em var(--l-sans); }
+  .louvre .l-features dd { display: inline; margin: 0; }
+  
+  /* The page's end: its sources, and how it was made. */
+  .louvre footer {
+      margin-top: 3em;
+      padding-top: 1em;
+      border-top: 1px solid var(--l-rule);
+      color: var(--l-muted);
+      font: 0.78em/1.55 var(--l-sans);
+  }
+  .louvre footer ol, .louvre footer ul { padding-left: 1.2em; }
+  </style>
+  <script src="/kit/louvre-map-1/map.js"></script>
+  </head>
+  <body class="louvre">
+  <main>
+  <p class="l-kicker">Map &middot; 3 features</p>
+  <h1>One pole needs a crew</h1>
+  <p class="l-lede">One pole of three needs a crew.</p>
+  <figure class="l-plot">
+  <div class="l-map" id="map" role="img" aria-label="A map of 3 features: P-101, P-102, Feature 3"></div>
+  <p class="l-key"><span class="l-focus">Needs a crew</span><span>Working</span><span class="l-ramp">lux: 0&nbsp;lx<i aria-hidden="true"></i>30.5&nbsp;lx</span></p>
+  <p class="l-source">Basemap: Natural Earth; streets © OpenStreetMap contributors.</p>
+  </figure>
+  <h2>Each feature</h2>
+  <ol class="l-features">
+  <li id="f-1"><b>P-101</b><dl><div><dt>lux</dt><dd>12</dd></div></dl></li>
+  <li id="f-2"><b>P-102</b><dl><div><dt>status</dt><dd>lamp out</dd></div><div><dt>lux</dt><dd>0</dd></div><div><dt>note</dt><dd>&lt;/script&gt;&lt;b&gt;hi&lt;/b&gt;</dd></div></dl></li>
+  <li id="f-3"><b>Feature 3</b><dl><div><dt>lux</dt><dd>30.5</dd></div><div><dt>parts</dt><dd>[1, 2]</dd></div><div><dt>lit</dt><dd>yes</dd></div></dl></li>
+  </ol>
+  </main>
+  <script>
+  LouvreMap.draw("map", {"data":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"P-101","lux":12,"focus":false},"geometry":{"type":"Point","coordinates":[-9.1,38.7]}},{"type":"Feature","properties":{"name":"P-102","status":"lamp out","lux":0,"note":"\u003c/script\u003e\u003cb\u003ehi\u003c/b\u003e","focus":true},"geometry":{"type":"LineString","coordinates":[[-9.1,38.7],[-9.2,38.8]]}},{"type":"Feature","properties":{"lux":30.5,"parts":[1,2],"lit":true,"focus":false},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}}]},"label":"name","popups":true,"ramp":{"property":"lux","min":0.0,"max":30.5}});
+  </script>
+  </body>
+  </html>
+  
+  '''
+# ---

@@ -41,7 +41,7 @@ def test_the_demo_is_published_once(conn: Connection) -> None:
     assert demo.seed(conn) is True
     assert demo.seed(conn) is False
 
-    assert len(everything(reader(conn))) == 55
+    assert len(everything(reader(conn))) == 56
 
 
 def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
@@ -59,7 +59,7 @@ def test_a_part_a_database_lacks_is_published_alone(conn: Connection) -> None:
         "Direction: Margins",
         "Direction: Studio",
     ]
-    assert len(titles) == 55
+    assert len(titles) == 56
 
 
 def test_the_design_study_is_a_board_of_each_direction_at_a_laptops_size_and_a_phones(conn: Connection) -> None:

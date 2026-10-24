@@ -25,6 +25,10 @@ lags it.
   This is the default: it is the quickest to write and to revise.
 - **HTML in Louvre's house style** (`text/html`) when the page needs what Markdown cannot do: numbers to compare at
   a glance, a chart or a map, options side by side, steps with their status.
+- **GeoJSON** (`map_publish`) when the work is where things are: sites, assets, a vehicle's trace, regions. Louvre
+  draws the map in its house style and lists each feature's properties under it for people to comment on; a
+  `louvre` member in the GeoJSON says what the map is about. Write HTML with the map kit only when the map is one
+  part of a larger page.
 - **HTML in a look of its own** for a mock-up of a product's screen, which should look like that product. The house
   style's guide still holds for what a page in Louvre may load and how it fits a phone, and `style_check` holds the
   page to it.

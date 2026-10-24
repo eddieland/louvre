@@ -14,6 +14,10 @@
     const EAST = "louvre:east";
     /** The property holding the label the kit gives each feature's anchor. */
     const LABEL = "louvre:label";
+    /** The property holding each feature's place in the data, from 1, as its row under a map Louvre draws is named. */
+    const INDEX = "louvre:index";
+    /** How near a tap must be to a feature to pick it, in CSS pixels: a fingertip's reach. */
+    const REACH = 12;
     /** The zoom past which the basemap has faded to plain ground: about a city's, Natural Earth's finest. */
     const DETAIL = 11;
     /** How narrow a map is, in CSS pixels, for its credits to fold away: a phone's. */
@@ -44,6 +48,24 @@
     background: rgba(0, 0, 0, 0.55);
     font: 14px var(--l-sans, system-ui, sans-serif);
 }
+.maplibregl-popup-content {
+    max-width: 15rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 4px;
+    background: var(--l-card, #fff);
+    box-shadow: 0 0 0 1px var(--l-rule, #ddd);
+    color: var(--l-ink, #222);
+    font: 12px/1.4 var(--l-sans, system-ui, sans-serif);
+    user-select: none;
+}
+.maplibregl-popup-tip { display: none; }
+.maplibregl-popup-close-button { color: var(--l-muted, #666); font-size: 16px; }
+.louvre-popup b { display: block; margin: 0 1rem 0.3rem 0; font-size: 13px; }
+.louvre-popup [data-text]::before { content: attr(data-text); }
+.louvre-popup a { color: inherit; }
+.louvre-popup dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.6rem; margin: 0; }
+.louvre-popup dt { color: var(--l-muted, #666); }
+.louvre-popup dd { margin: 0; overflow-wrap: anywhere; }
 @media (prefers-color-scheme: dark) { :root { --l-icon: invert(0.85); } }`;
     document.head.append(style);
 
@@ -134,7 +156,13 @@
         const c = tokens();
         const { focusAll } = entry.settings;
         const focus = ["case", ["has", "focus"], ["get", "focus"], focusAll];
-        const color = ["case", focus, c.accent, c.muted];
+        const { ramp } = entry.settings;
+        // A ramp colors every feature by its value, from a muted ink at its least to the accent at its most.
+        const value = ramp && ["to-number", ["get", ramp.property], ramp.min];
+        const ramped = ramp && ramp.max > ramp.min;
+        const color = ramped
+            ? ["interpolate", ["linear"], value, ramp.min, c.muted, ramp.max, c.accent]
+            : ["case", focus, c.accent, c.muted];
         const ground = mix(c.card, c.rule, 0.55);
         const kit = (name) => ({ type: "geojson", data: `${base}basemap/${name}.json` });
         // Past a city's scale, Natural Earth's coast and borders are a kilometre or more out: they fade away, and the
@@ -243,7 +271,7 @@
                     filter: ["==", ["geometry-type"], "Point"],
                     paint: {
                         "circle-radius": ["case", focus, 5, 4],
-                        "circle-color": ["case", focus, c.accent, c.bg],
+                        "circle-color": ramp ? color : ["case", focus, c.accent, c.bg],
                         "circle-stroke-color": color,
                         "circle-stroke-width": 1.5,
                     },
@@ -374,6 +402,7 @@
         });
         map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 96 }), "bottom-left");
+        if (settings.popups) pickable(map, entry);
         if (!entry.view && settings.bounds) {
             map.fitBounds(settings.bounds, { padding: 48, maxZoom: settings.maxZoom ?? MAX_ZOOM, duration: 0 });
         }
@@ -451,10 +480,59 @@
         return box[0] === Infinity ? null : box;
     };
 
+    /** Shows a feature's label and properties when a reader taps it, the label linking to its row under the map. */
+    const pickable = (map, entry) => {
+        const layers = ["points", "edges", "areas"];
+        const label = entry.settings.label ?? "name";
+        map.on("click", (event) => {
+            const { x, y } = event.point;
+            const box = [
+                [x - REACH, y - REACH],
+                [x + REACH, y + REACH],
+            ];
+            const [hit] = map.queryRenderedFeatures(box, { layers });
+            if (!hit) return;
+            const index = hit.properties[INDEX];
+            const feature = entry.data.features[index - 1];
+            // The popup's words are drawn by its stylesheet, not written in the page, so they are no passage of
+            // it: a thread's passage is found in the feature's row under the map, which says the same.
+            const content = document.createElement("div");
+            content.className = "louvre-popup";
+            const name = document.createElement("b");
+            const link = document.createElement("a");
+            link.href = `#f-${index}`;
+            link.dataset.text = String(feature.properties[label] ?? `Feature ${index}`);
+            const row = () => document.getElementById(`f-${index}`)?.scrollIntoView({ block: "center" });
+            link.addEventListener("click", row);
+            name.append(link);
+            const facts = document.createElement("dl");
+            for (const [key, value] of Object.entries(feature.properties)) {
+                const kits = key === "focus" || key === "mark" || key.startsWith("louvre:");
+                if (key === label || kits || value == null) continue;
+                const term = document.createElement("dt");
+                term.dataset.text = key;
+                const told = document.createElement("dd");
+                told.dataset.text = typeof value === "object" ? JSON.stringify(value) : String(value);
+                facts.append(term, told);
+            }
+            content.append(name, facts);
+            const popup = new maplibregl.Popup({ maxWidth: "none", focusAfterOpen: false });
+            popup.setLngLat(event.lngLat).setDOMContent(content).addTo(map);
+        });
+        for (const layer of layers) {
+            map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+            map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+        }
+    };
+
     /** Draws `options.data` in `where` once it is in view; resolves to its MapLibre map, the first time it is drawn. */
     const draw = async (where, options = {}) => {
         const element = typeof where === "string" ? document.getElementById(where) : where;
-        const features = (await collection(options.data)).map((f) => ({ type: "Feature", properties: {}, ...f }));
+        const features = (await collection(options.data)).map((f, i) => ({
+            ...f,
+            type: "Feature",
+            properties: { ...(f.properties ?? {}), [INDEX]: i + 1 },
+        }));
         const context = { type: "FeatureCollection", features: await collection(options.context) };
         const bounds = boundsOf(features);
         const middle = bounds ? (bounds[0] + bounds[2]) / 2 : 0;

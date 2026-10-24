@@ -172,6 +172,13 @@ LouvreMap.draw("map", { data: { type: "FeatureCollection", features: [...] } });
   `l-notes`, under the map.
 - **The key**, `<p class="l-key">` under the map, says what the accent marks, in a `<span class="l-focus">`, and what
   the muted rest are, in a `<span>`, each beside the mark the map draws for it.
+- **`ramp`**, as `ramp: { property: "p95", min: 120, max: 940 }`, colors every feature by one numeric property, from
+  the muted ink at `min` to the accent at `max`, in place of `focus`. Its key is
+  `<span class="l-ramp">p95: 120&nbsp;ms<i></i>940&nbsp;ms</span>`, the bar between its ends.
+- **`popups: true`** shows a feature's properties when a reader taps it.
+- **Data alone**: publish GeoJSON with `map_publish`, and Louvre draws this page for you: the map, its key, and each
+  feature's label and properties under it in an `<ol class="l-features">`, which people comment on. Write HTML only
+  when the map is one part of a page.
 - **The basemap's credit**, "Basemap: Natural Earth; streets © OpenStreetMap contributors.", goes in the figure's
   `l-source`, as OpenStreetMap's license asks; the map shows it too, folded into its button on a phone.
 - The map fits its data, from the whole earth down to a few streets (`maxZoom`, 17 unless said), with a scale bar. A
