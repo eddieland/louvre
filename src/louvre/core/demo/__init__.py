@@ -70,13 +70,13 @@ _FONT_LINK = re.compile(r"\s*<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>"
 
 
 def seed(conn: Connection, *, base_url: str = "") -> bool:
-    """Publish the demo, unless it is published already.
+    """Publish the demo, unless it is published already, in one transaction holding the seeding's lock.
 
     Returns:
         Whether it was published now.
     """
-    conn.execute("SELECT pg_advisory_lock(%s)", (SEED_LOCK,))
-    try:
+    with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (SEED_LOCK,))
         for account in PEOPLE.values():
             upsert_account(conn, account)
         agent = Store(conn, _agent_scope(), base_url=base_url)
@@ -99,8 +99,6 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         unasked = not Decisions(agent).listed()["decisions"]
         if unasked:
             _decisions(agent, people)
-    finally:
-        conn.execute("SELECT pg_advisory_unlock(%s)", (SEED_LOCK,))
     return bool(missing) or unasked
 
 
