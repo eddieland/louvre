@@ -119,3 +119,12 @@ the log reads as what is true now; the old text is in git history. Numbers are n
   asks for (`/content/<artifact>/<n>` answers a signed-in person with a redirect to it, so no frame changes); files
   across an artifact or a namespace (a version would not keep its own).
 - Revisit: if a file must be taken back from someone who already has its path.
+
+## D013. Every advisory lock is a transaction's, never a session's
+
+- `pg_advisory_xact_lock`, in the one transaction that does the work the lock guards, on that work's connection.
+- Why: Vercel's Postgres URLs go through a pooler in transaction mode, where each statement outside a transaction may
+  reach another server connection; a session's unlock can miss the lock's, which stays held and hangs every process.
+- Rejected: a lock held on a second connection (waiting in a transaction, it holds a pooled server connection; enough
+  waiters leave none for the lock's holder to work on).
+- `tests/louvre/core/test_db.py` fails on a session's lock or unlock anywhere in `src/louvre`.

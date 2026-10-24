@@ -2,7 +2,14 @@
 
 The database is named by `DATABASE_URL`, or by `POSTGRES_URL` as Vercel's Postgres integrations name it. Migrations
 are the SQL files in `louvre/core/migrations/`, `NNNN_name.sql`, applied in order and recorded in
-`schema_migrations`; a session-level advisory lock keeps two processes starting at once from applying one twice.
+`schema_migrations`; an advisory lock keeps two processes starting at once from applying one twice.
+
+Every advisory lock Louvre takes is a transaction's, never a session's (D013): behind a pooler in transaction mode, as
+Vercel's Postgres integrations name by default, each statement outside a transaction may reach a different server
+connection, so a session's unlock can miss the one that holds the lock, leave it held, and hang every process after.
+A transaction keeps its server connection until it ends, and its locks end with it, as they do when a process dies.
+The work a lock guards runs in that same transaction: a lock held on a second connection waits holding a server
+connection of the pooler's, so enough processes waiting at once leave none for the one holding the lock to work on.
 """
 
 import os
@@ -64,14 +71,14 @@ def connect(url: str) -> Iterator[Connection]:
 
 
 def migrate(conn: Connection) -> list[str]:
-    """Apply every migration the database has not had, in order.
+    """Apply every migration the database has not had, in order, in one transaction holding the migrations' lock.
 
     Returns:
         The names of those applied now.
     """
     applied_now: list[str] = []
-    conn.execute("SELECT pg_advisory_lock(%s)", (MIGRATE_LOCK,))
-    try:
+    with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (MIGRATE_LOCK,))
         conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations "
             "(version integer PRIMARY KEY, name text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())",
@@ -80,12 +87,9 @@ def migrate(conn: Connection) -> list[str]:
         for version, name, sql in migrations():
             if version in done:
                 continue
-            with conn.transaction():
-                conn.execute(sql.encode())
-                conn.execute("INSERT INTO schema_migrations (version, name) VALUES (%s, %s)", (version, name))
+            conn.execute(sql.encode())
+            conn.execute("INSERT INTO schema_migrations (version, name) VALUES (%s, %s)", (version, name))
             applied_now.append(name)
-    finally:
-        conn.execute("SELECT pg_advisory_unlock(%s)", (MIGRATE_LOCK,))
     return applied_now
 
 
