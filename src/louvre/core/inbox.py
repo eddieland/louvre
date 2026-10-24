@@ -15,7 +15,7 @@ version opened, or an older `seq`, leaves what was read as it was.
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
-from louvre.core.db import Connection
+from louvre.core.db import Connection, limited
 from louvre.core.store import Row, iso
 
 #: The most artifacts an inbox lists, the newest news first, and the most of each one's news it quotes.
@@ -50,6 +50,7 @@ def inbox(conn: Connection, account_id: str) -> list[dict[str, object]]:
     params: dict[str, object] = {"me": account_id, "news": list(NEWS)}
     with conn.transaction():
         conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        limited(conn)
         rows = conn.execute(
             f"WITH mine AS ({_MINE}), news AS ({_NEWS}),"  # noqa: S608  (constant SQL; values are bound)
             " counted AS (SELECT artifact_id, count(*) AS unread, count(DISTINCT thread_id) AS threads,"
@@ -109,6 +110,7 @@ def read_all(conn: Connection, account_id: str) -> int:
         How many artifacts were marked.
     """
     with conn.transaction():
+        limited(conn)
         newest = conn.execute("SELECT coalesce(max(seq), 0) AS seq FROM changes").fetchone()
         done = conn.execute(
             f"WITH mine AS ({_MINE})"  # noqa: S608  (constant SQL; values are bound)

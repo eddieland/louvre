@@ -27,7 +27,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.routing import Route
 
-from louvre.core import accounts, explorations, maps, style
+from louvre.core import accounts, db, explorations, maps, style
 from louvre.core import files as version_files
 from louvre.core.maps.streets import Streets
 from louvre.core.store import Code, Refused, Scope, Store
@@ -83,6 +83,8 @@ def create(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(Refused, _refused)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _invalid)
+    for busy in db.BUSY:
+        app.add_exception_handler(busy, _busy)
     app.include_router(api.router)
     app.include_router(auth.router)
 
@@ -319,7 +321,11 @@ class _Mcp:
         """Answer one request."""
         request = Request(scope)
         secret = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-        token_scope = await run_in_threadpool(_token_scope, self.found, secret) if secret else None
+        try:
+            token_scope = await run_in_threadpool(_token_scope, self.found, secret) if secret else None
+        except db.BUSY:
+            await _busy_response()(scope, receive, send)
+            return
         if token_scope is None:
             why = "the token is unknown or revoked" if secret else "a token is required: Authorization: Bearer lvt_..."
             await _unauthorized(why)(scope, receive, send)
@@ -363,6 +369,15 @@ async def _writes_say_so(request: Request, call_next: RequestResponseEndpoint) -
 async def _refused(_request: Request, error: Exception) -> Response:
     assert isinstance(error, Refused)  # noqa: S101  (registered for Refused)
     return JSONResponse({"code": error.code.value, "message": str(error)}, status_code=STATUS[error.code])
+
+
+async def _busy(_request: Request, _error: Exception) -> Response:
+    return _busy_response()
+
+
+def _busy_response() -> JSONResponse:
+    """Say that the database is too busy to answer now: a statement or a lock went past its limit (louvre.core.db)."""
+    return JSONResponse({"code": "busy", "message": db.BUSY_MESSAGE}, status_code=503, headers={"Retry-After": "5"})
 
 
 async def _http_error(_request: Request, error: Exception) -> Response:
