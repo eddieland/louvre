@@ -237,8 +237,15 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         origin: Mapping[str, str] | None = None,
         cursor: str | None = None,
         namespace: str | None = None,
+        leave_out: AbstractSet[str] = frozenset(),
     ) -> dict[str, object]:
         """List the artifacts the scope reaches for the web's list: as `artifacts`, with what the list shows.
+
+        Args:
+            origin: Pairs each artifact's origin holds.
+            cursor: Where the page starts, from an earlier page.
+            namespace: The one namespace to list, or None for every one the scope reaches.
+            leave_out: Namespaces not to list, such as the demo's in a catalogue of people's work.
 
         Returns:
             A page of artifacts, each with when its latest version came, how many open threads and open decisions
@@ -247,7 +254,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         Raises:
             Refused: `invalid` for a cursor this store did not give.
         """
-        rows, more = self._listed(origin, cursor, namespace=namespace)
+        rows, more = self._listed(origin, cursor, namespace=namespace, leave_out=leave_out)
         return {
             "artifacts": [
                 {
@@ -648,6 +655,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         cursor: str | None,
         *,
         namespace: str | None,
+        leave_out: AbstractSet[str] = frozenset(),
     ) -> tuple[list[Row], bool]:
         before = None
         if cursor is not None:
@@ -666,10 +674,12 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 " FROM artifacts a WHERE a.deleted_at IS NULL"
                 " AND (%(all)s OR a.namespace = ANY(%(namespaces)s))"
                 " AND (%(namespace)s::text IS NULL OR a.namespace = %(namespace)s)"
+                " AND NOT a.namespace = ANY(%(leave_out)s)"
                 " AND (%(before)s::bigint IS NULL OR a.n < %(before)s) AND a.origin @> %(filter)s::jsonb"
                 " ORDER BY a.n DESC LIMIT %(limit)s",
                 {
                     "namespace": namespace,
+                    "leave_out": sorted(leave_out),
                     "account": self.scope.account_id,
                     "before": before,
                     "filter": json.dumps(dict(origin or {})),

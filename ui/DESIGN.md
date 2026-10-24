@@ -102,6 +102,9 @@ the next by a hairline. Under the title, in Instrument Sans and `muted`: the nam
 in `accent` when one waits on the reader. The open threads' count sits at the right in `accent`; none is a muted
 dash. The tokens page and signing in are the same column.
 
+The demo, where a deployment publishes it, is its own catalogue at `/demo`, which anyone reads without signing in;
+the catalogue at `/` leaves it out, and links to it, as the sign-in a reader is first asked for does.
+
 ## Boards
 
 A board is several artifacts on one canvas, each in a frame at a screen's size, as a design study hangs its directions

@@ -13,6 +13,8 @@ from louvre.web import ui
 from louvre.web.app import ARTIFACT_POLICY, FILE_POLICY
 from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, sign_in
 
+#: The query that lists the demo's namespace, which a list leaves out unless it names it.
+DEMO = {"namespace": "demo"}
 #: A report, and the passage a thread is on.
 REPORT = "<h1>Report</h1><p>We will retry the fraud check twice before declining.</p>"
 
@@ -147,7 +149,7 @@ def test_a_write_without_the_header_is_forbidden(web: MakeWeb, published: str) -
 def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> None:
     client = web(demo=True)
 
-    listed = client.get("/api/artifacts").json()["artifacts"]
+    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
     artifact = listed[-1]["id"]
     response = client.post(f"/api/artifacts/{artifact}/threads", json={"body": "Hi."}, headers=WRITES)
 
@@ -157,9 +159,22 @@ def test_the_demo_is_read_without_signing_in_but_not_written(web: MakeWeb) -> No
     assert response.json()["code"] == "read_only"
 
 
+def test_a_list_leaves_the_demo_out_unless_it_names_its_namespace(web: MakeWeb, published: str) -> None:
+    reader, ana = web(demo=True), web(demo=True)
+    sign_in(ana, "ana")
+
+    assert reader.get("/api/artifacts").json()["artifacts"] == []
+    assert [a["id"] for a in ana.get("/api/artifacts").json()["artifacts"]] == [published]
+    assert {a["namespace"] for a in ana.get("/api/artifacts", params=DEMO).json()["artifacts"]} == {"demo"}
+    assert reader.get("/api/boards").json() == {"boards": []}
+    assert ana.get("/api/boards").json() == {"boards": []}
+    assert [b["id"] for b in ana.get("/api/boards", params=DEMO).json()["boards"]] == ["design-study"]
+
+
 def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb) -> None:
     client = web(demo=True)
-    report = next(a for a in client.get("/api/artifacts").json()["artifacts"] if a["latest_version"] == 2)["id"]
+    listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
+    report = next(a for a in listed if a["latest_version"] == 2)["id"]
 
     threads = client.get(f"/api/artifacts/{report}/threads").json()["threads"]
     first = client.get(f"/api/artifacts/{report}/threads", params={"version": 1}).json()["threads"]
@@ -174,7 +189,7 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
 def test_the_demos_board_is_listed_and_shown_with_its_frames(web: MakeWeb) -> None:
     client = web(demo=True)
 
-    listed = client.get("/api/boards").json()["boards"]
+    listed = client.get("/api/boards", params=DEMO).json()["boards"]
     shown = client.get("/api/boards/design-study").json()
 
     assert listed == [

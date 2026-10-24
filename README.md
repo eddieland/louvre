@@ -34,6 +34,6 @@ make ui-build    # the web UI, which `louvre serve` serves
 DATABASE_URL=$LOUVRE_TEST_DATABASE_URL LOUVRE_DEMO=1 LOUVRE_DEV_SIGN_IN=1 uv run louvre serve
 ```
 
-The last line serves the app on <http://127.0.0.1:8000> with the demo's artifacts, and sign-in by name.
+The last line serves the app on <http://127.0.0.1:8000> with the demo's artifacts at `/demo`, and sign-in by name.
 
 `make` alone lists every target. [AGENTS.md](AGENTS.md) holds the rules for humans and agents alike.

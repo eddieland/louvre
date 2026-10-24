@@ -258,6 +258,9 @@ def test_a_reader_of_the_demo_is_asked_to_sign_in_to_reply(browser: Browser, liv
     page = context.new_page()
     try:
         page.goto("/")
+        expect(page.locator("h1")).to_have_text("Sign in to read")
+        page.click("a:text-is('demo')")
+        expect(page).to_have_url(re.compile(r"/demo$"))
         page.click("text=Checkout latency")
         shown(page)
         page.keyboard.press("j")
