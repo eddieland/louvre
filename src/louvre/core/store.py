@@ -5,9 +5,12 @@ may do. A signed-in person reads every namespace and comments on the web; a toke
 with the permissions its person gave it. The scope is set by who called, never by a tool's arguments.
 
 Every change to a comment or a thread takes the next `seq` of one sequence across the store, inside the write that
-makes it. Every write takes one advisory lock first, so writes commit one at a time and in `seq` order, and a reader
-never sees a `seq` before every lower one is visible: nothing appears below a cursor a reader has passed. A read sees
-one snapshot (repeatable read).
+makes it. A write takes one advisory lock just before it takes a `seq`, and holds it until it commits, so `seq`s commit
+in order and a reader never sees a `seq` before every lower one is visible: nothing appears below a cursor a reader has
+passed. It is the last lock a write takes (D014): writes that take no `seq`, such as a publish, never wait on it, and
+those that do hold it only for their last statements. Otherwise writes wait only on the rows they change, each locked
+`FOR NO KEY UPDATE` when read, never `FOR UPDATE`, which a writer holding the `seq` lock would wait on to check its
+change's foreign keys. A read sees one snapshot (repeatable read).
 """
 
 import hashlib
@@ -43,8 +46,12 @@ MAX_ORIGIN_VALUE = 256
 #: How many artifacts a page of a list holds, and the most changes a page of the feed may.
 LIST_PAGE = 50
 MAX_FEED = 200
-#: The lock every write takes, so that `seq` commits in order. Not the migrations' lock, so a write never waits on one.
+#: The lock a write takes just before it takes a `seq`, so that `seq` commits in order (`Store.in_order`). Not the
+#: migrations' lock, so a write never waits on one.
 WRITE_LOCK = MIGRATE_LOCK + 1
+#: How a write locks a row it reads to change: never `FOR UPDATE`, which the foreign key checks of a write holding the
+#: `seq` lock would wait on.
+_LOCKED = " FOR NO KEY UPDATE"
 #: The highest `seq` Postgres holds, in a bigint.
 _MAX_SEQ = 2**63 - 1
 #: The most digits of a cursor a list gives: a row's number, which Postgres holds in 64 bits.
@@ -190,7 +197,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                     (artifact_id, self.scope.home, title, json.dumps(pairs), self.scope.account_id, now, now),
                 )
             else:
-                version = int(str(self.artifact_row(artifact_id)["latest_version"])) + 1
+                version = int(str(self.artifact_row(artifact_id, locked=True)["latest_version"])) + 1
                 self._conn.execute(
                     "UPDATE artifacts SET latest_version = %s, title = %s, updated_at = %s WHERE id = %s",
                     (version, title, now, artifact_id),
@@ -476,7 +483,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         self.require(Permission.COMMENT)
         state = "resolved" if resolved else "open"
         with self.writing():
-            if self._thread(thread_id)["state"] != state:
+            if self._thread(thread_id, locked=True)["state"] != state:
                 self._conn.execute("UPDATE threads SET state = %s WHERE id = %s", (state, thread_id))
                 self._change("thread_resolved" if resolved else "thread_reopened", thread_id, None)
         return {"state": state}
@@ -494,7 +501,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         self.require(Permission.COMMENT)
         check_body(body)
         with self.writing():
-            found = self._own(comment_id)
+            found = self._own(comment_id, locked=True)
             self._conn.execute(
                 "UPDATE comments SET body = %s, edited_at = %s WHERE id = %s",
                 (body, _now(), comment_id),
@@ -514,7 +521,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         """
         self.require(Permission.COMMENT)
         with self.writing():
-            found = self._own(comment_id)
+            found = self._own(comment_id, locked=True)
             self._conn.execute("UPDATE comments SET body = '', deleted_at = %s WHERE id = %s", (_now(), comment_id))
             seq = self._change("comment_deleted", str(found["thread_id"]), comment_id)
         return {"seq": seq}
@@ -531,7 +538,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         if self.scope.via != Via.WEB or self.scope.account_id is None:
             raise Refused(Code.READ_ONLY, "only a person deletes an artifact, on the web")
         with self.writing():
-            artifact = self.artifact_row(artifact_id)
+            artifact = self.artifact_row(artifact_id, locked=True)
             if artifact["owner_id"] != self.scope.account_id:
                 raise Refused(Code.OUT_OF_SCOPE, f"{artifact_id} is not yours to delete")
             self._conn.execute("UPDATE artifacts SET deleted_at = %s WHERE id = %s", (_now(), artifact_id))
@@ -569,14 +576,25 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
 
     @contextmanager
     def writing(self) -> Iterator[None]:
-        """Write one at a time: the lock first, so `seq` commits in order. Each statement then reads committed rows.
+        """Write in one transaction, alongside other writes: each waits only on the rows it locks, and on `in_order`.
 
         Yields:
             Inside the transaction, which commits when the block ends and rolls back when it raises.
         """
         with self._conn.transaction():
-            self._conn.execute("SELECT pg_advisory_xact_lock(%s)", (WRITE_LOCK,))
             yield
+
+    def in_order(self) -> str:
+        """Record the scope's author, then take the `seq` lock until the write commits, just before taking a `seq`.
+
+        The author's row is locked first, as every row a write locks is: nothing waits on a row after the `seq` lock.
+
+        Returns:
+            The author's id.
+        """
+        author_id = self.author_id()
+        self._conn.execute("SELECT pg_advisory_xact_lock(%s)", (WRITE_LOCK,))
+        return author_id
 
     def require(self, permission: Permission, code: Code = Code.READ_ONLY) -> None:
         """Hold the scope to `permission`.
@@ -596,8 +614,8 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         namespaces = self.scope.namespaces
         return {"all": namespaces is None, "namespaces": sorted(namespaces or ())}
 
-    def artifact_row(self, artifact_id: str) -> Row:
-        """Find an artifact the scope reaches.
+    def artifact_row(self, artifact_id: str, *, locked: bool = False) -> Row:
+        """Find an artifact the scope reaches, and lock its row until the write commits if `locked`.
 
         Returns:
             Its row.
@@ -606,7 +624,8 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             Refused: `not_found` for no such artifact, or one deleted; `out_of_scope` for one outside the scope.
         """
         row = self._conn.execute(
-            "SELECT * FROM artifacts WHERE id = %s AND deleted_at IS NULL",
+            "SELECT * FROM artifacts WHERE id = %s AND deleted_at IS NULL"  # noqa: S608  (constant SQL; values are bound)
+            + (_LOCKED if locked else ""),
             (artifact_id,),
         ).fetchone()
         if row is None:
@@ -720,8 +739,8 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             raise Refused(Code.NOT_FOUND, f"{artifact['id']} has no version {n}")
         return row
 
-    def _thread(self, thread_id: str) -> Row:
-        """Find a thread on an artifact the scope reaches.
+    def _thread(self, thread_id: str, *, locked: bool = False) -> Row:
+        """Find a thread on an artifact the scope reaches, and lock its row until the write commits if `locked`.
 
         Returns:
             Its row.
@@ -730,8 +749,8 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             Refused: `not_found` for no such thread, `out_of_scope` for one outside the scope.
         """
         row = self._conn.execute(
-            "SELECT t.*, a.namespace FROM threads t JOIN artifacts a ON a.id = t.artifact_id"
-            " WHERE t.id = %s AND a.deleted_at IS NULL",
+            "SELECT t.*, a.namespace FROM threads t JOIN artifacts a ON a.id = t.artifact_id"  # noqa: S608  (as above)
+            " WHERE t.id = %s AND a.deleted_at IS NULL" + (f"{_LOCKED} OF t" if locked else ""),
             (thread_id,),
         ).fetchone()
         if row is None:
@@ -739,8 +758,8 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         self.reaches(str(row["namespace"]), thread_id)
         return row
 
-    def _own(self, comment_id: str) -> Row:
-        """Find one of the scope's own comments, not deleted, inside a write.
+    def _own(self, comment_id: str, *, locked: bool = False) -> Row:
+        """Find one of the scope's own comments, not deleted, inside a write, its row locked if `locked`.
 
         Returns:
             Its row.
@@ -749,9 +768,9 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             Refused: `not_found` for no such comment, or one deleted; `out_of_scope` for another's.
         """
         row = self._conn.execute(
-            "SELECT c.*, a.namespace FROM comments c JOIN threads t ON t.id = c.thread_id"
+            "SELECT c.*, a.namespace FROM comments c JOIN threads t ON t.id = c.thread_id"  # noqa: S608  (as above)
             " JOIN artifacts a ON a.id = t.artifact_id WHERE c.id = %s AND c.deleted_at IS NULL"
-            " AND a.deleted_at IS NULL",
+            " AND a.deleted_at IS NULL" + (f"{_LOCKED} OF c" if locked else ""),
             (comment_id,),
         ).fetchone()
         if row is None:
@@ -776,15 +795,16 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         return comment_id, self._change("comment_created", thread_id, comment_id)
 
     def _change(self, kind: str, thread_id: str, comment_id: str | None) -> int:
-        """Record a change by the scope's author, inside a write, and set its comment's `seq` to it.
+        """Record a change by the scope's author, inside a write, in `seq` order, and set its comment's `seq` to it.
 
         Returns:
             Its `seq`.
         """
+        author_id = self.in_order()
         row = self._conn.execute(
             "INSERT INTO changes (kind, thread_id, comment_id, author_id, via, at) VALUES (%s, %s, %s, %s, %s, %s)"
             " RETURNING seq",
-            (kind, thread_id, comment_id, self.author_id(), self.scope.via.value, _now()),
+            (kind, thread_id, comment_id, author_id, self.scope.via.value, _now()),
         ).fetchone()
         seq = int(str(row["seq"])) if row else 0
         if comment_id is not None:

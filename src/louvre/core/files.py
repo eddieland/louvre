@@ -21,6 +21,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
+from operator import itemgetter
 from typing import assert_never
 
 from louvre.core.db import Connection
@@ -113,9 +114,11 @@ def new_key() -> str:
 
 def insert(conn: Connection, artifact_id: str, n: int, files: Sequence[File]) -> None:
     """Record a version's files, inside the write that publishes it, each file's bytes once by their hash."""
-    for f in files:
-        digest = sha256(f.data).hexdigest()
+    hashed = [(sha256(f.data).hexdigest(), f) for f in files]
+    # In the hashes' order, so two publishes sharing files never each wait on a blob the other has inserted first.
+    for digest, f in sorted(hashed, key=itemgetter(0)):
         conn.execute("INSERT INTO blobs (sha256, data) VALUES (%s, %s) ON CONFLICT DO NOTHING", (digest, f.data))
+    for digest, f in hashed:
         conn.execute(
             "INSERT INTO files (artifact_id, n, path, content_type, size, sha256) VALUES (%s, %s, %s, %s, %s, %s)",
             (artifact_id, n, f.path, f.content_type.value, len(f.data), digest),
