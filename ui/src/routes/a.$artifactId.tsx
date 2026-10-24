@@ -9,6 +9,7 @@ import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { ThreadNote } from '@/components/thread-note'
 import type { Draft } from '@/components/thread-note'
+import { SignInLink } from '@/components/sign-in'
 import { ApiError, artifactQuery, boardQuery, request, sessionQuery, threadsQuery, useThreadWrites } from '@/lib/api'
 import type { Account, Detail, Thread } from '@/lib/api'
 import { ago, count, provenance, roman } from '@/lib/format'
@@ -70,9 +71,7 @@ function ArtifactPage() {
                 <Notice title={missing ? 'No such artifact' : signIn ? 'Sign in to read this' : 'It did not load'}>
                     <p>{missing ? 'It may have been deleted, or the link is mistyped.' : detail.error.message}</p>
                     {signIn ? (
-                        <Link to="/sign-in" className="link">
-                            Sign in
-                        </Link>
+                        <SignInLink className="link">Sign in</SignInLink>
                     ) : (
                         <Link to="/" className="link">
                             Every artifact

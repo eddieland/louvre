@@ -5,6 +5,7 @@ import { BoardCanvas } from '@/components/board'
 import type { CanvasFrame } from '@/components/board'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
+import { SignInLink } from '@/components/sign-in'
 import { ApiError, boardQuery } from '@/lib/api'
 import type { BoardFrame } from '@/lib/api'
 
@@ -25,9 +26,7 @@ function BoardPage() {
                 <Notice title={missing ? 'No such board' : signIn ? 'Sign in to see this' : 'It did not load'}>
                     <p>{missing ? 'The link may be mistyped.' : board.error.message}</p>
                     {signIn ? (
-                        <Link to="/sign-in" className="link">
-                            Sign in
-                        </Link>
+                        <SignInLink className="link">Sign in</SignInLink>
                     ) : (
                         <Link to="/" className="link">
                             Every artifact
