@@ -14,31 +14,50 @@
 <h1>Payments, week 43</h1>
 <p class="l-lede">Checkout recovered after the tax fix shipped on Tuesday. Abandonment is back to where it was in
 September.</p>
+<p class="l-meta">Checkout events, 19 to 25 October 2026 &middot; canopy worker, for Sam Okafor, 26 October</p>
 <div class="l-kpis">
-<div class="l-kpi"><span>p95 checkout</span><b>430&nbsp;ms</b></div>
-<div class="l-kpi"><span>Abandoned at payment</span><b>8.3%</b></div>
-<div class="l-kpi"><span>Authorizations</span><b>212,400</b></div>
+<div class="l-kpi"><span>p95 checkout</span><b>430&nbsp;ms</b>
+<em class="l-good">&minus;64%, faster than week 42</em></div>
+<div class="l-kpi"><span>Abandoned at payment</span><b>8.3%</b><em class="l-good">&minus;2.1 points</em></div>
+<div class="l-kpi"><span>Authorizations</span><b>212,400</b><em>Level with week 42</em></div>
 </div>
 <figure>
 <figcaption>p95 checkout by day, in milliseconds</figcaption>
-<svg viewBox="0 0 640 160" role="img" aria-label="p95 checkout fell from 1,180 ms on Monday to 430 ms by Sunday">
-<polyline fill="none" stroke="var(--l-accent)" stroke-width="3"
-    points="20,20 115,24 210,96 305,118 400,124 495,128 590,130"/>
-<line x1="20" y1="140" x2="620" y2="140" stroke="var(--l-rule)"/>
+<svg class="l-chart" viewBox="0 0 440 200" role="img"
+    aria-label="p95 checkout fell from 1,180 ms on Monday to 430 ms by Sunday, under the 450 ms target from Thursday">
+<line x1="50" y1="170" x2="430" y2="170" stroke="var(--l-rule)"/>
+<line x1="50" y1="110" x2="430" y2="110" stroke="var(--l-muted)" stroke-dasharray="4 4"/>
+<text x="44" y="174" text-anchor="end">0</text>
+<text x="44" y="114" text-anchor="end">450</text>
+<text x="44" y="14" text-anchor="end">1,200</text>
+<polyline fill="none" stroke="var(--l-c1)" stroke-width="3"
+    points="60,13 120,18 180,74 240,103 300,108 360,111 420,113"/>
+<text x="60" y="192">Mon</text>
+<text x="180" y="192" text-anchor="middle">Wed</text>
+<text x="300" y="192" text-anchor="middle">Fri</text>
+<text x="420" y="192" text-anchor="end">Sun</text>
 </svg>
+<ul class="l-legend">
+<li class="l-c1">p95 checkout</li>
+<li>Target, 450&nbsp;ms</li>
+</ul>
 </figure>
 <h2>What changed</h2>
 <p>The tax quote now makes one call per cart. The fraud check moved back to submit time on Wednesday.</p>
-<div class="l-callout">Declines at submit rose from 1.1% to 1.4%, as expected once the check runs there again.</div>
+<div class="l-callout l-risk">Declines at submit rose from 1.1% to 1.4%, as expected once the check runs there
+again.</div>
 <h2>By region</h2>
 <table>
-<thead><tr><th>Region</th><th>p95</th><th>Abandoned</th></tr></thead>
+<thead><tr><th>Region</th><th class="l-num">p95</th><th class="l-num">Abandoned</th></tr></thead>
 <tbody>
-<tr><td>us-east</td><td>410&nbsp;ms</td><td>7.9%</td></tr>
-<tr><td>eu-west</td><td>470&nbsp;ms</td><td>8.8%</td></tr>
-<tr><td>ap-south</td><td>440&nbsp;ms</td><td>8.4%</td></tr>
+<tr><td>us-east</td><td class="l-num">410&nbsp;ms</td><td class="l-num">7.9%</td></tr>
+<tr><td>eu-west</td><td class="l-num">470&nbsp;ms</td><td class="l-num">8.8%</td></tr>
+<tr><td>ap-south</td><td class="l-num">440&nbsp;ms</td><td class="l-num">8.4%</td></tr>
 </tbody>
 </table>
+<footer>
+<p>Sources: the checkout events table, and the payment provider's authorization report for week 43.</p>
+</footer>
 </main>
 </body>
 </html>
