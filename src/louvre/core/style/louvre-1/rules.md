@@ -19,8 +19,8 @@ Each kind of artifact has a starter page: `style_get` with `kind` returns it, an
 
 | Kind | For | Its components |
 |---|---|---|
-| `report` | Findings, with the numbers behind them | KPIs with their change, a chart with a legend, callouts, a table of numbers |
-| `decision` | A choice between options, and the one recommended | Requirements as facts, options side by side, a comparison table, a risk, a redline, next steps |
+| `report` | Findings, with the numbers behind them | KPIs with their change, a line chart with notes, callouts, a table of numbers |
+| `decision` | A choice between options, and the one recommended | Requirements as facts, options side by side, a comparison table, a bar chart, a risk, a redline, next steps |
 | `plan` | What will be done, in steps, with its risks | Facts, numbered steps with their status, a risk, open questions |
 
 ## The page
@@ -91,47 +91,51 @@ and the page works dark and light.
 | `--l-bg`, `--l-card` | The page, and a box on it |
 | `--l-ink`, `--l-muted` | Text, and text that is secondary |
 | `--l-rule` | Hairlines, axes, and gridlines |
-| `--l-accent` | Links, the recommended option, and the series a chart is about |
+| `--l-accent` | Links, the recommended option, and what a chart is about |
 | `--l-good`, `--l-bad` | A change that is good news, and one that is bad |
-| `--l-c1` to `--l-c4` | A chart's series, in order: `--l-c1` is the accent |
 
-- The accent marks what matters most: most of the page is ink on the background.
+- One accent marks what matters most, as on Louvre's own pages: most of the page is ink on the background. There is no
+  palette of series colors: a chart's other series are muted ink.
 - Never say a thing by color alone. A good change also has its sign and its words ("&minus;62%, faster"), and a
   chart's series also has its label.
 - Every color here reads at 4.5:1 or better on `--l-bg` and `--l-card`, in both themes, so each can color text too.
 
 ## Charts
 
-Let Louvre draw a line or bar chart: call `style_chart` with its kind, its title and description, its labels, up to
-four series, and a target to compare with if there is one. It returns the `<figure>` to put in the page, drawn to the
-rules below. Draw any other chart yourself, as inline SVG, in a figure, with the chart's class:
+Call `style_chart` with the data, and put the figure it returns in the page: it draws a line, bar, or dot chart in
+Louvre's look, which no hand-drawn chart should depart from.
+
+- **Line**, for values in order, such as by day. **Bar**, for one value to each label, such as each option's cost;
+  give it a `focus`, the label whose bar is in the accent. **Dot**, for each label's values side by side, such as
+  before and after.
+- **`finding`**: what the chart shows, in a sentence, as its title. "Checkout fell under its target on Thursday",
+  not "Checkout latency". **`measure`**: what is measured, and when, under it.
+- **The first series is the one the chart is about**, in the accent; up to three more are muted ink, for comparison.
+  Each is labeled where it is, so there is no legend: name a series as its label should read, such as "last week".
+- **`notes`**: the moments that matter, each on a label. They are numbered on the chart, as Louvre numbers its threads,
+  and said in a sentence under it, where a reader can quote them in a comment. One to three; never more than nine.
+- **`unit`**, such as "ms" or "%", goes after the largest value on the axis and each value written on the chart.
+  **`target`**, on a line chart, is a value to compare with, dotted across it. **`source`** closes the figure.
+- Say the chart's finding in the page's text too: a reader who cannot see the chart still has it.
+- A chart of a few numbers is better as a table, or as KPIs.
+
+The figure it returns, for a reader of the markup:
 
 ```html
-<figure>
-<figcaption>p95 checkout by day, in milliseconds</figcaption>
-<svg class="l-chart" viewBox="0 0 440 200" role="img" aria-label="p95 fell from 1,180 ms on Monday to 430 ms">
-<line x1="50" y1="170" x2="430" y2="170" stroke="var(--l-rule)"/>
-<text x="44" y="174" text-anchor="end">0</text>
-<polyline fill="none" stroke="var(--l-c1)" stroke-width="3" points="60,13 180,74 300,108 420,113"/>
-</svg>
-<ul class="l-legend"><li class="l-c1">This week</li><li class="l-c2">Last week</li></ul>
+<figure class="l-plot">
+<figcaption><span class="l-say">The finding</span><span class="l-measure">What is measured</span></figcaption>
+<svg class="l-chart" viewBox="0 0 440 196" role="img"><title>The finding. What is measured</title>
+<text class="l-name">A row's name</text> <text class="l-label">A series' label</text>
+<text class="l-value">A value</text> <text class="l-mark">1</text> ...</svg>
+<ol class="l-notes"><li>The first note.</li></ol>
+<p class="l-source">Where the numbers come from</p>
 </figure>
 ```
 
-- `class="l-chart"` sets the SVG's text in Louvre's sans, in the muted ink, and makes it the figure's width.
-- Make the `viewBox` about 440 wide. The chart scales to the page, and its text with it: the chart's 14 units read at
-  about 10 px on a phone and 18 px on a laptop. Never set text smaller than 13 units.
-- Color each series with `stroke` or `fill` set to `var(--l-c1)` to `var(--l-c4)`, in order; draw a baseline or
-  everything else in `var(--l-muted)`. Four series at most: more, and a reader cannot tell them apart. Draw small
-  multiples instead.
-- Name each series in a `<ul class="l-legend">` under the chart, each `<li>` with its series' class, `l-c1`, `l-c2`,
-  `l-c3`, or `l-c4`, or label the line itself at its end.
-- Axes and gridlines are `var(--l-rule)`, one pixel. Label a few round values, not every tick, and leave the labels
-  room inside the `viewBox`: what falls outside it is cut off.
-- A bar starts at zero. A line may not, if its axis is labeled.
-- `role="img"` and an `aria-label` that says what the chart shows, in words: the finding, not "a chart".
-- Say the chart's finding in the text too: a reader who cannot see the chart still has it.
-- A chart of a few numbers is better as a table, or as KPIs.
+To draw a chart it cannot, such as a map or a diagram, follow the same look by hand: a `figure` of class `l-plot`, an
+SVG of class `l-chart` about 440 units wide with its text in the classes above, the accent on what the chart is about
+and muted ink and `var(--l-rule)` hairlines for the rest, labels in place of a legend, and a `<title>` that says what
+it shows. Color a mark with its `fill` or `stroke` attribute, set to one of the properties above.
 
 ## Tables
 
@@ -183,6 +187,6 @@ what no parser can see:
 
 - The `<h1>` and the lede say the finding, and the title says the same.
 - Every number has its unit and its comparison; every date is absolute.
-- No color says anything alone; every chart has a label in words.
+- No color says anything alone; every chart is drawn by `style_chart`, or follows its look.
 - Nothing is wider than a phone; nothing loads from the network.
 - No secret, token, or private data is on the page.

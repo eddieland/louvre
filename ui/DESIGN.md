@@ -167,9 +167,16 @@ so it names Louvre's faces and falls back to the reader's own serif and sans. A 
 Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
 page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome
 does, so it adds to these tokens, in both themes, each reading at 4.5:1 or better on its background and its cards:
-`good` (`#6fbf8e`, `#2f7a4d`) and `bad` (`#e0915a`, `#a5521b`) for a change that is good or bad news, and four series
-for a chart, the accent first, then blue (`#7fa7d9`, `#2f5f94`), ochre (`#d2b15c`, `#86610f`), and teal (`#6fb7ae`,
-`#2a6f68`). The accent still marks what matters most, and no color says anything alone.
+`good` (`#6fbf8e`, `#2f7a4d`) and `bad` (`#e0915a`, `#a5521b`) for a change that is good or bad news. The accent
+still marks what matters most, and no color says anything alone.
+
+**Charts** are Marginalia (picked by the operator on 2026-10-24 over a palette of series colors with a legend, and
+over the same look without notes), drawn by `louvre.core.style.chart` and handed to agents by `style_chart`. A chart
+is a figure between hairlines, not in a card: its finding as its title in Fraunces, over what it measures in
+Instrument Sans and `muted`. What it is about is in `accent`; every other series is `muted`, and every axis and
+gridline a `rule` hairline. Each series is labeled where it is, in Source Serif italic, so there is no legend. The
+moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
+quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
 ## Not decided yet
 

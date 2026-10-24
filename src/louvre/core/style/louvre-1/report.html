@@ -19,26 +19,44 @@
 <div class="l-kpi"><span>A rate</span><b>8.3%</b><em class="l-bad">+0.4 points on last week</em></div>
 <div class="l-kpi"><span>A count</span><b>212,400</b><em>Level with last week</em></div>
 </div>
-<figure>
-<figcaption>What the chart shows, with its unit</figcaption>
-<svg class="l-chart" viewBox="0 0 440 200" role="img"
-    aria-label="What the chart says, for a reader who cannot see it: this week fell from 1,180 to 430">
-<line x1="50" y1="170" x2="430" y2="170" stroke="var(--l-rule)"/>
-<line x1="50" y1="90" x2="430" y2="90" stroke="var(--l-rule)" stroke-dasharray="2 4"/>
-<text x="44" y="174" text-anchor="end">0</text>
-<text x="44" y="94" text-anchor="end">600</text>
-<text x="44" y="14" text-anchor="end">1,200</text>
-<polyline fill="none" stroke="var(--l-c2)" stroke-width="2"
-    points="60,111 120,108 180,112 240,109 300,111 360,110 420,112"/>
-<polyline fill="none" stroke="var(--l-c1)" stroke-width="3"
-    points="60,13 120,18 180,74 240,103 300,108 360,111 420,113"/>
-<text x="60" y="192">Mon</text>
-<text x="420" y="192" text-anchor="end">Sun</text>
+<figure class="l-plot">
+<figcaption><span class="l-say">What the chart shows, as a finding in a sentence</span>
+<span class="l-measure">What is measured, in what unit, and when</span></figcaption>
+<svg class="l-chart" viewBox="0 0 440 196" role="img">
+<title>What the chart shows, as a finding in a sentence. What is measured, in what unit, and when</title>
+<line x1="0" x2="361.2" y1="168" y2="168" stroke="var(--l-rule)"/>
+<text x="0" y="163">0</text>
+<line x1="0" x2="361.2" y1="120" y2="120" stroke="var(--l-rule)"/>
+<text x="0" y="115">500</text>
+<line x1="0" x2="361.2" y1="72" y2="72" stroke="var(--l-rule)"/>
+<text x="0" y="67">1,000</text>
+<line x1="0" x2="361.2" y1="24" y2="24" stroke="var(--l-rule)"/>
+<text x="0" y="19">1,500 ms</text>
+<line x1="0" x2="361.2" y1="124.8" y2="124.8" stroke="var(--l-muted)" stroke-dasharray="1 3"/>
+<polyline fill="none" stroke="var(--l-muted)" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round"
+    points="46,124.8 97.2,122.88 148.4,125.76 199.6,123.84 250.8,124.32 302,124.8 353.2,125.28"/>
+<polyline fill="none" stroke="var(--l-accent)" stroke-width="2.25" stroke-linejoin="round"
+    stroke-linecap="round" points="46,54.72 97.2,60.48 148.4,98.88 199.6,122.88 250.8,125.76 302,126.24
+    353.2,126.72"/>
+<circle cx="353.2" cy="126.72" r="3.5" fill="var(--l-accent)"/>
+<text class="l-value" x="353.2" y="117.72" text-anchor="end" fill="var(--l-accent)">430 ms</text>
+<circle cx="97.2" cy="60.48" r="3" fill="var(--l-bg)" stroke-width="1.5" stroke="var(--l-accent)"/>
+<text class="l-mark" x="103.2" y="53.48">1</text>
+<text class="l-label" x="371.2" y="128.8" fill="var(--l-muted)">target</text>
+<text class="l-label" x="371.2" y="143.8" fill="var(--l-muted)">last week</text>
+<text class="l-label" x="371.2" y="158.8" fill="var(--l-accent)">this week</text>
+<text x="46" y="190" text-anchor="start">Mon</text>
+<text x="97.2" y="190" text-anchor="middle">Tue</text>
+<text x="148.4" y="190" text-anchor="middle">Wed</text>
+<text x="199.6" y="190" text-anchor="middle">Thu</text>
+<text x="250.8" y="190" text-anchor="middle">Fri</text>
+<text x="302" y="190" text-anchor="middle">Sat</text>
+<text x="353.2" y="190" text-anchor="end">Sun</text>
 </svg>
-<ul class="l-legend">
-<li class="l-c1">This week</li>
-<li class="l-c2">Last week</li>
-</ul>
+<ol class="l-notes">
+<li>A moment that matters, said in a sentence a reader can quote.</li>
+</ol>
+<p class="l-source">Where the numbers come from, so a reader can check them.</p>
 </figure>
 <h2>A section, named for what it says</h2>
 <p>One claim to a sentence, so a comment can quote it.</p>

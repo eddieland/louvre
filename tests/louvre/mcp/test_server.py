@@ -284,15 +284,18 @@ def test_style_chart_draws_a_figure_from_data(client: Client) -> None:
     drawn = client.call(
         "style_chart",
         kind="bar",
-        title="Tax calls a week",
-        description="Redis makes the fewest",
+        finding="Redis makes the fewest tax calls",
+        measure="Tax calls a week",
         labels=["Process", "Redis"],
-        series=[{"name": "Calls", "values": [1_200_000, 190_000]}],
+        series=[{"name": "calls", "values": [1_200_000, 190_000]}],
+        focus="Redis",
+        notes=[{"label": "Redis", "text": "Recommended."}],
     )
 
-    assert drawn["figure"].startswith("<figure>\n<figcaption>Tax calls a week</figcaption>")
-    assert client.refused("style_chart", kind="line", title="t", description="d", labels=["a"], series=[]) == "invalid"
-    assert client.refused("style_chart", kind="pie", title="t", description="d", labels=["a"], series=[]) == "invalid"
+    assert drawn["figure"].startswith('<figure class="l-plot">\n<figcaption><span class="l-say">Redis makes the fewest')
+    assert "<li>Recommended.</li>" in drawn["figure"]
+    assert client.refused("style_chart", kind="line", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
+    assert client.refused("style_chart", kind="pie", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
 
 
 def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:

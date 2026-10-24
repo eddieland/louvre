@@ -58,10 +58,9 @@ it (`skills/louvre-artifacts`). An artifact that opts in names a version, so a l
 page. The `style_get` tool hands over the stylesheet, its guide (the page's shape, its components, color, charts,
 tables, phones, and writing for comments), and a starter page for the kind of artifact asked for, a report, a
 decision, or a plan, which the artifact inlines; the same files are MCP resources a person attaches, and the `style`
-prompt asks for a page of a kind in it. The `style_chart` tool draws a line or bar chart in it from data, and the
+prompt asks for a page of a kind in it. The `style_chart` tool draws a line, bar, or dot chart in it from data, and the
 `style_check` tool checks a page against the guide before it is published: errors for what would not work in Louvre,
-warnings for the rest. A Markdown artifact is shown in it
-already.
+warnings for the rest. A Markdown artifact is shown in it already.
 
 ### U7. Decisions: people answer what agents ask, and agents read the answers back
 

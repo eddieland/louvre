@@ -161,35 +161,64 @@ class StyleCheck(_Request):
 class SeriesRequest(_Request):
     """One series of a chart's values."""
 
-    name: Annotated[StrictStr, Field(description="What the series is, as its legend names it, such as This week.")]
+    name: Annotated[StrictStr, Field(description="What it is, as its label on the chart says, such as this week.")]
     values: Annotated[list[FiniteFloat], Field(description="One value to each label, in the labels' order.")]
 
 
 class TargetRequest(_Request):
-    """A value to compare with, drawn as a dashed line."""
+    """A value to compare with, drawn as a dotted line."""
 
-    name: Annotated[StrictStr, Field(description="What it is, as its legend names it, such as Target, 450 ms.")]
+    name: Annotated[StrictStr, Field(description="What it is, as its label on the chart says, such as target.")]
     value: FiniteFloat
+
+
+class NoteRequest(_Request):
+    """A moment that matters, numbered on the chart and said under it."""
+
+    label: Annotated[StrictStr, Field(description="The label of the point or row it is on.")]
+    text: Annotated[StrictStr, Field(description="What happened there, in a sentence a reader can quote.")]
 
 
 class StyleChart(_Request):
     """Draw a chart in the house style."""
 
-    kind: Annotated[chart.Kind, Field(description="line, for values over time; bar, for values side by side.")]
-    title: Annotated[StrictStr, Field(description="What it shows, with its unit: the figure's caption.")]
-    description: Annotated[
+    kind: Annotated[
+        chart.Kind,
+        Field(
+            description="line, for values in order, such as by day; bar, for one value to each label; dot, for each "
+            "label's values side by side, such as before and after.",
+        ),
+    ]
+    finding: Annotated[
         StrictStr,
-        Field(description="What it says, in words, for a reader who cannot see it: the finding, not 'a chart'."),
+        Field(description="What the chart shows, in a sentence: its title, such as Checkout fell under its target."),
+    ]
+    measure: Annotated[
+        StrictStr,
+        Field(description="What is measured, and when, under the title, such as p95 checkout, by day of week 43."),
     ]
     labels: Annotated[
         list[StrictStr],
-        Field(description=f"Each point's or bar's label, in order, such as a day: short, at most {chart.MOST_LABELS}."),
+        Field(description=f"Each point's or row's label, in order: short, at most {chart.MOST_LABELS}."),
     ]
     series: Annotated[
         list[SeriesRequest],
-        Field(description=f"1 to {chart.MOST_SERIES} series; the first is the one the chart is about."),
+        Field(
+            description=f"The first is the one the chart is about, in the accent; at most {chart.MOST_SERIES}, one "
+            "for a bar chart.",
+        ),
     ]
-    target: Annotated[TargetRequest | None, Field(description="A value to compare with, if there is one.")] = None
+    unit: Annotated[StrictStr, Field(description="The values' unit, such as ms or %.")] = ""
+    target: Annotated[TargetRequest | None, Field(description="A value to compare with, on a line chart.")] = None
+    focus: Annotated[
+        StrictStr | None,
+        Field(description="On a bar chart, the label whose bar is in the accent, such as the option recommended."),
+    ] = None
+    notes: Annotated[
+        list[NoteRequest],
+        Field(description=f"Moments that matter, at most {chart.MOST_NOTES}, numbered on the chart and said under it."),
+    ] = []
+    source: Annotated[StrictStr, Field(description="Where the numbers come from.")] = ""
 
 
 class Resolve(_Request):
@@ -343,10 +372,11 @@ TOOLS = (
     ),
     tool(
         "style_chart",
-        "Draw a line or bar chart in the house style, from its data: a <figure> to paste into a page in the style, its "
-        "caption the title, an inline SVG drawn to the guide's rules (round values on its axis, bars from zero, the "
-        "style's series colors, so it works dark and light), and a legend. Say the chart's finding in the page's text "
-        "too.",
+        "Draw a line, bar, or dot chart in the house style, from its data: a <figure> to paste into a page in the "
+        "style. Its title says the finding, over what is measured; the series it is about is in the accent and the "
+        "rest in muted ink, each labeled where it is; moments that matter are numbered on it and said in notes under "
+        "it, which readers can quote in comments; and its source closes it. It works dark and light, on a phone and a "
+        "laptop.",
         StyleChart,
         lambda _store, r: _charted(r),
     ),
@@ -414,11 +444,15 @@ def _checked(page: str) -> dict[str, object]:
 def _charted(request: StyleChart) -> dict[str, object]:
     drawn = chart.Chart(
         kind=request.kind,
-        title=request.title,
-        description=request.description,
+        finding=request.finding,
+        measure=request.measure,
         labels=request.labels,
         series=[chart.Series(s.name, s.values) for s in request.series],
+        unit=request.unit,
         target=None if request.target is None else chart.Target(request.target.name, request.target.value),
+        focus=request.focus,
+        notes=[chart.Note(n.label, n.text) for n in request.notes],
+        source=request.source,
     )
     try:
         return {"figure": chart.figure(drawn)}
