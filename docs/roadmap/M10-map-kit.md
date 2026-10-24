@@ -20,4 +20,7 @@ loads nothing from the network.
 Accept: an agent publishes a map in the kit, and the operator reads it on a phone and a laptop, panning and zooming
 it, with no request leaving Louvre; the screen matrix holds the demo's map at every size.
 
-Status: not started.
+Status: built, for the operator to accept. The basemap is Natural Earth's 1:50m as GeoJSON (land, lakes, borders,
+and cities, built by `scripts/basemap.py`), not Protomaps' PMTiles: Protomaps' builds were out of the build machine's
+reach, and Natural Earth is public domain, so the credit is a courtesy the check still asks for. A street's detail is
+for a later kit (REQUIREMENTS, Open). A phone keeps one map drawn at a time, the one in view.

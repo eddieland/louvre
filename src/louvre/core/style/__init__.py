@@ -32,6 +32,8 @@ class Kind(StrEnum):
     DECISION = "decision"
     #: What will be done, in steps, with its risks and open questions.
     PLAN = "plan"
+    #: Where something is, on a map drawn by the map kit.
+    MAP = "map"
 
 
 _FILES = files(__name__) / VERSION
@@ -47,6 +49,7 @@ KINDS: Mapping[Kind, str] = {
     Kind.REPORT: "Findings, with the numbers behind them: a measurement, an investigation, a weekly review.",
     Kind.DECISION: "A choice between options, side by side, and the one recommended: a design or a vendor to pick.",
     Kind.PLAN: "What will be done, in steps, with its risks and open questions: a proposal, a migration, a rollout.",
+    Kind.MAP: "Where something is, on a map: regions, sites, a route, with what matters about each.",
 }
 #: The style's fonts, by file name: the faces its stylesheet names.
 FONTS: Mapping[str, bytes] = {

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Declines at submit are over 2% only in São Paulo and Mexico City</title>
+<style>
+{css}
+</style>
+<script src="/kit/louvre-map-1/map.js"></script>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Map &middot; Payments and Risk</p>
+<h1>Declines at submit are over 2% only in São Paulo and Mexico City</h1>
+<p class="l-lede">Card declines at submit rose to 1.4% this week, and two markets account for the rise: São Paulo, at
+3.1%, and Mexico City, at 2.4%. Every other market is at or under 1.1%.</p>
+<p class="l-meta">Charges from 19 to 25 October 2026, by the market of the card&rsquo;s issuer &middot; PAY-163
+&middot; canopy worker, for Sam Okafor, 26 October 2026</p>
+<figure class="l-plot">
+<figcaption><span class="l-say">Two markets in Latin America decline twice as often as the rest</span>
+<span class="l-measure">Declines at submit, as a share of charges, by issuer&rsquo;s market, 19&ndash;25 October</span>
+</figcaption>
+<div class="l-map" id="declines" role="img" aria-label="A world map of seven markets: São Paulo at 3.1% and Mexico
+City at 2.4% are marked; New York, London, Frankfurt, Singapore, and Sydney are at 1.1% or under."></div>
+<p class="l-key"><span class="l-focus">Over 2% of charges declined</span><span>At or under 1.1%</span></p>
+<ol class="l-notes">
+<li>São Paulo&rsquo;s issuers began asking for 3-D Secure on every charge over R$&nbsp;200 on 19 October.</li>
+<li>Mexico City&rsquo;s rise is one issuer, whose declines are &ldquo;do not honor&rdquo; with no reason given.</li>
+</ol>
+<p class="l-source">Payments warehouse, charges table. Basemap: Natural Earth.</p>
+</figure>
+<h2>Each market</h2>
+<div class="l-scroll">
+<table>
+<thead><tr><th>Market</th><th class="l-num">Declined</th><th class="l-num">Last week</th>
+<th class="l-num">Charges</th></tr></thead>
+<tbody>
+<tr><td>São Paulo</td><td class="l-num l-bad">3.1%</td><td class="l-num">1.2%</td><td class="l-num">18,300</td></tr>
+<tr><td>Mexico City</td><td class="l-num l-bad">2.4%</td><td class="l-num">1.0%</td><td class="l-num">11,900</td></tr>
+<tr><td>New York</td><td class="l-num">1.1%</td><td class="l-num">1.1%</td><td class="l-num">64,200</td></tr>
+<tr><td>Singapore</td><td class="l-num">1.0%</td><td class="l-num">1.1%</td><td class="l-num">15,700</td></tr>
+<tr><td>London</td><td class="l-num">0.9%</td><td class="l-num">0.9%</td><td class="l-num">48,100</td></tr>
+<tr><td>Sydney</td><td class="l-num">0.9%</td><td class="l-num">1.0%</td><td class="l-num">12,600</td></tr>
+<tr><td>Frankfurt</td><td class="l-num">0.8%</td><td class="l-num">0.8%</td><td class="l-num">41,600</td></tr>
+</tbody>
+</table>
+</div>
+<h2>What we do next</h2>
+<p>For São Paulo, we send 3-D Secure up front on charges over R$&nbsp;200, so the issuer&rsquo;s challenge is asked
+before submit rather than refused at it. For Mexico City, we ask the acquirer for the issuer&rsquo;s reasons.</p>
+<footer>
+<p>Made by canopy worker from the payments warehouse, with Louvre&rsquo;s map kit, louvre-map-1.</p>
+</footer>
+</main>
+<script>
+const market = (name, at, focus, mark) => ({
+    type: "Feature",
+    properties: { name, focus, ...(mark ? { mark } : {}) },
+    geometry: { type: "Point", coordinates: at },
+});
+LouvreMap.draw("declines", {
+    data: {
+        type: "FeatureCollection",
+        features: [
+            market("São Paulo 3.1%", [-46.63, -23.55], true, 1),
+            market("Mexico City 2.4%", [-99.13, 19.43], true, 2),
+            market("New York", [-74.01, 40.71], false),
+            market("London", [-0.13, 51.51], false),
+            market("Frankfurt", [8.68, 50.11], false),
+            market("Singapore", [103.82, 1.35], false),
+            market("Sydney", [151.21, -33.87], false),
+        ],
+    },
+});
+</script>
+</body>
+</html>

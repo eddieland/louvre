@@ -22,6 +22,7 @@ Each kind of artifact has a starter page: `style_get` with `kind` returns it, an
 | `report` | Findings, with the numbers behind them | KPIs with their change, a line chart with notes, callouts, a table of numbers |
 | `decision` | A choice between options, and the one recommended | Requirements as facts, options side by side, a comparison table, a bar chart, a risk, a redline, next steps |
 | `plan` | What will be done, in steps, with its risks | Facts, numbered steps with their status, a risk, open questions |
+| `map` | Where something is: regions, sites, a route | A map drawn by the map kit, with notes, and a table of its places |
 
 ## The page
 
@@ -132,10 +133,46 @@ The figure it returns, for a reader of the markup:
 </figure>
 ```
 
-To draw a chart it cannot, such as a map or a diagram, follow the same look by hand: a `figure` of class `l-plot`, an
+To draw a chart it cannot, such as a diagram, follow the same look by hand: a `figure` of class `l-plot`, an
 SVG of class `l-chart` about 440 units wide with its text in the classes above, the accent on what the chart is about
 and muted ink and `var(--l-rule)` hairlines for the rest, labels in place of a legend, and a `<title>` that says what
 it shows. Color a mark with its `fill` or `stroke` attribute, set to one of the properties above.
+
+## Maps
+
+Louvre serves a map kit, `louvre-map-1`: a basemap of land, borders, and cities, drawn in the page's colors, dark and
+light, with your places over it. Load its one script in `<head>`, and draw in a `<div class="l-map">` inside a figure
+of class `l-plot`, as the `map` starter does:
+
+```html
+<script src="/kit/louvre-map-1/map.js"></script>
+...
+<div class="l-map" id="map" role="img" aria-label="What the map shows, naming each place"></div>
+<p class="l-key"><span class="l-focus">What the accent marks</span><span>What the rest are</span></p>
+...
+<p class="l-source">Where the places come from. Basemap: Natural Earth.</p>
+<script>
+LouvreMap.draw("map", { data: { type: "FeatureCollection", features: [...] } });
+</script>
+```
+
+- **`data`** is GeoJSON, with longitude before latitude: points for sites, lines for routes, polygons for regions. It
+  may instead be a file published beside the page, by its path: `data: "places.json"`.
+- **`focus`**: give the place the map is about `"focus": true` in its properties, and it is in the accent; the rest
+  are muted ink. With no `focus` anywhere, every place is in the accent.
+- **`name`** labels each place on the map; `label` names another property to label with instead.
+- **`mark`**: a number, as `"mark": 1`, numbers a place as a chart's note is numbered; say each in the figure's
+  `l-notes`, under the map.
+- **The key**, `<p class="l-key">` under the map, says what the accent marks, in a `<span class="l-focus">`, and what
+  the muted rest are, in a `<span>`, each beside the mark the map draws for it.
+- **The basemap's credit**, "Basemap: Natural Earth.", goes in the figure's `l-source`; the map shows it too.
+- The map fits its places, zoomed in as far as `maxZoom` (6 unless said, about a country), with a scale bar. A reader
+  may pan and zoom it, with two fingers on a phone, or the buttons.
+- One map to a page, with every place on it. Each map holds a WebGL context, of which a phone keeps few: the kit
+  draws a map while it is in view, and on a phone keeps one drawn at a time.
+- A map is a picture: say what it shows in the lede, the figure's finding, its `aria-label`, and a table of its
+  places, so a reader who cannot see it, or quote it, still has it.
+- The basemap is Natural Earth's, at about a city's scale: a map of a street, a building, or a floor is not for it.
 
 ## Tables
 
@@ -155,7 +192,7 @@ People read on phones as well as laptops, at widths from 320 px.
 ## Self-contained
 
 A page in Louvre loads nothing from the network: its policy refuses every request to another address. No external
-stylesheet, font, script, or image.
+stylesheet, font, script, or image. The map kit's script, which Louvre serves, is the one script a page may load.
 
 - The style's own faces load from Louvre, so a page in the style is set as Louvre's own pages are. Shown anywhere
   else, it falls back to the reader's own serif and sans.
@@ -193,5 +230,5 @@ what no parser can see:
 - The `<h1>` and the lede say the finding, and the title says the same.
 - Every number has its unit and its comparison; every date is absolute.
 - No color says anything alone; every chart is drawn by `style_chart`, or follows its look.
-- Nothing is wider than a phone; nothing loads from the network.
+- Nothing is wider than a phone; nothing loads from the network but the map kit.
 - No secret, token, or private data is on the page.

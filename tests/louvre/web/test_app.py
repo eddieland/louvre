@@ -9,9 +9,9 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 
-from louvre.core import style
+from louvre.core import maps, style
 from louvre.web import ui
-from louvre.web.app import ARTIFACT_POLICY, create, with_bridge
+from louvre.web.app import FILE_POLICY, artifact_policy, create, with_bridge
 from tests.conftest import web_settings
 
 
@@ -162,4 +162,51 @@ def test_nothing_but_the_house_styles_fonts_is_served_there(client: TestClient, 
 
 
 def test_an_artifact_loads_fonts_only_from_data_urls_and_louvre() -> None:
-    assert [d for d in ARTIFACT_POLICY.split("; ") if d.startswith("font-src")] == ["font-src data: 'self'"]
+    policy = artifact_policy("https://louvre.test")
+
+    assert [d for d in policy.split("; ") if d.startswith("font-src")] == ["font-src data: 'self'"]
+
+
+def test_an_artifact_runs_only_its_own_scripts_and_the_map_kit_louvre_serves() -> None:
+    directives = dict(d.split(" ", 1) for d in artifact_policy("https://louvre.test").split("; ")[1:])
+
+    assert directives["script-src"] == "'unsafe-inline' https://louvre.test/kit/louvre-map-1/"
+    assert directives["connect-src"] == "https://louvre.test/kit/louvre-map-1/"
+    assert directives["worker-src"] == "blob:"
+
+
+def test_the_map_kits_files_are_served_to_any_origin_and_kept(client: TestClient) -> None:
+    for path, (media_type, data) in maps.FILES.items():
+        response = client.get(maps.PATH + path)
+
+        assert response.status_code == 200
+        assert response.content == data
+        assert response.headers["content-type"].split(";")[0] == media_type
+        assert response.headers["access-control-allow-origin"] == "*"
+        assert response.headers["content-security-policy"] == FILE_POLICY
+        assert "immutable" in response.headers["cache-control"]
+    assert b"window.LouvreMap" in maps.FILES["map.js"][1]
+    assert b".maplibregl-map" in maps.FILES["map.js"][1]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/kit/louvre-map-1/nope.js",
+        "/kit/louvre-map-0/map.js",
+        "/kit/louvre-map-1/kit.js",
+        "/kit/louvre-map-1/",
+        "/kit/louvre-map-1/glyphs/Comic Sans/0-255.pbf",
+        "/kit/louvre-map-1/glyphs/Noto Sans Regular/1-256.pbf",
+    ],
+)
+def test_nothing_but_the_map_kits_files_is_served_there(client: TestClient, path: str) -> None:
+    assert client.get(path).status_code == 404
+
+
+def test_a_range_of_glyphs_the_kit_lacks_is_served_empty_so_a_label_leaves_it_out(client: TestClient) -> None:
+    response = client.get(f"{maps.PATH}glyphs/Noto Sans Regular/19968-20223.pbf")
+
+    assert response.status_code == 200
+    assert response.content == b""
+    assert response.headers["content-type"] == "application/x-protobuf"

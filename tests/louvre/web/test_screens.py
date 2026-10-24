@@ -52,7 +52,7 @@ class Scene:
     name: str
     #: What the gallery calls it.
     label: str
-    #: The page's path; `{checkout}`, `{notes}`, `{weekly}`, and `{gallery}` stand for the demo's artifacts' ids.
+    #: The page's path; a name of `DEMO`'s in braces, such as `{checkout}`, stands for that artifact's id.
     path: str
     #: What to do on the page before it is checked, such as opening a thread.
     act: Callable[[Page], None] | None = None
@@ -86,6 +86,14 @@ def _report_open(page: Page) -> None:
     page.frame_locator("iframe.exhibit").locator("svg rect").first.wait_for()
     page.keyboard.press("j")
     page.wait_for_selector(".thread.is-active", state="visible")
+
+
+def _map_drawn(page: Page) -> None:
+    """The artifact drawn, scrolled to its map, and the map drawn, as the kit draws one only in view."""
+    _artifact_shown(page)
+    frame = page.frame_locator("iframe.exhibit")
+    frame.locator(".l-map").scroll_into_view_if_needed()
+    frame.locator(".l-map[data-drawn]").wait_for(state="attached", timeout=DEADLINE * 1000)
 
 
 def _decision_waiting(page: Page) -> None:
@@ -166,6 +174,7 @@ SCENES = (
     Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
     Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
     Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
+    Scene("house-style-map", "A map in the house style, drawn by the map kit", "/a/{map}", _map_drawn),
     Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
     Scene(
         "board-frame",
@@ -190,6 +199,7 @@ DEMO = {
     "weekly": "Payments, week",
     "decision": "Where should checkout cache",
     "plan": "Stored cards move",
+    "map": "Declines at submit",
     "gallery": "Direction: Gallery",
 }
 

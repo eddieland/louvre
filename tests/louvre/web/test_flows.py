@@ -12,7 +12,7 @@ import time
 from collections.abc import Iterator, Sequence
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, CDPSession, Page, expect
+from playwright.sync_api import Browser, BrowserContext, CDPSession, ConsoleMessage, Page, expect
 
 from louvre.core import style
 from tests.conftest import WRITES
@@ -194,6 +194,50 @@ def test_a_page_in_the_house_style_is_set_in_louvres_own_faces(context: BrowserC
         }""",
     )
     assert {"Fraunces", "Source Serif 4", "Instrument Sans"} <= set(loaded)
+
+
+def test_a_map_is_drawn_in_its_sandbox_from_the_kit_louvre_serves(context: BrowserContext) -> None:
+    page = context.new_page()
+    refused: list[str] = []
+
+    def heard(message: ConsoleMessage) -> None:
+        if "Content Security Policy" in message.text:
+            refused.append(message.text)
+
+    page.on("console", heard)
+    page.goto(f"/a/{publish(context, style.STARTERS[style.Kind.MAP])}")
+    frame = page.frame_locator("iframe.exhibit")
+
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000 * 3)
+    expect(frame.locator("#map canvas")).to_be_visible()
+    assert not refused
+
+
+def test_on_a_phone_a_page_keeps_one_map_drawn_the_one_in_view(browser: Browser, live_app: str) -> None:
+    phone = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    assert phone.request.post("/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES).status == 204
+    starter = style.STARTERS[style.Kind.MAP]
+    second = '<div style="height: 150vh"></div><div class="l-map" id="second"></div>'
+    twice = starter.replace("<h2>Each place", f"{second}<h2>Each place").replace(
+        "</script>\n</body>",
+        'LouvreMap.draw("second", {});\n</script>\n</body>',
+    )
+    page = phone.new_page()
+    page.goto(f"/a/{publish(phone, twice)}")
+    frame = page.frame_locator("iframe.exhibit")
+
+    frame.locator("#map").scroll_into_view_if_needed()
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    expect(frame.locator("#second canvas")).to_have_count(0)
+    frame.locator("#second").scroll_into_view_if_needed()
+    expect(frame.locator("#second[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    expect(frame.locator("#map canvas")).to_have_count(0)
+    phone.close()
 
 
 def test_a_reader_comments_on_words_across_tags_then_replies_resolves_and_undoes(context: BrowserContext) -> None:
