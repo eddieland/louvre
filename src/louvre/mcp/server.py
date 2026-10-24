@@ -24,6 +24,7 @@ from mcp.shared.exceptions import MCPError
 from pydantic import ValidationError
 from starlette.types import Receive, Scope, Send
 
+from louvre.core import db
 from louvre.core.store import Code, Refused, Store
 from louvre.mcp import style
 from louvre.mcp.tools import TOOLS, Tool
@@ -162,6 +163,9 @@ def _call(
     except OverflowError:
         # Postgres's integers are 64 bits; a JSON number need not be.
         return _refused(Code.INVALID, "a number is past the most the store holds")
+    except db.BUSY:
+        # Not a tool error: the contract's codes are canopy's (D011), and busy is no answer about the call's arguments.
+        raise MCPError(types.INTERNAL_ERROR, db.BUSY_MESSAGE) from None
 
 
 def _explain(error: ValidationError) -> str:

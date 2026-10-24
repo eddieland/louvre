@@ -1,12 +1,13 @@
 """The MCP server over streamable HTTP: a token in, JSON-RPC answered as JSON."""
 
 import json
+from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from louvre.core import accounts
+from louvre.core import accounts, db, store
 from louvre.core.db import Connection
-from tests.conftest import MakeWeb, person, sign_in
+from tests.conftest import MakeWeb, lock_held, person, sign_in
 
 
 def mint(conn: Connection, scopes: set[str] | None = None) -> str:
@@ -117,3 +118,23 @@ def test_a_cookie_is_no_token(web: MakeWeb) -> None:
     sign_in(client, "ana")
 
     assert client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 401
+
+
+def test_a_call_kept_waiting_past_its_limit_is_an_error_saying_louvre_is_busy(
+    web: MakeWeb,
+    conn: Connection,
+    database_url: str,
+) -> None:
+    agent = web()
+    secret = mint(conn)
+    publish: dict[str, object] = {
+        "name": "artifact_publish",
+        "arguments": {"title": "R", "content_type": "text/markdown", "content": "# R"},
+    }
+
+    with lock_held(database_url, store.WRITE_LOCK), mock.patch.object(db, "LOCK_TIMEOUT", "100ms"):
+        busy = rpc(agent, secret, "tools/call", publish)
+    published = rpc(agent, secret, "tools/call", publish)
+
+    assert busy["error"] == {"code": -32603, "message": db.BUSY_MESSAGE}
+    assert published["result"]["isError"] is False  # type: ignore[index]
