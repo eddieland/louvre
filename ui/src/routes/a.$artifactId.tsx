@@ -482,7 +482,9 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     }
 
     const from = provenance(artifact.origin)
-    const kind = shown?.content_type === 'text/markdown' ? 'Markdown' : 'HTML'
+    const kind = { 'text/html': 'HTML', 'text/markdown': 'Markdown', 'application/geo+json': 'GeoJSON' }[
+        shown?.content_type ?? 'text/html'
+    ]
     const activeThread = threads.find((t) => t.id === active)
     return (
         <>

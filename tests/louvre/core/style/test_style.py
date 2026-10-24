@@ -8,8 +8,9 @@ from louvre.core import style
 
 #: Every class the stylesheet styles.
 STYLED = set(re.findall(r"\.(l-[a-z0-9-]+)", style.CSS))
-#: The classes no starter page needs: another element for the page, and for a figure.
-UNUSED = {"l-page", "l-figure"}
+#: The classes no starter page needs: another element for the page, and for a figure; a map's ramp, which the map
+#: starter's key does without; and the features under a map Louvre draws from GeoJSON (louvre.core.geodata).
+UNUSED = {"l-page", "l-figure", "l-ramp", "l-features"}
 
 
 @pytest.mark.parametrize("kind", list(style.Kind))

@@ -324,6 +324,24 @@ body.louvre {
 }
 .louvre .l-key .l-focus { color: var(--l-ink); }
 .louvre .l-key .l-focus::before { border-color: var(--l-accent); background: var(--l-accent); }
+/* A ramp in the key: one property's least, a bar from the muted ink to the accent, and its most. */
+.louvre .l-key .l-ramp::before { display: none; }
+.louvre .l-key .l-ramp i {
+    width: 4.5em;
+    height: 0.5em;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--l-muted), var(--l-accent));
+}
+/* A map's features, under it, as Louvre draws GeoJSON: each one's label, then its properties as facts. */
+.louvre .l-features { padding-left: 1.4em; font-size: 0.92em; }
+.louvre .l-features li { margin: 0.7em 0; scroll-margin-top: 1em; }
+.louvre .l-features li:target { outline: 1px solid var(--l-accent); outline-offset: 0.3em; }
+/* Its facts flow on a line or two, each name small and muted before its value, rather than one to a row. */
+.louvre .l-features dl { display: block; margin: 0.15em 0 0; font-size: 0.92em; line-height: 1.5; }
+/* A name and its value keep together, as "lamp LED 60 W" should; a long one wraps within itself. */
+.louvre .l-features dl div { display: inline-block; max-width: 100%; margin-right: 0.9em; vertical-align: top; }
+.louvre .l-features dt { display: inline; margin: 0 0.35em 0 0; color: var(--l-muted); font: 0.78em var(--l-sans); }
+.louvre .l-features dd { display: inline; margin: 0; }
 
 /* The page's end: its sources, and how it was made. */
 .louvre footer {

@@ -685,3 +685,60 @@ def test_a_person_answers_an_agents_decision_and_the_agent_reads_it_back(context
 
     page.goto("/decisions")
     expect(page.locator(".entry", has_text="Shard the cache now?")).to_contain_text("Answered")
+
+
+def test_a_reader_taps_a_feature_of_geojson_reads_it_and_comments_and_a_new_version_keeps_it(
+    context: BrowserContext,
+) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish"]},
+        headers=WRITES,
+    ).json()["secret"]
+
+    def pole(name: str, status: str, lon: float) -> dict[str, object]:
+        geometry = {"type": "Point", "coordinates": [lon, 38.71]}
+        return {"type": "Feature", "properties": {"name": name, "status": status}, "geometry": geometry}
+
+    def poles(*statuses: str) -> dict[str, object]:
+        features = [pole(f"P-{101 + i}", s, -9.14 + 0.001 * i) for i, s in enumerate(statuses)]
+        return {"type": "FeatureCollection", "features": features}
+
+    made = json.loads(call(context, secret, "map_publish", title="Poles", data=poles("working", "lamp out")))
+    page = context.new_page()
+    page.goto(f"/a/{made['artifact_id']}")
+    frame = page.frame_locator("iframe.exhibit")
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+
+    # A tap on the second pole shows its properties.
+    x, y = frame.locator("#map").evaluate("(e) => Object.values(e.louvreMap.project([-9.139, 38.71]))")
+    frame.locator("#map").click(position={"x": x, "y": y})
+    # Its words are drawn by its stylesheet, from data-text, so no thread's passage is found in it.
+    card = frame.locator(".louvre-popup")
+    card.wait_for()
+    assert card.evaluate("(e) => [...e.querySelectorAll('[data-text]')].map((t) => t.dataset.text)") == [
+        "P-102",
+        "status",
+        "lamp out",
+    ]
+    assert card.evaluate("(e) => e.textContent") == ""
+
+    # Its row under the map is words, which a reader comments on.
+    select(page, "P-102", "lamp out")
+    page.click("button.add")
+    page.fill(".thread[data-id=draft] textarea", "Which crew?")
+    page.keyboard.press("Control+Enter")
+    expect(page.locator(".thread.is-active .comments")).to_contain_text("Which crew?")
+
+    call(
+        context,
+        secret,
+        "map_publish",
+        title="Poles",
+        data=poles("working", "lamp out", "working"),
+        artifact_id=made["artifact_id"],
+    )
+    threads = context.request.get(f"/api/artifacts/{made['artifact_id']}/threads", params={"version": 2}).json()
+    [kept] = threads["threads"]
+    assert kept["anchor"]["exact"] == "P-102 status lamp out"
+    assert kept["comments"][0]["body"] == "Which crew?"

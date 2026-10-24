@@ -211,6 +211,12 @@ water in `bg`, buildings a step darker than the ground, roads a step above `rule
 and paths dashed, street names in Noto Sans italic. A page's own `context` is drawn as the roads are. Both are always
 quieter than the data, whose lines widen with them.
 
+**GeoJSON** an agent publishes is drawn by Louvre as a page in the house style (`louvre.core.geodata`): a kicker
+counting its features, the title, the lede, the map with its key, then "Each feature", a numbered list of each
+feature's label in bold and its properties flowing after it, each name small and muted before its value. Those are
+the page's words, which threads are on. A tap on a feature opens a card with the same, its label linking to its row;
+its words are drawn by CSS so that no passage is ever found in the card.
+
 ## Not decided yet
 
 - A comment pinned to a point on a board's canvas rather than to a frame's words (REQUIREMENTS, Open).

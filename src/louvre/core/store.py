@@ -26,7 +26,7 @@ from typing import Literal
 
 from psycopg.pq import TransactionStatus
 
-from louvre.core import render
+from louvre.core import geodata, render
 from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.files import File, FilesError, new_key
 from louvre.core.files import check as check_files
@@ -178,6 +178,11 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             raise Refused(Code.INVALID, "an artifact's title must not be blank")
         bounded("title", title, MAX_TITLE)
         bounded("content", content, MAX_CONTENT)
+        if content_type == geodata.GEOJSON:
+            try:
+                geodata.check(content)
+            except geodata.GeodataError as e:
+                raise Refused(Code.INVALID, f"the GeoJSON: {e}") from None
         if artifact_id is not None and origin:
             raise Refused(Code.INVALID, "an artifact's origin is set when it is made; omit it to add a version")
         try:
@@ -332,8 +337,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         with self.reading():
             artifact = self.artifact_row(artifact_id)
             found = self._version(artifact, version)
-        content_type: ContentType = "text/markdown" if found["content_type"] == "text/markdown" else "text/html"
-        return render.page(content_type, str(found["content"]), str(artifact["title"]))
+        return render.page(_content_type(found["content_type"]), str(found["content"]), str(artifact["title"]))
 
     def threads(
         self,
@@ -898,6 +902,21 @@ def _artifact_json(row: Row) -> dict[str, object]:
         "latest_version": row["latest_version"],
         "created_at": iso(row["created_at"]),
     }
+
+
+def _content_type(stored: object) -> ContentType:
+    """Read a version's content type as the database holds it, which its check keeps to `ContentType`'s.
+
+    Returns:
+        The content type.
+    """
+    match stored:
+        case "text/markdown":
+            return "text/markdown"
+        case "application/geo+json":
+            return "application/geo+json"
+        case _:
+            return "text/html"
 
 
 def _version_json(row: Row) -> dict[str, object]:
