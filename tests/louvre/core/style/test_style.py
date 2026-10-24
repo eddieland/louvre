@@ -58,3 +58,9 @@ def test_the_handover_gives_the_starter_page_of_the_kind_asked_for() -> None:
     assert given["starter"] == style.STARTERS[style.Kind.PLAN]
     assert given["kinds"] == dict(style.KINDS)
     assert style.handover()["kind"] == style.Kind.REPORT
+
+
+def test_every_font_the_stylesheet_names_is_one_louvre_serves() -> None:
+    named = re.findall(r'url\("([^"]+)"\)', style.CSS)
+
+    assert sorted(named) == sorted(style.FONTS_PATH + name for name in style.FONTS)

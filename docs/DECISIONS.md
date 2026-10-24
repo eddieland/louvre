@@ -76,6 +76,9 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - `/content/...` answers with a `sandbox` Content-Security-Policy and is framed without `allow-same-origin`, so its
   scripts run on an opaque origin and never see a session. Louvre adds one script, the bridge (`ui/src/bridge`), and
   trusts nothing it says further than where a passage is or what was selected.
+- The policy lets a page load nothing but fonts from Louvre itself, and Louvre serves only the house style's, at
+  `/style/<version>/fonts/`, with `Access-Control-Allow-Origin: *`, as an opaque origin's font load needs (settled by
+  the operator, 2026-10-24). Anything else a page shows it carries inline.
 - Anchors are read the same way on both sides: `louvre.core.text` and `ui/src/bridge/text.ts` answer
   `tests/fixtures/anchors.json` alike; a change to one changes the other.
 - Rejected: a second origin for content (a domain to run); marks as `<mark>` elements in the artifact's markup (the

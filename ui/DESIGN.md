@@ -161,8 +161,9 @@ starts reading; the margin stays the conversation's.
 ## Louvre's style for agents
 
 `louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
-first, light when the reader's system is, every color a custom property. An artifact loads nothing from the network,
-so it names Louvre's faces and falls back to the reader's own serif and sans. A later style is a new version.
+first, light when the reader's system is, every color a custom property. It is set in Louvre's own faces, which Louvre
+serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. A later style
+is a new version.
 
 Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
 page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome
