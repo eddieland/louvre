@@ -116,6 +116,7 @@ SCENES = (
     ),
     Scene("tokens", "Tokens", "/tokens"),
     Scene("directions", "Design directions", "/directions"),
+    Scene("directions-board", "Design directions, as a board", "/directions/board", _board_shown, signed_in=False),
     Scene("gallery", "Direction: Gallery, a thread open", "/directions/2026-10-23-directions/gallery", _open_thread),
     Scene("studio", "Direction: Studio, a thread open", "/directions/2026-10-23-directions/studio", _open_thread),
     Scene("margins", "Direction: Margins, a thread open", "/directions/2026-10-23-directions/margins", _open_thread),

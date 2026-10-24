@@ -14,6 +14,7 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as TokensRouteImport } from './routes/tokens'
 import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
 import { Route as BBoardIdRouteImport } from './routes/b.$boardId'
+import { Route as DirectionsBoardRouteImport } from './routes/directions.board'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const BBoardIdRoute = BBoardIdRouteImport.update({
   path: '/b/$boardId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DirectionsBoardRoute = DirectionsBoardRouteImport.update({
+  id: '/directions/board',
+  path: '/directions/board',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
   '/b/$boardId': typeof BBoardIdRoute
+  '/directions/board': typeof DirectionsBoardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
   '/b/$boardId': typeof BBoardIdRoute
+  '/directions/board': typeof DirectionsBoardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,14 +70,33 @@ export interface FileRoutesById {
   '/tokens': typeof TokensRoute
   '/a/$artifactId': typeof AArtifactIdRoute
   '/b/$boardId': typeof BBoardIdRoute
+  '/directions/board': typeof DirectionsBoardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/tokens' | '/a/$artifactId' | '/b/$boardId'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/tokens'
+    | '/a/$artifactId'
+    | '/b/$boardId'
+    | '/directions/board'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sign-in' | '/tokens' | '/a/$artifactId' | '/b/$boardId'
+  to:
+    | '/'
+    | '/sign-in'
+    | '/tokens'
+    | '/a/$artifactId'
+    | '/b/$boardId'
+    | '/directions/board'
   id:
-    '__root__' | '/' | '/sign-in' | '/tokens' | '/a/$artifactId' | '/b/$boardId'
+    | '__root__'
+    | '/'
+    | '/sign-in'
+    | '/tokens'
+    | '/a/$artifactId'
+    | '/b/$boardId'
+    | '/directions/board'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,6 +105,7 @@ export interface RootRouteChildren {
   TokensRoute: typeof TokensRoute
   AArtifactIdRoute: typeof AArtifactIdRoute
   BBoardIdRoute: typeof BBoardIdRoute
+  DirectionsBoardRoute: typeof DirectionsBoardRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -117,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BBoardIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/directions/board': {
+      id: '/directions/board'
+      path: '/directions/board'
+      fullPath: '/directions/board'
+      preLoaderRoute: typeof DirectionsBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -126,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   TokensRoute: TokensRoute,
   AArtifactIdRoute: AArtifactIdRoute,
   BBoardIdRoute: BBoardIdRoute,
+  DirectionsBoardRoute: DirectionsBoardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

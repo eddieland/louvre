@@ -29,9 +29,9 @@ PEOPLE = {
 }
 #: The lock seeding takes: neither the migrations' nor the store's writes', which seeding itself takes.
 SEED_LOCK = MIGRATE_LOCK + 2
-#: The design study the board shows, and its directions, by file name, with what the board calls each.
+#: The design study the board shows, and its directions, by file name, with the title each is published under.
 STUDY = "2026-10-23-directions"
-DIRECTIONS = {"gallery": "Gallery", "studio": "Studio", "margins": "Margins"}
+DIRECTIONS = {"gallery": "Direction: Gallery", "studio": "Direction: Studio", "margins": "Direction: Margins"}
 #: The origin the study's artifacts carry; each adds `direction`, its file's name.
 STUDY_ORIGIN = {"canopy.ticket": "LOUVRE-M1"}
 #: The screens each direction is shown at on the board, left to right: a name, a label, a width and a height in CSS
@@ -109,12 +109,12 @@ def _agent_scope() -> Scope:
 def _study(agent: Store, people: dict[str, Store]) -> None:
     """The design study's three directions, the board's frames, with a thread on each of two."""
     made: dict[str, str] = {}
-    for name, label in DIRECTIONS.items():
+    for name, title in DIRECTIONS.items():
         page = explorations.find(STUDY, name)
         if page is None:
             continue
         published = agent.publish(
-            title=f"Direction: {label}",
+            title=title,
             content_type="text/html",
             content=_FONT_LINK.sub("", page.path.read_text(encoding="utf-8")),
             origin={**STUDY_ORIGIN, "direction": name},

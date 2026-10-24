@@ -39,10 +39,11 @@ ARTIFACT_POLICY = (
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "img-src data:; font-src data:; media-src data:; frame-ancestors 'self'"
 )
-#: The explorations' pages: their own files only, and fonts from Google, as the design study was made.
+#: The explorations' pages: their own files only, and fonts from Google, as the design study was made. Framed only by
+#: Louvre, as the design study's board frames them.
 PAGE_POLICY = (
     "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src 'self'; frame-ancestors 'none'"
+    "font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src 'self'; frame-ancestors 'self'"
 )
 #: The web UI's pages: its own scripts, styles, and fonts only, and artifacts only in a frame from Louvre itself.
 APP_POLICY = (
@@ -151,8 +152,17 @@ def _design_study(app: FastAPI) -> None:
             for p in explorations.all_pages()
         )
         body = (PAGES / "directions.html").read_text(encoding="utf-8")
-        body = body.replace("{{items}}", items or "        <p>No explorations here.</p>")
+        board = (
+            '        <a class="card" href="/directions/board">'
+            "<b>The directions, as a board</b><span>pan, zoom, and open each</span></a>"
+        )
+        body = body.replace("{{items}}", f"{board}\n{items}" if items else "        <p>No explorations here.</p>")
         return HTMLResponse(body, headers={"Content-Security-Policy": PAGE_POLICY, **_NO_SNIFF})
+
+    @app.get("/directions/board", include_in_schema=False)
+    def directions_board() -> Response:
+        """The design study as a board: a page of the web UI's, which needs no database (louvre.web.api)."""
+        return _app_response("")
 
     @app.get("/directions/{group}/{name}", response_class=HTMLResponse)
     def direction(group: str, name: str) -> HTMLResponse:

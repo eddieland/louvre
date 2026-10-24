@@ -293,6 +293,21 @@ def test_on_a_phone_a_reader_drags_and_pinches_a_board_then_taps_a_frame_open(br
         context.close()
 
 
+def test_the_design_study_is_a_board_to_read_without_a_database_or_signing_in(browser: Browser, live_app: str) -> None:
+    context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark", base_url=live_app)
+    try:
+        page = context.new_page()
+        page.goto("/directions")
+        page.click("text=The directions, as a board")
+        page.wait_for_selector(".world[data-ready]", state="attached")
+        expect(page.locator(".board-frame iframe")).to_have_count(6)
+
+        page.get_by_role("link", name="Open Direction: Margins, Phone, 390").click()
+        page.wait_for_url(re.compile(r"/directions/2026-10-23-directions/margins$"))
+    finally:
+        context.close()
+
+
 def fingers(session: CDPSession, steps: Sequence[Sequence[tuple[int, int]]]) -> None:
     """Touch the screen: the fingers go down where the first step has them, move through the rest, and lift."""
     for i, step in enumerate(steps):
