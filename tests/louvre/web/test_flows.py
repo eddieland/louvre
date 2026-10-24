@@ -317,11 +317,52 @@ def test_on_a_phone_a_board_zoomed_out_paints_little_past_its_frames(browser: Br
         while view(page)[2] > MIN_SCALE + CLOSE:
             zoom_out.tap()
         reach = page.evaluate(
-            "() => getComputedStyle(document.querySelector('.board-frame iframe')).boxShadow"
+            "() => getComputedStyle(document.querySelector('.board-frame')).boxShadow"
             ".split(/,(?![^(]*\\))/).map((s) => s.match(/-?[\\d.]+px/g).map(parseFloat))"
             ".map(([x, y, blur, spread]) => Math.max(Math.abs(x), Math.abs(y)) + blur + spread)",
         )
         assert max(reach) <= SHADOW_REACH, f"a frame's shadows reach {reach} canvas pixels past it"
+    finally:
+        context.close()
+
+
+def test_on_a_phone_a_pinch_puts_the_pages_away_until_it_stops_without_reloading_them(
+    browser: Browser,
+    live_app: str,
+) -> None:
+    """While a pinch zooms, a frame is its sheet alone; once it stops, each page is drawn again as it was, not reloaded.
+
+    Each step of a zoom redrew all six pages at the new size, and a phone's browser ran out of memory doing it.
+    """
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        page = context.new_page()
+        board(page)
+        for frame in page.frames:
+            frame.wait_for_load_state()
+        page.evaluate(
+            "() => { window.loads = 0; window.hid = false;"
+            " for (const f of document.querySelectorAll('.board-frame iframe'))"
+            " f.addEventListener('load', () => { window.loads += 1 });"
+            " new MutationObserver(() => { const f = document.querySelector('.board-frame iframe');"
+            " window.hid ||= getComputedStyle(f).display === 'none' })"
+            ".observe(document.querySelector('.world'), { attributes: true }) }",
+        )
+        touch = context.new_cdp_session(page)
+        fingers(touch, [[(150 - n * 10, 450), (250 + n * 10, 450)] for n in range(6)])
+        deadline = time.monotonic() + DEADLINE
+        while not page.evaluate("window.hid"):
+            assert time.monotonic() < deadline, "the pages were drawn all through the pinch"
+            page.wait_for_timeout(50)
+        expect(page.locator(".world[data-zooming]")).to_have_count(0)
+        expect(page.locator(".board-frame iframe").first).to_be_visible()
+        assert page.evaluate("window.loads") == 0, "a page was loaded again"
     finally:
         context.close()
 
