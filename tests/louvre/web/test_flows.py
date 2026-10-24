@@ -545,10 +545,11 @@ def test_on_a_tablet_a_pinch_puts_the_pages_away_until_it_stops_without_reloadin
         context.close()
 
 
-def test_on_a_phone_a_board_draws_a_page_only_zoomed_in_to_it_and_two_at_most(browser: Browser, live_app: str) -> None:
-    """Fitted to a phone, a board draws its frames' sheets alone; zoomed in, the pages it shows most of, two at most.
+def test_on_a_phone_a_board_draws_the_two_pages_it_shows_most_of(browser: Browser, live_app: str) -> None:
+    """On a phone, fitted or zoomed in, a board draws the pages it shows the most of, two at most.
 
-    Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded.
+    Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded. Drawing none
+    until the reader zoomed in left a fitted board blank.
     """
     context = browser.new_context(
         viewport={"width": 390, "height": 844},
@@ -560,15 +561,16 @@ def test_on_a_phone_a_board_draws_a_page_only_zoomed_in_to_it_and_two_at_most(br
     try:
         page = context.new_page()
         board(page)
-        expect(page.locator(".board-frame iframe")).to_have_count(0)
+        expect(page.locator(".board-frame[data-live] iframe")).to_have_count(LIVE_COUNT)
 
         for _ in range(3):
             page.get_by_role("button", name="Zoom in").tap()
+        expect(page.locator(".world[data-zooming]")).to_have_count(0)
         expect(page.locator(".board-frame[data-live] iframe").first).to_be_visible()
         assert 1 <= page.locator(".board-frame iframe").count() <= LIVE_COUNT
 
         page.get_by_role("button", name="Fit to screen").tap()
-        expect(page.locator(".board-frame iframe")).to_have_count(0)
+        expect(page.locator(".board-frame[data-live] iframe")).to_have_count(LIVE_COUNT)
     finally:
         context.close()
 

@@ -86,8 +86,8 @@ describe('live', () => {
         expect(ids(live(frames, { x: 0, y: 0, scale: 0.2 }, 1440, 780))).toEqual(ids(frames))
     })
 
-    it('draws no page on a phone with the board fitted to it, too small to read', () => {
-        expect(live(frames, fit(bounds(frames, 80), 390, 700, 24), 390, 700)).toEqual([])
+    it('draws two pages on a phone with the board fitted to it: of the laptops it shows whole, the first two', () => {
+        expect(ids(live(frames, fit(bounds(frames, 80), 390, 700, 24), 390, 700))).toEqual(['laptop-0', 'laptop-1'])
     })
 
     it('draws two pages at most on a phone, those it shows the most of first', () => {
@@ -98,7 +98,7 @@ describe('live', () => {
     })
 
     it('counts a phone on its side as a phone', () => {
-        expect(live(frames, { x: 0, y: 0, scale: 0.1 }, 932, 330)).toEqual([])
+        expect(live(frames, { x: 0, y: 0, scale: 0.1 }, 932, 330)).toHaveLength(2)
     })
 
     it('draws no page that is off the screen', () => {
