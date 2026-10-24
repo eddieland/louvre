@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stored cards move to the new provider by 15 December</title>
+<style>
+{css}
+</style>
+</head>
+<body class="louvre">
+<main>
+<p class="l-kicker">Plan &middot; Payments and Platform <span class="l-tag l-muted">Draft</span></p>
+<h1>Stored cards move to the new provider by 15 December</h1>
+<p class="l-lede">Every stored card is copied to the new provider's vault and read from there by 15 December 2026, so
+the old contract can end on 31 December without a customer entering a card again.</p>
+<p class="l-meta">PAY-160 &middot; canopy worker, for Sam Okafor, 27 October 2026</p>
+<dl>
+<dt>Goal</dt><dd>Every stored card charges through the new vault, with no change a customer sees.</dd>
+<dt>Not a goal</dt><dd>Moving payouts, which stay with the old provider until March.</dd>
+<dt>Done by</dt><dd>15 December, two weeks before the old contract ends.</dd>
+</dl>
+<h2>The steps</h2>
+<ol class="l-steps">
+<li><b>New cards go to both vaults.</b> Every card saved since 20 October is written to the old vault and the new
+one. <span class="l-tag l-good">Done</span></li>
+<li><b>Backfill the 1.2 million stored cards.</b> The old provider exports them encrypted to the new one's key; we
+match each to its customer by fingerprint. <span class="l-tag">Next</span></li>
+<li><b>Charge from the new vault.</b> Behind a flag, 1% of charges first, then all of them over a week.</li>
+<li><b>Stop writing to the old vault.</b> Once a week of charges has matched, and the finance team signs off.</li>
+</ol>
+<h2>Risks</h2>
+<div class="l-callout l-risk">The export needs the old provider's help, and they have not yet given us a date. If it
+slips past 20 November, we ask for a month's extension of the old contract.</div>
+<p>A card that fails to match by fingerprint stays in the old vault, and its customer is asked for it again at their
+next purchase.</p>
+<p>Charges from the new vault could decline more often while its fraud model learns our traffic.</p>
+<h2>Open questions</h2>
+<ul>
+<li>Does finance need a reconciliation report for each step, or only at the end?</li>
+<li>Who at the old provider owns the export?</li>
+</ul>
+<footer>
+<p>Sources: the new provider's migration guide, and the old contract's termination terms.</p>
+</footer>
+</main>
+</body>
+</html>
