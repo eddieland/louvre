@@ -26,7 +26,8 @@ lags it.
 - **HTML in Louvre's house style** (`text/html`) when the page needs what Markdown cannot do: numbers to compare at
   a glance, a chart, options side by side, steps with their status.
 - **HTML in a look of its own** for a mock-up of a product's screen, which should look like that product. The house
-  style's guide still holds for what a page in Louvre may load and how it fits a phone.
+  style's guide still holds for what a page in Louvre may load and how it fits a phone, and `style_check` holds the
+  page to it.
 
 ## Build it in the house style
 
@@ -37,8 +38,9 @@ lags it.
 3. Read the guide whole before writing: it is short, and it is the rules for the page.
 4. Write the page from the starter. Replace every placeholder sentence: each says what goes in its place. Keep the
    components the page needs and drop the rest; never leave a placeholder in.
-5. Check it against the guide's "Before publishing" list. If you can open a browser, look at it at a phone's width,
-   390 px, and a laptop's, in dark and in light.
+5. Call `style_check` with the page, and fix every error it finds: each says what to do instead. Fix a warning
+   unless the page has a reason for it. Then read the guide's "Before publishing" list for what it cannot see.
+6. If you can open a browser, look at the page at a phone's width, 390 px, and a laptop's, in dark and in light.
 
 ## Publish, then answer
 

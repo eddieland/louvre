@@ -174,6 +174,11 @@ A page may run scripts, inline, in a sandbox: they cannot reach the reader's ses
 
 ## Before publishing
 
+Call `style_check` with the page. It reads the markup and finds what a parser can see of this guide: errors for what
+would not work in Louvre (a request to the network, storage, a starter page's words left in), and warnings for the
+rest. Fix every error; fix a warning unless the page has a reason for it. Then read the page once more yourself, for
+what no parser can see:
+
 - The `<h1>` and the lede say the finding, and the title says the same.
 - Every number has its unit and its comparison; every date is absolute.
 - No color says anything alone; every chart has a label in words.

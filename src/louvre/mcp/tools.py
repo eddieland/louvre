@@ -15,7 +15,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
 from louvre.core import style
-from louvre.core.store import MAX_BODY, MAX_FEED, MAX_ORIGIN, Store
+from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Store
+from louvre.core.style import check
 from louvre.core.text import CONTEXT, Anchor, ContentType
 
 #: Origin pairs, by key, set when an artifact is made. Plain aliases, not `type` statements: pydantic leaves out the
@@ -146,6 +147,15 @@ class StyleGet(_Request):
     kind: Annotated[style.Kind, Field(description=f"The kind of artifact to start from. {_KINDS}")] = style.Kind.REPORT
 
 
+class StyleCheck(_Request):
+    """Check an HTML page against the house style's guide."""
+
+    content: Annotated[
+        StrictStr,
+        Field(max_length=MAX_CONTENT, description="The page, whole, as it would be published."),
+    ]
+
+
 class Resolve(_Request):
     """Resolve a thread, or reopen it."""
 
@@ -225,4 +235,21 @@ TOOLS = (
         StyleGet,
         lambda _store, r: style.handover(r.kind),
     ),
+    tool(
+        "style_check",
+        "Check an HTML page against the house style's guide before publishing it: what would not work in Louvre's "
+        "sandbox (a request to the network, storage, starter words left in) as errors, and what goes against the "
+        "guide (no title or viewport, a chart without words, a width a phone cannot fit, a fixed color) as "
+        "warnings. ok is true when nothing is an error. It reads the markup and runs no script.",
+        StyleCheck,
+        lambda _store, r: _checked(r.content),
+    ),
 )
+
+
+def _checked(page: str) -> dict[str, object]:
+    findings = check.check(page)
+    return {
+        "ok": not any(f.severity == check.Severity.ERROR for f in findings),
+        "findings": [f.json() for f in findings],
+    }
