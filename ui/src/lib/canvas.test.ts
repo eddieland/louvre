@@ -86,15 +86,24 @@ describe('live', () => {
         expect(ids(live(frames, { x: 0, y: 0, scale: 0.2 }, 1440, 780))).toEqual(ids(frames))
     })
 
-    it('draws two pages on a phone with the board fitted to it: of the laptops it shows whole, the first two', () => {
-        expect(ids(live(frames, fit(bounds(frames, 80), 390, 700, 24), 390, 700))).toEqual(['laptop-0', 'laptop-1'])
+    it('draws two pages on a phone with the board fitted to it: the middle laptop, then the nearest to it', () => {
+        expect(ids(live(frames, fit(bounds(frames, 80), 390, 700, 24), 390, 700))).toEqual(['laptop-1', 'laptop-0'])
     })
 
-    it('draws two pages at most on a phone, those it shows the most of first', () => {
-        // All six show in part; the second row's phone the most, then the first row's.
+    it('draws two pages at most on a phone, those nearest the middle of the screen first', () => {
+        // All six show in part. The second row's phone holds the middle; its laptop is nearer it than the first row's
+        // phone, though the screen shows less of it.
         const shown = live(frames, { x: -440, y: -150, scale: 0.34 }, 390, 700)
 
-        expect(ids(shown)).toEqual(['phone-1', 'phone-0'])
+        expect(ids(shown)).toEqual(['phone-1', 'laptop-1'])
+    })
+
+    it('keeps the order of the board between frames as near the middle', () => {
+        // The middle falls between the first two rows' laptops, as far from each.
+        expect(ids(live(frames, { x: -60, y: 350 - 980 * 0.25, scale: 0.25 }, 390, 700))).toEqual([
+            'laptop-0',
+            'laptop-1',
+        ])
     })
 
     it('counts a phone on its side as a phone', () => {

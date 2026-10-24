@@ -546,8 +546,8 @@ def test_on_a_tablet_a_pinch_puts_the_pages_away_until_it_stops_without_reloadin
         context.close()
 
 
-def test_on_a_phone_a_board_draws_the_two_pages_it_shows_most_of(browser: Browser, live_app: str) -> None:
-    """On a phone, fitted or zoomed in, a board draws the pages it shows the most of, two at most.
+def test_on_a_phone_a_board_draws_the_two_pages_nearest_its_middle(browser: Browser, live_app: str) -> None:
+    """On a phone, fitted or zoomed in, a board draws the pages nearest the middle of the screen, two at most.
 
     Six pages at once are more than a phone's browser has the memory for: it crashed as the board loaded. Drawing none
     until the reader zoomed in left a fitted board blank.

@@ -137,8 +137,8 @@ but the canvas, to the screen's edges, under one hairline.
   size in `muted`, its open threads in `accent`. Labels and outlines keep one size on the screen at any zoom, and a
   label never runs past its frame's width: what does not fit ends in an ellipsis.
 - **On a phone** (600 px and below on the screen's shorter side), two frames' pages are drawn at most, at any zoom:
-  those the screen shows the most of. Six pages at once are more than a phone has the memory for. The rest show their
-  sheets and labels, and a frame's page fills in as the reader pans or zooms to it.
+  those nearest the middle of the screen, where the reader looks. Six pages at once are more than a phone has the
+  memory for. The rest show their sheets and labels, and a frame's page fills in as the reader pans or zooms to it.
 - **Moving.** Drag to pan, by pointer or by touch; pinch, the wheel, or the toolbar's zoom control (`−`, the zoom in
   percent, `+`, Fit) to zoom, about the cursor or the pinch's middle, from 5% to 100%: a frame's page at its own size,
   as a reader opens the frame to read it closer. The board opens fitted to the screen, and fits again on a resize until

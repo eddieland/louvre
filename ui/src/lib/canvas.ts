@@ -87,19 +87,24 @@ export function panBy(view: View, dx: number, dy: number): View {
 }
 
 /**
- * The boxes whose pages are drawn live at a view, on a screen `width` by `height`: on a phone's, the LIVE_COUNT the
- * screen shows the most of, the most shown first and the board's order between equals; on any other, every one.
+ * The boxes whose pages are drawn live at a view, on a screen `width` by `height`: on a phone's, the LIVE_COUNT on it
+ * nearest its middle, where the reader looks, the nearest first and the board's order between equals; on any other,
+ * every one.
  */
 export function live<T extends Box>(boxes: readonly T[], view: View, width: number, height: number): T[] {
     if (Math.min(width, height) > PHONE) {
         return [...boxes]
     }
+    const middle = { x: width / 2, y: height / 2 }
     return (
         boxes
-            // Rounded, so frames the screen shows alike keep the board's order rather than a rounding error's.
-            .map((box) => ({ box, shown: Math.round(shownArea(box, view, width, height)) }))
+            .map((box) => {
+                const drawn = onScreen(box, view)
+                return { box, shown: shownArea(drawn, width, height), away: distance(drawn, middle) }
+            })
             .filter(({ shown }) => shown > 0)
-            .toSorted((a, b) => b.shown - a.shown)
+            // Rounded, so frames as near keep the board's order rather than a rounding error's.
+            .toSorted((a, b) => Math.round(a.away) - Math.round(b.away))
             .slice(0, LIVE_COUNT)
             .map(({ box }) => box)
     )
@@ -112,13 +117,30 @@ export function wheelFactor(deltaY: number, deltaMode: number, ctrlKey: boolean)
     return Math.exp(-pixels * (ctrlKey ? 0.01 : 0.002))
 }
 
-/** How much of a box is on a screen `width` by `height` at a view, in screen pixels. */
-function shownArea(box: Box, view: View, width: number, height: number): number {
-    const left = Math.max(view.x + box.x * view.scale, 0)
-    const right = Math.min(view.x + (box.x + box.width) * view.scale, width)
-    const top = Math.max(view.y + box.y * view.scale, 0)
-    const bottom = Math.min(view.y + (box.y + box.height) * view.scale, height)
+/** Where a box on the canvas is on the screen at a view. */
+function onScreen(box: Box, view: View): Box {
+    return {
+        x: view.x + box.x * view.scale,
+        y: view.y + box.y * view.scale,
+        width: box.width * view.scale,
+        height: box.height * view.scale,
+    }
+}
+
+/** How much of a box on the screen is on a screen `width` by `height`, in screen pixels. */
+function shownArea(box: Box, width: number, height: number): number {
+    const left = Math.max(box.x, 0)
+    const right = Math.min(box.x + box.width, width)
+    const top = Math.max(box.y, 0)
+    const bottom = Math.min(box.y + box.height, height)
     return Math.max(right - left, 0) * Math.max(bottom - top, 0)
+}
+
+/** How far a point is from the nearest point of a box: none for a point inside it. */
+function distance(box: Box, point: Point): number {
+    const dx = Math.max(box.x - point.x, 0, point.x - (box.x + box.width))
+    const dy = Math.max(box.y - point.y, 0, point.y - (box.y + box.height))
+    return Math.hypot(dx, dy)
 }
 
 function clamp(scale: number): number {
