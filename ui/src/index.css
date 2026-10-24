@@ -238,6 +238,10 @@
         color: var(--muted);
     }
     .entry-open {
+        max-width: 12rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         grid-column: 2;
         grid-row: 1 / span 2;
         align-self: center;
@@ -410,6 +414,214 @@
             outline: calc(2px / var(--zoom)) solid var(--accent);
             outline-offset: calc(4px / var(--zoom));
         }
+    }
+
+    /*
+     * Decisions: questions asked on the artifact, above it, in its column (ui/DESIGN.md, "Decisions"). No box: a
+     * hairline above each, an accent rule on the left of one awaiting the reader, as on an active thread.
+     */
+    .decisions {
+        max-width: 73.75rem;
+        margin: 0 auto 1.75rem;
+        padding: 0 calc(2rem + 18.75rem + 2.5rem) 0 2rem;
+    }
+    .decision {
+        padding: 1rem 0 1.125rem 1rem;
+        border-top: 1px solid var(--rule);
+        border-left: 1px solid transparent;
+        &[data-awaiting] {
+            border-left-color: var(--accent);
+        }
+        & + & {
+            margin-top: 0;
+        }
+    }
+    .decision-label {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 0.75rem;
+        font-family: var(--font-ui);
+        font-size: 0.6875rem;
+        color: var(--muted);
+        & > span:first-child {
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+    }
+    .decision-question {
+        margin-top: 0.375rem;
+        font-family: var(--font-display);
+        font-size: 1.3125rem;
+        font-weight: 600;
+        line-height: 1.25;
+        @variant sm {
+            font-size: 1.4375rem;
+        }
+    }
+    .decision-toggle {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        &:hover {
+            color: var(--accent);
+        }
+    }
+    .decision-summary,
+    .decision-meta {
+        margin-top: 0.375rem;
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        color: var(--muted);
+        & b {
+            font-weight: 500;
+            color: var(--ink);
+        }
+    }
+    .decision-note {
+        margin-top: 0.75rem;
+        font-style: italic;
+    }
+    .options {
+        display: grid;
+        gap: 0.625rem;
+        margin: 0.875rem 0 0;
+        padding: 0;
+        border: 0;
+    }
+    .option {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.25rem 1rem;
+        align-items: start;
+        &[data-mine] .option-label,
+        &[data-outcome] .option-label {
+            color: var(--ink);
+        }
+    }
+    .option-choice {
+        display: flex;
+        gap: 0.625rem;
+        align-items: baseline;
+        cursor: pointer;
+        & input {
+            flex: none;
+            accent-color: var(--accent);
+            transform: translateY(0.125rem);
+        }
+    }
+    .option-label {
+        font-size: 1.0625rem;
+        line-height: 1.4;
+    }
+    .option-detail {
+        display: block;
+        font-size: 0.9375rem;
+        line-height: 1.45;
+        color: var(--muted);
+    }
+    .option-tag {
+        margin-left: 0.5rem;
+        font-family: var(--font-ui);
+        font-size: 0.6875rem;
+        color: var(--accent);
+        white-space: nowrap;
+    }
+    .option-passage {
+        grid-column: 2;
+        grid-row: 1;
+        padding-top: 0.25rem;
+        white-space: nowrap;
+    }
+    .option-result {
+        display: flex;
+        grid-column: 1;
+        gap: 1rem;
+        justify-content: space-between;
+        & .option-label {
+            color: var(--muted);
+        }
+    }
+    .option-count {
+        font-family: var(--font-ui);
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+    }
+    /* How many chose an option, as a hairline bar: muted, and accent for the reader's choice and the outcome. */
+    .tally {
+        display: block;
+        grid-column: 1;
+        height: 2px;
+        background: var(--rule);
+        & > span {
+            display: block;
+            height: 100%;
+            background: var(--muted);
+        }
+        .option[data-mine] > &,
+        .option[data-outcome] > & {
+            & > span {
+                background: var(--accent);
+            }
+        }
+    }
+    .answers {
+        display: grid;
+        gap: 0.375rem;
+        margin-top: 1rem;
+        font-size: 0.9375rem;
+        line-height: 1.45;
+    }
+    .answer-note {
+        display: block;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+    }
+    .decision-form .actions {
+        margin-top: 0.75rem;
+    }
+    .decision-field {
+        display: block;
+        width: 100%;
+        margin-top: 0.875rem;
+        padding: 0.25rem 0;
+        overflow: hidden;
+        resize: none;
+        border: 0;
+        border-bottom: 1px solid var(--faint);
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.9375rem;
+        &:focus {
+            border-bottom-color: var(--accent);
+            outline: none;
+        }
+    }
+    .decision-close {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        align-items: baseline;
+        & .field {
+            min-width: 0;
+            max-width: 100%;
+            font-family: var(--font-ui);
+            font-size: 0.8125rem;
+        }
+        & .actions {
+            margin-top: 0;
+        }
+    }
+    /* How many decisions wait on the reader, beside the header's link to them. */
+    .awaiting {
+        margin-left: 0.375rem;
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
     }
 
     /* The frame and the margin side by side above 960 px. */
@@ -684,6 +896,9 @@
         .older {
             padding: 0 1rem;
         }
+        .decisions {
+            padding: 0 1rem;
+        }
     }
 
     /* A phone: the frame goes, and the page fills the screen under one hairline; one line of chrome above it. */
@@ -737,6 +952,14 @@
         }
         .catalogue {
             padding: 1.5rem 1.25rem 5rem;
+        }
+        .decisions {
+            margin-bottom: 1rem;
+            padding: 0 1.25rem;
+        }
+        .decision {
+            padding-left: 0;
+            border-left: 0;
         }
         .entry-title {
             font-size: 1.1875rem;

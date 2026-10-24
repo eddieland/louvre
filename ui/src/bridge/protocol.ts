@@ -16,8 +16,11 @@ export interface Mark {
     id: string
     /** The passage. */
     anchor: Anchor
-    /** Whether it is open, resolved, or a draft not yet sent. */
-    state: 'open' | 'resolved' | 'draft'
+    /**
+     * Whether it is open, resolved, or a draft not yet sent; or the passage a decision's option is about, marked only
+     * while its option is hovered or shown, and never a thread the reader can click.
+     */
+    state: 'open' | 'resolved' | 'draft' | 'passage'
     /** Its number in the margin, shown after its last word, or null for none. */
     n: number | null
 }

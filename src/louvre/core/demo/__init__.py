@@ -5,6 +5,9 @@ a token's would. Each part of it is published once: a part whose artifact the de
 it is, so a database seeded before a part was added gets that part alone. Two processes seeding at once take a lock,
 so one publishes and the other finds it there.
 
+Its agent asks two decisions: which of the report's fixes ships first, open and waiting on Ana, and whether the release
+notes ship, decided. They are seeded once too, after the artifacts they are asked on.
+
 The design study the operator picked Louvre's look from (docs/ui-explorations/2026-10-23-directions) is its first
 board: each direction at a laptop's size and a phone's, side by side, a row a direction (roadmap M3).
 """
@@ -16,6 +19,7 @@ from louvre.core import explorations, style
 from louvre.core.accounts import Account, person_scope, upsert_account
 from louvre.core.boards import Board, Frame
 from louvre.core.db import MIGRATE_LOCK, Connection
+from louvre.core.decisions import Decisions, Option
 from louvre.core.store import Author, Permission, Scope, Store, Via
 from louvre.core.text import Anchor
 
@@ -91,9 +95,12 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         ]
         for part in missing:
             part(agent, people)
+        unasked = not Decisions(agent).listed()["decisions"]
+        if unasked:
+            _decisions(agent, people)
     finally:
         conn.execute("SELECT pg_advisory_unlock(%s)", (SEED_LOCK,))
-    return bool(missing)
+    return bool(missing) or unasked
 
 
 def _agent_scope() -> Scope:
@@ -175,6 +182,58 @@ def _checkout(agent: Store, people: dict[str, Store]) -> None:
     second = first.replace("cache the quote per cart for 60 s", "cache the quote per cart for five minutes")
     agent.publish(title=title, content_type="text/html", content=second, artifact_id=artifact)
     agent.resolve(str(cache["thread_id"]), resolved=True)
+
+
+def _decisions(agent: Store, people: dict[str, Store]) -> None:
+    """The agent's two questions: which of the report's fixes ships first, and whether the notes ship.
+
+    Each option of the first is on its step of the report. The second it closed once both people asked had answered.
+    """
+    asker = Decisions(agent)
+    report = _newest(agent, {"canopy.ticket": "PAY-142"})
+    if report is not None:
+        fixes = asker.ask(
+            report,
+            "Which fix ships first?",
+            (
+                Option(
+                    "Batch the tax quote",
+                    "Alone, brings p95 under 700 ms.",
+                    Anchor.of("Batch the tax quote into one call per cart"),
+                ),
+                Option(
+                    "Warm the pool and cache the quote",
+                    "Removes the cold start; the cache key needs the promotion's version.",
+                    Anchor.of("Warm the pool at deploy"),
+                ),
+                Option(
+                    "Move the fraud check",
+                    "Back to submit time, where it ran before the release.",
+                    Anchor.of("Move the fraud check back to submit time"),
+                ),
+            ),
+            asked=["ana", "raj"],
+        )
+        decision = str(fixes["decision_id"])
+        Decisions(people["raj"]).answer(decision, ["o1"], "It is most of the regression on its own.")
+        Decisions(people["sam"]).answer(decision, ["o1"])
+    notes = _newest(agent, {"canopy.ticket": "REL-2026.11"})
+    if notes is not None:
+        ship = asker.ask(
+            notes,
+            "Ship these notes with Thursday's release?",
+            (Option("Ship them as they are"), Option("Hold them for the search fix")),
+            asked=["ana", "raj"],
+        )
+        decision = str(ship["decision_id"])
+        Decisions(people["ana"]).answer(decision, ["o1"], "The known issue says what to do meanwhile.")
+        Decisions(people["raj"]).answer(decision, ["o1"])
+        asker.close(decision, "o1", "Shipping Thursday; the search fix goes in the next notes.")
+
+
+def _newest(agent: Store, origin: dict[str, str]) -> str | None:
+    found = agent.overview(origin=origin, namespace=NAMESPACE)["artifacts"]
+    return str(found[0]["id"]) if isinstance(found, list) and found and isinstance(found[0], dict) else None
 
 
 def _release_notes(agent: Store, people: dict[str, Store]) -> None:

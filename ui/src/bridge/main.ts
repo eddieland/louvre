@@ -82,6 +82,10 @@ function start(): void {
                 if (lit) {
                     resolved.push(range)
                 }
+            } else if (mark.state === 'passage') {
+                if (lit) {
+                    strong.push(range)
+                }
             } else {
                 ;(lit ? strong : rest).push(range)
             }
@@ -168,7 +172,7 @@ function start(): void {
     const hit = (x: number, y: number): string | null => {
         for (const mark of marks) {
             const range = ranges.get(mark.id)
-            if (!range) {
+            if (!range || mark.state === 'passage') {
                 continue
             }
             for (const rect of range.getClientRects()) {

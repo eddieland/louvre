@@ -1,4 +1,4 @@
-"""The tools agents call: the artifacts contract's eight, and Louvre's `style_get`.
+"""The tools agents call: the contract's eight, and Louvre's own: `style_get`, `style_check`, and the decisions' five.
 
 Each is a request and what the store does with it. A tool's arguments are validated against its request, whose JSON
 schema is its input schema; the store then does the call, held to its scope. What a tool returns is JSON: one object,
@@ -8,13 +8,15 @@ or for `comment_feed` one change to a line, its `end` line last, as canopy's con
 """
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
 from louvre.core import style
+from louvre.core.decisions import MAX_ASKED, MAX_DETAIL, MAX_LABEL, MAX_OPTIONS, MAX_QUESTION, MIN_OPTIONS, Decisions
+from louvre.core.decisions import Option as DecisionOption
 from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Code, Refused, Store
 from louvre.core.style import chart, check
 from louvre.core.text import CONTEXT, Anchor, ContentType
@@ -197,6 +199,67 @@ class Resolve(_Request):
     resolved: Annotated[StrictBool, Field(description="true to resolve it, false to reopen it.")]
 
 
+class OptionRequest(_Request):
+    """One option a decision offers."""
+
+    label: Annotated[StrictStr, Field(description=f"What it is, in a few words; at most {MAX_LABEL} characters.")]
+    detail: Annotated[StrictStr, Field(description=f"A line more about it; at most {MAX_DETAIL} characters.")] = ""
+    anchor: Annotated[
+        AnchorRequest | None,
+        Field(description="The passage of the artifact's latest version it is about, shown beside it."),
+    ] = None
+
+
+class DecisionCreate(_Request):
+    """Ask people a question on an artifact, to answer by choosing."""
+
+    artifact_id: StrictStr
+    question: Annotated[StrictStr, Field(description=f"What to decide; at most {MAX_QUESTION} characters.")]
+    options: Annotated[
+        Sequence[OptionRequest],
+        Field(
+            description=f"The choices, {MIN_OPTIONS} to {MAX_OPTIONS}, in the order shown; their ids are o1, o2, ...",
+        ),
+    ]
+    multiple: Annotated[StrictBool, Field(description="Whether an answer may choose more than one option.")] = False
+    asked: Annotated[
+        Sequence[StrictStr],
+        Field(
+            description=f"The logins of the people whose answers are wanted, at most {MAX_ASKED}; anyone may answer.",
+        ),
+    ] = ()
+
+
+class DecisionList(_Request):
+    """List decisions, newest first."""
+
+    artifact_id: Annotated[StrictStr | None, Field(description="Only this artifact's.")] = None
+    origin: OriginFilter = None
+    state: Annotated[Literal["open", "closed"] | None, Field(description="Only decisions in this state.")] = None
+
+
+class DecisionRead(_Request):
+    """Read one decision, with every answer."""
+
+    decision_id: StrictStr
+
+
+class DecisionClose(_Request):
+    """Close a decision."""
+
+    decision_id: StrictStr
+    outcome: Annotated[StrictStr | None, Field(description="The id of the option decided on, if one was.")] = None
+    note: Annotated[StrictStr, Field(description=f"Why, for its readers; at most {MAX_BODY} characters.")] = ""
+
+
+class DecisionFeed(_Request):
+    """Read the events on decisions after a cursor."""
+
+    origin: OriginFilter = None
+    since: Annotated[StrictInt, Field(description="The through of the last end line read; 0 for every event.")] = 0
+    limit: Annotated[StrictInt, Field(description=f"The most events to return, at most {MAX_FEED}.")] = MAX_FEED
+
+
 TOOLS = (
     tool(
         "artifact_publish",
@@ -286,6 +349,56 @@ TOOLS = (
         "too.",
         StyleChart,
         lambda _store, r: _charted(r),
+    ),
+    tool(
+        "decision_create",
+        "Ask people to decide something about an artifact by choosing among options, rather than in a comment: which "
+        "direction to take, whether to ship. An option may point at a passage. Name the people whose answers you want "
+        "in asked. People answer on the artifact's page; read their answers with decision_read or decision_feed.",
+        DecisionCreate,
+        lambda store, r: Decisions(store).ask(
+            r.artifact_id,
+            r.question,
+            [
+                DecisionOption(
+                    o.label,
+                    o.detail,
+                    None if o.anchor is None else Anchor.of(o.anchor.exact, o.anchor.prefix, o.anchor.suffix),
+                )
+                for o in r.options
+            ],
+            multiple=r.multiple,
+            asked=r.asked,
+        ),
+    ),
+    tool(
+        "decision_list",
+        "List decisions, newest first, with each option's count and every answer: on one artifact, or on artifacts "
+        "whose origin holds the pairs given.",
+        DecisionList,
+        lambda store, r: Decisions(store).listed(artifact_id=r.artifact_id, origin=r.origin, state=r.state),
+    ),
+    tool(
+        "decision_read",
+        "Read a decision: its question, its options each with how many chose it, who was asked and who answered, "
+        "each answer with its note, and whether it is closed and on which option.",
+        DecisionRead,
+        lambda store, r: Decisions(store).read(r.decision_id),
+    ),
+    tool(
+        "decision_close",
+        "Close a decision you asked once it is decided, naming the option decided on, if one was; it takes no more "
+        "answers.",
+        DecisionClose,
+        lambda store, r: Decisions(store).close(r.decision_id, r.outcome, r.note),
+    ),
+    tool(
+        "decision_feed",
+        "Read the events on decisions after since, oldest first, one JSON object to a line: decision_asked, "
+        "decision_answered (an answer, or an answer changed, with its choices and note), and decision_closed. The "
+        'last line is {"kind": "end", "through": SEQ}: pass that SEQ as since for the next page.',
+        DecisionFeed,
+        lambda store, r: Decisions(store).feed(r.origin, r.since, r.limit),
     ),
 )
 

@@ -446,3 +446,68 @@ def fingers(session: CDPSession, steps: Sequence[Sequence[tuple[int, int]]]) -> 
             {"type": "touchStart" if i == 0 else "touchMove", "touchPoints": points},
         )
     session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+
+
+def call(context: BrowserContext, secret: str, name: str, **arguments: object) -> str:
+    """Call a tool through the MCP server with a token's secret, and return its text."""
+    called = context.request.post(
+        "/mcp",
+        data={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}},
+        headers={"Authorization": f"Bearer {secret}"},
+    ).json()
+    assert called["result"]["isError"] is False, called
+    return str(called["result"]["content"][0]["text"])
+
+
+def test_a_person_answers_an_agents_decision_and_the_agent_reads_it_back(context: BrowserContext) -> None:
+    secret = context.request.post(
+        "/api/tokens",
+        data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
+        headers=WRITES,
+    ).json()["secret"]
+    artifact = json.loads(
+        call(context, secret, "artifact_publish", title="Cache", content_type="text/html", content=PAGE),
+    )
+    asked = json.loads(
+        call(
+            context,
+            secret,
+            "decision_create",
+            artifact_id=artifact["artifact_id"],
+            question="Shard the cache now?",
+            options=[
+                {"label": "Shard it", "anchor": {"exact": "We should shard it."}},
+                {"label": "Measure first", "detail": "A week of data.", "anchor": {"exact": "Then measure again."}},
+            ],
+            asked=["ana"],
+        ),
+    )
+    waiting = context.request.get("/api/decisions").json()["awaiting"]
+    page = context.new_page()
+    page.goto(f"/a/{artifact['artifact_id']}?decision={asked['decision_id']}")
+    expect(page.frame_locator("iframe.exhibit").locator("h1")).to_have_text("Cache report")
+    card = page.locator(f"#decision-{asked['decision_id']}")
+    frame = next(f for f in page.frames if "/content/" in f.url)
+
+    expect(card).to_contain_text("Your answer is wanted")
+    expect(card).to_contain_text("(Agent, for Ana Ruiz)")
+    expect(page.locator(".masthead .awaiting")).to_have_text(str(waiting))
+    card.locator(".option", has_text="Measure first").hover()
+    frame.wait_for_function("CSS.highlights.get('louvre-strong')?.size === 1")
+    card.get_by_role("radio", name="Shard it").check()
+    card.locator("textarea").fill("Before the sale.")
+    card.locator("button:text-is('Answer')").click()
+
+    expect(card).to_contain_text("your choice")
+    expect(card.locator(".answers")).to_contain_text("Ana Ruiz chose Shard it")
+    expect(card.locator(".answer-note")).to_have_text("Before the sale.")
+    expect(page.locator(".masthead .awaiting")).to_have_count(1 if waiting > 1 else 0)
+    events = [json.loads(line) for line in call(context, secret, "decision_feed").splitlines()]
+    mine = [e for e in events if e.get("decision_id") == asked["decision_id"]]
+    assert [(e["kind"], e["choices"], e["note"], e["author"]["kind"]) for e in mine] == [
+        ("decision_asked", [], "", "agent"),
+        ("decision_answered", ["o1"], "Before the sale.", "person"),
+    ]
+
+    page.goto("/decisions")
+    expect(page.locator(".entry", has_text="Shard the cache now?")).to_contain_text("Answered")

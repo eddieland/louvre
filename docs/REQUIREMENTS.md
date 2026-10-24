@@ -63,6 +63,17 @@ prompt asks for a page of a kind in it. The `style_chart` tool draws a line or b
 warnings for the rest. A Markdown artifact is shown in it
 already.
 
+### U7. Decisions: people answer what agents ask, and agents read the answers back
+
+Built (M7), awaiting the operator's word. The operator's call (2026-10-24): a comment is the wrong shape for a choice,
+so an agent that needs one (which direction, which fix first, whether to ship) asks it as a decision on an artifact,
+with two or more options, each of which may point at a passage, and names the people whose answers it wants. A
+signed-in person answers on the artifact's page by choosing, with a note, and may change their answer while it is
+open; how others chose shows only once they have answered, so it does not sway them. An agent never answers. Whoever
+asked reads the answers back over MCP, whole or as a feed in the comment feed's shape, and closes the decision,
+naming the option decided on. Each person sees what waits on them: in the header, the catalogue, and a page of
+decisions.
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP
@@ -70,7 +81,8 @@ already.
 Built. `artifact_publish`, `artifact_read`, `artifact_list`, `thread_list`, `comment_feed`,
 `comment_reply`, `comment_create`, and `thread_resolve`, with the inputs, results, and refusal codes the contract
 names, so a skill written against canopy's local store works against Louvre unchanged. No tool deletes an artifact or
-changes who may see it.
+changes who may see it. Louvre's own tools, `style_get` and `style_check` (U6) and the decisions' five (U7), are
+added beside them and change none of them (D011).
 
 ### L2. Versions keep their threads, and anchors are words, never positions
 
@@ -125,6 +137,10 @@ To settle before the milestone that needs it:
 
 - Where Louvre runs, with a managed Postgres (D007): it runs on Vercel, with a Marketplace Postgres (docs/DEPLOY.md);
   whether production stays there is open (M6).
+- Whether canopy's contract takes the decisions' tools, so its local store serves them too, and whether canopy's loop
+  reads `decision_feed` beside `comment_feed` (U7).
+- Whether people ask decisions on the web as agents do, and whether a decision may span a board's frames, each an
+  option (U5, U7).
 - Whether a board is an artifact of its own content type, which grows canopy's contract, and whether a comment may be
   pinned to a point on the canvas rather than to a frame's words (U5, M3).
 - Whether an artifact may load from the network (a CDN's script, a web font, a remote image), or must carry everything
