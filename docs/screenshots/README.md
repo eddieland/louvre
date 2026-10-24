@@ -136,6 +136,72 @@ Light:
 | --- | --- |
 | ![A Markdown artifact, in the house style, Phone, 390, light](markdown/phone-light.png) | ![A Markdown artifact, in the house style, Laptop, 1440, light](markdown/laptop-light.png) |
 
+## An artifact, a decision waiting on the reader
+
+`/a/{checkout}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An artifact, a decision waiting on the reader, Small phone, 360, dark](decision/phone-small-dark.png) | ![An artifact, a decision waiting on the reader, Phone, 390, dark](decision/phone-dark.png) | ![An artifact, a decision waiting on the reader, Tablet, 820, dark](decision/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An artifact, a decision waiting on the reader, Tablet landscape, 1180, dark](decision/tablet-landscape-dark.png) | ![An artifact, a decision waiting on the reader, Laptop, 1440, dark](decision/laptop-dark.png) | ![An artifact, a decision waiting on the reader, Wide, 1920, dark](decision/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An artifact, a decision waiting on the reader, Phone, 390, light](decision/phone-light.png) | ![An artifact, a decision waiting on the reader, Laptop, 1440, light](decision/laptop-light.png) |
+
+## An artifact, its decision decided and opened
+
+`/a/{notes}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An artifact, its decision decided and opened, Small phone, 360, dark](decided/phone-small-dark.png) | ![An artifact, its decision decided and opened, Phone, 390, dark](decided/phone-dark.png) | ![An artifact, its decision decided and opened, Tablet, 820, dark](decided/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An artifact, its decision decided and opened, Tablet landscape, 1180, dark](decided/tablet-landscape-dark.png) | ![An artifact, its decision decided and opened, Laptop, 1440, dark](decided/laptop-dark.png) | ![An artifact, its decision decided and opened, Wide, 1920, dark](decided/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An artifact, its decision decided and opened, Phone, 390, light](decided/phone-light.png) | ![An artifact, its decision decided and opened, Laptop, 1440, light](decided/laptop-light.png) |
+
+## Decisions, waiting on the reader, open, and decided
+
+`/decisions`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![Decisions, waiting on the reader, open, and decided, Small phone, 360, dark](decisions/phone-small-dark.png) | ![Decisions, waiting on the reader, open, and decided, Phone, 390, dark](decisions/phone-dark.png) | ![Decisions, waiting on the reader, open, and decided, Tablet, 820, dark](decisions/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![Decisions, waiting on the reader, open, and decided, Tablet landscape, 1180, dark](decisions/tablet-landscape-dark.png) | ![Decisions, waiting on the reader, open, and decided, Laptop, 1440, dark](decisions/laptop-dark.png) | ![Decisions, waiting on the reader, open, and decided, Wide, 1920, dark](decisions/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![Decisions, waiting on the reader, open, and decided, Phone, 390, light](decisions/phone-light.png) | ![Decisions, waiting on the reader, open, and decided, Laptop, 1440, light](decisions/laptop-light.png) |
+
 ## An HTML artifact in the house style
 
 `/a/{weekly}`

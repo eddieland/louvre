@@ -61,6 +61,8 @@ class Code(StrEnum):
     READ_ONLY = "read_only"
     #: An argument the tool's schema takes, but the store cannot use: a blank body, an unreadable cursor.
     INVALID = "invalid"
+    #: The decision is closed: it takes no answer, and is not closed again.
+    CLOSED = "closed"
 
 
 class Refused(Exception):  # noqa: N818  (a tool error, not a failure)
@@ -125,14 +127,15 @@ class Scope:
 type Row = dict[str, object]
 
 
-class Store:
+class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on the store share with it)
     """The store, through one connection, every call held to one scope."""
 
     def __init__(self, conn: Connection, scope: Scope, *, base_url: str = "") -> None:
         """Serve `conn`'s database, held to `scope`; `base_url` is where Louvre's pages are, for a version's url."""
         self._conn = conn
         self.scope = scope
-        self._base_url = base_url.rstrip("/")
+        #: Where Louvre's pages are, for the links it gives.
+        self.base_url = base_url.rstrip("/")
 
     def publish(
         self,
@@ -153,20 +156,20 @@ class Store:
                 `invalid` for a blank title, or an origin given with `artifact_id`; `not_found` or `out_of_scope` for
                 `artifact_id`.
         """
-        self._may(Permission.PUBLISH)
+        self.require(Permission.PUBLISH)
         if self.scope.home is None:
             raise Refused(Code.READ_ONLY, "this scope publishes nowhere")
         if not title.strip():
             raise Refused(Code.INVALID, "an artifact's title must not be blank")
-        _bounded("title", title, MAX_TITLE)
-        _bounded("content", content, MAX_CONTENT)
+        bounded("title", title, MAX_TITLE)
+        bounded("content", content, MAX_CONTENT)
         if artifact_id is not None and origin:
             raise Refused(Code.INVALID, "an artifact's origin is set when it is made; omit it to add a version")
         pairs = _origin({**(origin or {}), **self.scope.origin}) if artifact_id is None else {}
         text = render.text_of(content_type, content)
         digest = hashlib.sha256(content.encode()).hexdigest()
         now = _now()
-        with self._write():
+        with self.writing():
             if artifact_id is None:
                 artifact_id, version = _id("a"), 1
                 self._conn.execute(
@@ -175,7 +178,7 @@ class Store:
                     (artifact_id, self.scope.home, title, json.dumps(pairs), self.scope.account_id, now, now),
                 )
             else:
-                version = int(str(self._artifact(artifact_id)["latest_version"])) + 1
+                version = int(str(self.artifact_row(artifact_id)["latest_version"])) + 1
                 self._conn.execute(
                     "UPDATE artifacts SET latest_version = %s, title = %s, updated_at = %s WHERE id = %s",
                     (version, title, now, artifact_id),
@@ -196,8 +199,8 @@ class Store:
         Raises:
             Refused: `not_found` or `out_of_scope` for the artifact, `not_found` for a version it does not have.
         """
-        with self._read():
-            artifact = self._artifact(artifact_id)
+        with self.reading():
+            artifact = self.artifact_row(artifact_id)
             found = self._version(artifact, version)
         return {
             "artifact": _artifact_json(artifact),
@@ -227,8 +230,8 @@ class Store:
         """List the artifacts the scope reaches for the web's list: as `artifacts`, with what the list shows.
 
         Returns:
-            A page of artifacts, each with when its latest version came and how many open threads it has, and the
-            cursor of the next page.
+            A page of artifacts, each with when its latest version came, how many open threads and open decisions
+            it has, and how many of those decisions await the scope's person; and the cursor of the next page.
 
         Raises:
             Refused: `invalid` for a cursor this store did not give.
@@ -236,7 +239,13 @@ class Store:
         rows, more = self._listed(origin, cursor, namespace=namespace)
         return {
             "artifacts": [
-                {**_artifact_json(row), "updated_at": iso(row["updated_at"]), "open_threads": row["open_threads"]}
+                {
+                    **_artifact_json(row),
+                    "updated_at": iso(row["updated_at"]),
+                    "open_threads": row["open_threads"],
+                    "open_decisions": row["open_decisions"],
+                    "awaiting": row["awaiting"],
+                }
                 for row in rows
             ],
             "next_cursor": _next(rows, more),
@@ -251,8 +260,8 @@ class Store:
         Raises:
             Refused: `not_found` or `out_of_scope` for the artifact.
         """
-        with self._read():
-            artifact = self._artifact(artifact_id)
+        with self.reading():
+            artifact = self.artifact_row(artifact_id)
             rows = self._conn.execute(
                 "SELECT artifact_id, n, content_type, sha256, created_at FROM versions WHERE artifact_id = %s"
                 " ORDER BY n",
@@ -273,8 +282,8 @@ class Store:
         Raises:
             Refused: `not_found` or `out_of_scope` for the artifact, `not_found` for the version.
         """
-        with self._read():
-            artifact = self._artifact(artifact_id)
+        with self.reading():
+            artifact = self.artifact_row(artifact_id)
             found = self._version(artifact, version)
         content_type: ContentType = "text/markdown" if found["content_type"] == "text/markdown" else "text/html"
         return render.page(content_type, str(found["content"]), str(artifact["title"]))
@@ -295,8 +304,8 @@ class Store:
         Raises:
             Refused: `not_found` or `out_of_scope` for the artifact, `not_found` for a version it does not have.
         """
-        with self._read():
-            artifact = self._artifact(artifact_id)
+        with self.reading():
+            artifact = self.artifact_row(artifact_id)
             text = str(self._version(artifact, version)["text"])
             threads = self._conn.execute(
                 "SELECT * FROM threads WHERE artifact_id = %s AND (%s::text IS NULL OR state = %s) ORDER BY n",
@@ -340,7 +349,7 @@ class Store:
         """
         if not 1 <= limit <= MAX_FEED or not 0 <= since <= _MAX_SEQ:
             raise Refused(Code.INVALID, f"since is a seq from 0, and limit from 1 to {MAX_FEED}")
-        with self._read():
+        with self.reading():
             row = self._conn.execute("SELECT coalesce(max(seq), 0) AS newest FROM changes").fetchone()
             newest = int(str(row["newest"])) if row else 0
             rows = self._conn.execute(
@@ -354,7 +363,7 @@ class Store:
                 " AND (%(all)s OR a.namespace = ANY(%(namespaces)s)) AND a.origin @> %(filter)s::jsonb"
                 " ORDER BY ch.seq LIMIT %(limit)s",
                 {"since": since, "newest": newest, "filter": json.dumps(dict(origin or {})), "limit": limit}
-                | self._reach(),
+                | self.reach(),
             ).fetchall()
             latest = self._latest_texts({str(row["artifact_id"]) for row in rows})
         through = int(str(rows[-1]["seq"])) if len(rows) == limit else max(newest, since)
@@ -371,9 +380,9 @@ class Store:
             Refused: `read_only` without comment; `invalid` or `too_long` for the body; `not_found` or `out_of_scope`
                 for the thread.
         """
-        self._may(Permission.COMMENT)
-        _check_body(body)
-        with self._write():
+        self.require(Permission.COMMENT)
+        check_body(body)
+        with self.writing():
             self._thread(thread_id)
             comment_id, seq = self._comment(thread_id, body)
         return {"comment_id": comment_id, "seq": seq}
@@ -389,12 +398,12 @@ class Store:
                 `out_of_scope` for the artifact; `anchor_not_found` when the anchor's words are not in its latest
                 version.
         """
-        self._may(Permission.COMMENT)
-        _check_body(body)
+        self.require(Permission.COMMENT)
+        check_body(body)
         if anchor is not None:
-            _check_anchor(anchor)
-        with self._write():
-            artifact = self._artifact(artifact_id)
+            check_anchor(anchor)
+        with self.writing():
+            artifact = self.artifact_row(artifact_id)
             latest = self._version(artifact, None)
             if anchor is not None and locate(str(latest["text"]), anchor) is None:
                 raise Refused(Code.ANCHOR_NOT_FOUND, f"the passage is not in version {latest['n']} of {artifact_id}")
@@ -424,9 +433,9 @@ class Store:
         Raises:
             Refused: `read_only` without comment; `not_found` or `out_of_scope` for the thread.
         """
-        self._may(Permission.COMMENT)
+        self.require(Permission.COMMENT)
         state = "resolved" if resolved else "open"
-        with self._write():
+        with self.writing():
             if self._thread(thread_id)["state"] != state:
                 self._conn.execute("UPDATE threads SET state = %s WHERE id = %s", (state, thread_id))
                 self._change("thread_resolved" if resolved else "thread_reopened", thread_id, None)
@@ -442,9 +451,9 @@ class Store:
             Refused: `read_only` without comment; `invalid` or `too_long` for the body; `not_found` for the comment,
                 or one deleted; `out_of_scope` for another's.
         """
-        self._may(Permission.COMMENT)
-        _check_body(body)
-        with self._write():
+        self.require(Permission.COMMENT)
+        check_body(body)
+        with self.writing():
             found = self._own(comment_id)
             self._conn.execute(
                 "UPDATE comments SET body = %s, edited_at = %s WHERE id = %s",
@@ -463,8 +472,8 @@ class Store:
             Refused: `read_only` without comment; `not_found` for the comment, or one deleted; `out_of_scope` for
                 another's.
         """
-        self._may(Permission.COMMENT)
-        with self._write():
+        self.require(Permission.COMMENT)
+        with self.writing():
             found = self._own(comment_id)
             self._conn.execute("UPDATE comments SET body = '', deleted_at = %s WHERE id = %s", (_now(), comment_id))
             seq = self._change("comment_deleted", str(found["thread_id"]), comment_id)
@@ -481,8 +490,8 @@ class Store:
         """
         if self.scope.via != Via.WEB or self.scope.account_id is None:
             raise Refused(Code.READ_ONLY, "only a person deletes an artifact, on the web")
-        with self._write():
-            artifact = self._artifact(artifact_id)
+        with self.writing():
+            artifact = self.artifact_row(artifact_id)
             if artifact["owner_id"] != self.scope.account_id:
                 raise Refused(Code.OUT_OF_SCOPE, f"{artifact_id} is not yours to delete")
             self._conn.execute("UPDATE artifacts SET deleted_at = %s WHERE id = %s", (_now(), artifact_id))
@@ -494,10 +503,13 @@ class Store:
         Returns:
             Its URL on Louvre's web pages.
         """
-        return f"{self._base_url}/a/{artifact_id}?v={version}"
+        return f"{self.base_url}/a/{artifact_id}?v={version}"
+
+    # What the modules built on the store (louvre.core.decisions) share with it: its transactions, its scope's checks,
+    # and its records.
 
     @contextmanager
-    def _read(self) -> Iterator[None]:
+    def reading(self) -> Iterator[None]:
         """Read in one snapshot.
 
         Yields:
@@ -506,13 +518,13 @@ class Store:
         Raises:
             Refused: `out_of_scope` when the scope may not read.
         """
-        self._may(Permission.READ, Code.OUT_OF_SCOPE)
+        self.require(Permission.READ, Code.OUT_OF_SCOPE)
         with self._conn.transaction():
             self._conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             yield
 
     @contextmanager
-    def _write(self) -> Iterator[None]:
+    def writing(self) -> Iterator[None]:
         """Write one at a time: the lock first, so `seq` commits in order. Each statement then reads committed rows.
 
         Yields:
@@ -522,11 +534,16 @@ class Store:
             self._conn.execute("SELECT pg_advisory_xact_lock(%s)", (WRITE_LOCK,))
             yield
 
-    def _may(self, permission: Permission, code: Code = Code.READ_ONLY) -> None:
+    def require(self, permission: Permission, code: Code = Code.READ_ONLY) -> None:
+        """Hold the scope to `permission`.
+
+        Raises:
+            Refused: `code`, `read_only` unless named, when the scope may not.
+        """
         if permission not in self.scope.permissions:
             raise Refused(code, f"this scope may not {permission.value}")
 
-    def _reach(self) -> dict[str, object]:
+    def reach(self) -> dict[str, object]:
         """Bind the namespaces the scope reaches, for `(%(all)s OR a.namespace = ANY(%(namespaces)s))`.
 
         Returns:
@@ -535,45 +552,7 @@ class Store:
         namespaces = self.scope.namespaces
         return {"all": namespaces is None, "namespaces": sorted(namespaces or ())}
 
-    def _listed(
-        self,
-        origin: Mapping[str, str] | None,
-        cursor: str | None,
-        *,
-        namespace: str | None,
-    ) -> tuple[list[Row], bool]:
-        before = None
-        if cursor is not None:
-            if not (cursor.isascii() and cursor.isdigit() and len(cursor) <= _CURSOR_DIGITS):
-                raise Refused(Code.INVALID, f"{cursor!r} is not a cursor this store gave")
-            before = int(cursor)
-        with self._read():
-            rows = self._conn.execute(
-                "SELECT a.*, (SELECT count(*) FROM threads t WHERE t.artifact_id = a.id AND t.state = 'open')"
-                " AS open_threads FROM artifacts a WHERE a.deleted_at IS NULL"
-                " AND (%(all)s OR a.namespace = ANY(%(namespaces)s))"
-                " AND (%(namespace)s::text IS NULL OR a.namespace = %(namespace)s)"
-                " AND (%(before)s::bigint IS NULL OR a.n < %(before)s) AND a.origin @> %(filter)s::jsonb"
-                " ORDER BY a.n DESC LIMIT %(limit)s",
-                {
-                    "namespace": namespace,
-                    "before": before,
-                    "filter": json.dumps(dict(origin or {})),
-                    "limit": LIST_PAGE + 1,
-                }
-                | self._reach(),
-            ).fetchall()
-        return rows[:LIST_PAGE], len(rows) > LIST_PAGE
-
-    def _latest_texts(self, artifact_ids: AbstractSet[str]) -> dict[str, str]:
-        rows = self._conn.execute(
-            "SELECT a.id, v.text FROM artifacts a JOIN versions v ON v.artifact_id = a.id AND v.n = a.latest_version"
-            " WHERE a.id = ANY(%s)",
-            (sorted(artifact_ids),),
-        ).fetchall()
-        return {str(row["id"]): str(row["text"]) for row in rows}
-
-    def _artifact(self, artifact_id: str) -> Row:
+    def artifact_row(self, artifact_id: str) -> Row:
         """Find an artifact the scope reaches.
 
         Returns:
@@ -588,12 +567,94 @@ class Store:
         ).fetchone()
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no artifact {artifact_id!r}")
-        self._reaches(str(row["namespace"]), artifact_id)
+        self.reaches(str(row["namespace"]), artifact_id)
         return row
 
-    def _reaches(self, namespace: str, what: str) -> None:
+    def reaches(self, namespace: str, what: str) -> None:
+        """Hold a record in `namespace` to the namespaces the scope reaches, `what` naming it.
+
+        Raises:
+            Refused: `out_of_scope` outside them.
+        """
         if self.scope.namespaces is not None and namespace not in self.scope.namespaces:
             raise Refused(Code.OUT_OF_SCOPE, f"{what} is outside the namespaces this scope reaches")
+
+    @property
+    def connection(self) -> Connection:
+        """The connection the store reads and writes through."""
+        return self._conn
+
+    def version_text(self, artifact_id: str, n: int) -> str:
+        """Read a version's text, inside a read or a write, its artifact already found in the scope.
+
+        Returns:
+            The text, as louvre.core.text reads it; empty for no such version.
+        """
+        row = self._conn.execute(
+            "SELECT text FROM versions WHERE artifact_id = %s AND n = %s",
+            (artifact_id, n),
+        ).fetchone()
+        return "" if row is None else str(row["text"])
+
+    def author_id(self) -> str:
+        """Record the scope's author as it is now, inside a write.
+
+        Returns:
+            Its id.
+        """
+        author = self.scope.author
+        self._conn.execute(
+            "INSERT INTO authors (id, display_name, kind, on_behalf_of) VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO"
+            " UPDATE SET display_name = excluded.display_name, kind = excluded.kind,"
+            " on_behalf_of = excluded.on_behalf_of",
+            (author.id, author.display_name, author.kind, author.on_behalf_of),
+        )
+        return author.id
+
+    def _listed(
+        self,
+        origin: Mapping[str, str] | None,
+        cursor: str | None,
+        *,
+        namespace: str | None,
+    ) -> tuple[list[Row], bool]:
+        before = None
+        if cursor is not None:
+            if not (cursor.isascii() and cursor.isdigit() and len(cursor) <= _CURSOR_DIGITS):
+                raise Refused(Code.INVALID, f"{cursor!r} is not a cursor this store gave")
+            before = int(cursor)
+        with self.reading():
+            rows = self._conn.execute(
+                "SELECT a.*, (SELECT count(*) FROM threads t WHERE t.artifact_id = a.id AND t.state = 'open')"
+                " AS open_threads,"
+                " (SELECT count(*) FROM decisions d WHERE d.artifact_id = a.id AND d.state = 'open') AS open_decisions,"
+                # The open decisions that ask the scope's person, by login, and that they have not answered.
+                " (SELECT count(*) FROM decisions d JOIN accounts c ON c.id = %(account)s"
+                " WHERE d.artifact_id = a.id AND d.state = 'open' AND lower(c.login) = ANY(d.asked) AND NOT EXISTS"
+                " (SELECT 1 FROM answers x WHERE x.decision_id = d.id AND x.account_id = c.id)) AS awaiting"
+                " FROM artifacts a WHERE a.deleted_at IS NULL"
+                " AND (%(all)s OR a.namespace = ANY(%(namespaces)s))"
+                " AND (%(namespace)s::text IS NULL OR a.namespace = %(namespace)s)"
+                " AND (%(before)s::bigint IS NULL OR a.n < %(before)s) AND a.origin @> %(filter)s::jsonb"
+                " ORDER BY a.n DESC LIMIT %(limit)s",
+                {
+                    "namespace": namespace,
+                    "account": self.scope.account_id,
+                    "before": before,
+                    "filter": json.dumps(dict(origin or {})),
+                    "limit": LIST_PAGE + 1,
+                }
+                | self.reach(),
+            ).fetchall()
+        return rows[:LIST_PAGE], len(rows) > LIST_PAGE
+
+    def _latest_texts(self, artifact_ids: AbstractSet[str]) -> dict[str, str]:
+        rows = self._conn.execute(
+            "SELECT a.id, v.text FROM artifacts a JOIN versions v ON v.artifact_id = a.id AND v.n = a.latest_version"
+            " WHERE a.id = ANY(%s)",
+            (sorted(artifact_ids),),
+        ).fetchall()
+        return {str(row["id"]): str(row["text"]) for row in rows}
 
     def _version(self, artifact: Row, n: int | None) -> Row:
         """Find a version of `artifact`, its latest when `n` is None.
@@ -628,7 +689,7 @@ class Store:
         ).fetchone()
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no thread {thread_id!r}")
-        self._reaches(str(row["namespace"]), thread_id)
+        self.reaches(str(row["namespace"]), thread_id)
         return row
 
     def _own(self, comment_id: str) -> Row:
@@ -648,7 +709,7 @@ class Store:
         ).fetchone()
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no comment {comment_id!r}")
-        self._reaches(str(row["namespace"]), comment_id)
+        self.reaches(str(row["namespace"]), comment_id)
         if row["author_id"] != self.scope.author.id:
             raise Refused(Code.OUT_OF_SCOPE, f"{comment_id} is another's comment")
         return row
@@ -663,7 +724,7 @@ class Store:
         self._conn.execute(
             "INSERT INTO comments (id, thread_id, seq, author_id, body, created_at, via)"
             " VALUES (%s, %s, 0, %s, %s, %s, %s)",
-            (comment_id, thread_id, self._author(), body, _now(), self.scope.via.value),
+            (comment_id, thread_id, self.author_id(), body, _now(), self.scope.via.value),
         )
         return comment_id, self._change("comment_created", thread_id, comment_id)
 
@@ -676,50 +737,50 @@ class Store:
         row = self._conn.execute(
             "INSERT INTO changes (kind, thread_id, comment_id, author_id, via, at) VALUES (%s, %s, %s, %s, %s, %s)"
             " RETURNING seq",
-            (kind, thread_id, comment_id, self._author(), self.scope.via.value, _now()),
+            (kind, thread_id, comment_id, self.author_id(), self.scope.via.value, _now()),
         ).fetchone()
         seq = int(str(row["seq"])) if row else 0
         if comment_id is not None:
             self._conn.execute("UPDATE comments SET seq = %s WHERE id = %s", (seq, comment_id))
         return seq
 
-    def _author(self) -> str:
-        """Record the scope's author as it is now, inside a write.
-
-        Returns:
-            Its id.
-        """
-        author = self.scope.author
-        self._conn.execute(
-            "INSERT INTO authors (id, display_name, kind, on_behalf_of) VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO"
-            " UPDATE SET display_name = excluded.display_name, kind = excluded.kind,"
-            " on_behalf_of = excluded.on_behalf_of",
-            (author.id, author.display_name, author.kind, author.on_behalf_of),
-        )
-        return author.id
-
 
 def _next(rows: Sequence[Row], more: bool) -> str | None:  # noqa: FBT001
     return str(rows[-1]["n"]) if more else None
 
 
-def _bounded(what: str, value: str, most: int) -> None:
+def bounded(what: str, value: str, most: int) -> None:
+    """Hold a value to its bound, `what` naming it.
+
+    Raises:
+        Refused: `too_long` past `most` characters.
+    """
     if len(value) > most:
         raise Refused(Code.TOO_LONG, f"the {what} is {len(value)} characters; at most {most}")
 
 
-def _check_body(body: str) -> None:
+def check_body(body: str) -> None:
+    """Hold a comment's body to its bounds.
+
+    Raises:
+        Refused: `invalid` for a blank body, `too_long` for a long one.
+    """
     if not body.strip():
         raise Refused(Code.INVALID, "a comment's body must not be blank")
-    _bounded("body", body, MAX_BODY)
+    bounded("body", body, MAX_BODY)
 
 
-def _check_anchor(anchor: Anchor) -> None:
+def check_anchor(anchor: Anchor) -> None:
+    """Hold an anchor to its bounds.
+
+    Raises:
+        Refused: `invalid` for an anchor with no words, `too_long` for a part over its bound.
+    """
     if not anchor.exact:
         raise Refused(Code.INVALID, "an anchor's exact must hold words")
-    _bounded("anchor's exact", anchor.exact, MAX_EXACT)
-    _bounded("anchor's prefix", anchor.prefix, CONTEXT)
-    _bounded("anchor's suffix", anchor.suffix, CONTEXT)
+    bounded("anchor's exact", anchor.exact, MAX_EXACT)
+    bounded("anchor's prefix", anchor.prefix, CONTEXT)
+    bounded("anchor's suffix", anchor.suffix, CONTEXT)
 
 
 def _origin(pairs: Mapping[str, str]) -> dict[str, str]:
@@ -737,8 +798,8 @@ def _origin(pairs: Mapping[str, str]) -> dict[str, str]:
     for key, value in pairs.items():
         if not key:
             raise Refused(Code.INVALID, "an origin's key must not be empty")
-        _bounded("origin key", key, MAX_ORIGIN_KEY)
-        _bounded(f"origin value of {key!r}", value, MAX_ORIGIN_VALUE)
+        bounded("origin key", key, MAX_ORIGIN_KEY)
+        bounded(f"origin value of {key!r}", value, MAX_ORIGIN_VALUE)
     return dict(pairs)
 
 

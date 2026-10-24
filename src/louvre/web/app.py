@@ -65,6 +65,7 @@ STATUS = {
     Code.ANCHOR_NOT_FOUND: 409,
     Code.READ_ONLY: 403,
     Code.INVALID: 422,
+    Code.CLOSED: 409,
 }
 #: Headers every response carries: no guessing a type, and no referrer leaving with a link out of an artifact.
 _NO_SNIFF = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}

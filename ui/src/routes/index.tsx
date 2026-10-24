@@ -131,6 +131,11 @@ function Entry({ artifact }: { artifact: Listed }) {
                     {from ? <span className="text-ink">{from}</span> : null}
                     <span>{ago(artifact.updated_at)}</span>
                     {artifact.latest_version > 1 ? <span>{count(artifact.latest_version, 'version')}</span> : null}
+                    {artifact.awaiting > 0 ? (
+                        <span className="text-accent">Your answer is wanted</span>
+                    ) : artifact.open_decisions > 0 ? (
+                        <span>{count(artifact.open_decisions, 'open decision')}</span>
+                    ) : null}
                 </span>
                 {artifact.open_threads > 0 ? (
                     <span className="entry-open">{artifact.open_threads} open</span>

@@ -7,6 +7,7 @@ import pytest
 from louvre.core import accounts, demo, style
 from louvre.core.boards import shown
 from louvre.core.db import Connection
+from louvre.core.decisions import Decisions
 from louvre.core.store import Store
 from louvre.core.style.check import check
 
@@ -105,3 +106,19 @@ def test_its_house_style_pages_use_only_the_styles_classes_and_pass_its_check(
     assert style.CSS.rstrip() in content
     assert classes - {"louvre"} <= set(re.findall(r"\.(l-[a-z0-9-]+)", style.CSS))
     assert check(content) == []
+
+
+def test_its_decisions_are_asked_once_and_a_database_without_them_gets_them_alone(conn: Connection) -> None:
+    demo.seed(conn)
+    conn.execute("DELETE FROM decisions")
+
+    assert demo.seed(conn) is True
+    assert demo.seed(conn) is False
+
+    found = Decisions(reader(conn)).listed()["decisions"]
+    assert isinstance(found, list)
+    assert [(d["question"], d["state"], [o["count"] for o in d["options"]]) for d in found] == [
+        ("Ship these notes with Thursday's release?", "closed", [2, 0]),
+        ("Which fix ships first?", "open", [2, 0, 0]),
+    ]
+    assert [(p["login"], p["answered"]) for p in found[1]["asked"]] == [("ana", False), ("raj", True)]

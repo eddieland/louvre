@@ -33,7 +33,9 @@ NAME = "louvre"
 #: What a client is told the server is for, when it connects: many put it in their model's instructions.
 INSTRUCTIONS = (
     "Louvre hosts artifacts, pages people read and comment on: publish one with artifact_publish, read its threads "
-    "with thread_list, and answer with comment_reply. Your token reaches one namespace. For an HTML page that looks "
+    "with thread_list, and answer with comment_reply. When people must choose (a direction, whether to ship), ask "
+    "them with decision_create, which they answer on the artifact's page by choosing, and read what they chose with "
+    "decision_read or decision_feed. Your token reaches one namespace. For an HTML page that looks "
     "like Louvre's own, call style_get with the kind of page, a report, a decision, or a plan: its stylesheet, its "
     "guide, and a starter page for each kind are resources too, and the style prompt writes a page in it. Before "
     "publishing an HTML page, check it with style_check."
