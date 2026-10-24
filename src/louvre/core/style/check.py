@@ -334,7 +334,7 @@ def _colors(page: _Page, styles: Sequence[str]) -> Iterator[Finding]:
         return
     message = (
         "A fixed color in a page in the house style shows in one theme only: use the style's custom properties, "
-        "such as var(--l-ink), var(--l-muted), or var(--l-c2)."
+        "such as var(--l-ink), var(--l-muted), or var(--l-accent)."
     )
     for css in [*styles, *(tag.attrs["style"] for tag in page.tags if "style" in tag.attrs)]:
         for found in _FIXED_COLOR.finditer(css):

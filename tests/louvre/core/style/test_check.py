@@ -22,7 +22,7 @@ PAGE = f"""<!doctype html>
 <h1>Checkout is back under 450 ms</h1>
 <p class="l-lede">The tax quote is cached per cart, so checkout makes one call to the tax service.</p>
 <svg class="l-chart" viewBox="0 0 440 200" role="img" aria-label="p95 fell from 1,180 ms to 430 ms">
-<polyline fill="none" stroke="var(--l-c1)" points="60,13 420,113"/>
+<polyline fill="none" stroke="var(--l-accent)" points="60,13 420,113"/>
 </svg>
 {{}}
 </main>

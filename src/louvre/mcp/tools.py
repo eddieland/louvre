@@ -12,13 +12,13 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
 from louvre.core import style
 from louvre.core.decisions import MAX_ASKED, MAX_DETAIL, MAX_LABEL, MAX_OPTIONS, MAX_QUESTION, MIN_OPTIONS, Decisions
 from louvre.core.decisions import Option as DecisionOption
-from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Store
-from louvre.core.style import check
+from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Code, Refused, Store
+from louvre.core.style import chart, check
 from louvre.core.text import CONTEXT, Anchor, ContentType
 
 #: Origin pairs, by key, set when an artifact is made. Plain aliases, not `type` statements: pydantic leaves out the
@@ -156,6 +156,69 @@ class StyleCheck(_Request):
         StrictStr,
         Field(max_length=MAX_CONTENT, description="The page, whole, as it would be published."),
     ]
+
+
+class SeriesRequest(_Request):
+    """One series of a chart's values."""
+
+    name: Annotated[StrictStr, Field(description="What it is, as its label on the chart says, such as this week.")]
+    values: Annotated[list[FiniteFloat], Field(description="One value to each label, in the labels' order.")]
+
+
+class TargetRequest(_Request):
+    """A value to compare with, drawn as a dotted line."""
+
+    name: Annotated[StrictStr, Field(description="What it is, as its label on the chart says, such as target.")]
+    value: FiniteFloat
+
+
+class NoteRequest(_Request):
+    """A moment that matters, numbered on the chart and said under it."""
+
+    label: Annotated[StrictStr, Field(description="The label of the point or row it is on.")]
+    text: Annotated[StrictStr, Field(description="What happened there, in a sentence a reader can quote.")]
+
+
+class StyleChart(_Request):
+    """Draw a chart in the house style."""
+
+    kind: Annotated[
+        chart.Kind,
+        Field(
+            description="line, for values in order, such as by day; bar, for one value to each label; dot, for each "
+            "label's values side by side, such as before and after.",
+        ),
+    ]
+    finding: Annotated[
+        StrictStr,
+        Field(description="What the chart shows, in a sentence: its title, such as Checkout fell under its target."),
+    ]
+    measure: Annotated[
+        StrictStr,
+        Field(description="What is measured, and when, under the title, such as p95 checkout, by day of week 43."),
+    ]
+    labels: Annotated[
+        list[StrictStr],
+        Field(description=f"Each point's or row's label, in order: short, at most {chart.MOST_LABELS}."),
+    ]
+    series: Annotated[
+        list[SeriesRequest],
+        Field(
+            description=f"The first is the one the chart is about, in the accent; at most {chart.MOST_SERIES}, one "
+            "for a bar chart.",
+        ),
+    ]
+    unit: Annotated[StrictStr, Field(description="The values' unit, such as ms or %.")] = ""
+    target: Annotated[TargetRequest | None, Field(description="A value to compare with, on a line chart.")] = None
+    focus: Annotated[
+        StrictStr | None,
+        Field(description="On a bar chart, the label whose bar is in the accent, such as the option recommended."),
+    ] = None
+    notes: Annotated[
+        list[NoteRequest],
+        Field(description=f"Moments that matter, at most {chart.MOST_NOTES}, numbered on the chart and said under it."),
+    ] = []
+    source: Annotated[StrictStr, Field(description="Where the numbers come from.")] = ""
 
 
 class Resolve(_Request):
@@ -308,6 +371,16 @@ TOOLS = (
         lambda _store, r: _checked(r.content),
     ),
     tool(
+        "style_chart",
+        "Draw a line, bar, or dot chart in the house style, from its data: a <figure> to paste into a page in the "
+        "style. Its title says the finding, over what is measured; the series it is about is in the accent and the "
+        "rest in muted ink, each labeled where it is; moments that matter are numbered on it and said in notes under "
+        "it, which readers can quote in comments; and its source closes it. It works dark and light, on a phone and a "
+        "laptop.",
+        StyleChart,
+        lambda _store, r: _charted(r),
+    ),
+    tool(
         "decision_create",
         "Ask people to decide something about an artifact by choosing among options, rather than in a comment: which "
         "direction to take, whether to ship. An option may point at a passage. Name the people whose answers you want "
@@ -366,3 +439,22 @@ def _checked(page: str) -> dict[str, object]:
         "ok": not any(f.severity == check.Severity.ERROR for f in findings),
         "findings": [f.json() for f in findings],
     }
+
+
+def _charted(request: StyleChart) -> dict[str, object]:
+    drawn = chart.Chart(
+        kind=request.kind,
+        finding=request.finding,
+        measure=request.measure,
+        labels=request.labels,
+        series=[chart.Series(s.name, s.values) for s in request.series],
+        unit=request.unit,
+        target=None if request.target is None else chart.Target(request.target.name, request.target.value),
+        focus=request.focus,
+        notes=[chart.Note(n.label, n.text) for n in request.notes],
+        source=request.source,
+    )
+    try:
+        return {"figure": chart.figure(drawn)}
+    except ValueError as e:
+        raise Refused(Code.INVALID, str(e)) from None

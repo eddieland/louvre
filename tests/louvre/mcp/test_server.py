@@ -42,6 +42,7 @@ TOOLS = [
     "thread_resolve",
     "style_get",
     "style_check",
+    "style_chart",
     "decision_create",
     "decision_list",
     "decision_read",
@@ -277,6 +278,24 @@ def test_style_check_finds_what_a_page_should_change(client: Client) -> None:
     assert page["ok"] is True
     assert {f["severity"] for f in page["findings"]} == {"warning"}
     assert client.refused("style_check") == "invalid"
+
+
+def test_style_chart_draws_a_figure_from_data(client: Client) -> None:
+    drawn = client.call(
+        "style_chart",
+        kind="bar",
+        finding="Redis makes the fewest tax calls",
+        measure="Tax calls a week",
+        labels=["Process", "Redis"],
+        series=[{"name": "calls", "values": [1_200_000, 190_000]}],
+        focus="Redis",
+        notes=[{"label": "Redis", "text": "Recommended."}],
+    )
+
+    assert drawn["figure"].startswith('<figure class="l-plot">\n<figcaption><span class="l-say">Redis makes the fewest')
+    assert "<li>Recommended.</li>" in drawn["figure"]
+    assert client.refused("style_chart", kind="line", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
+    assert client.refused("style_chart", kind="pie", finding="f", measure="m", labels=["a"], series=[]) == "invalid"
 
 
 def test_the_style_is_resources_each_naming_its_version(client: Client) -> None:

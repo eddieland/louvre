@@ -35,10 +35,6 @@
     --l-accent: #d9776c;
     --l-good: #6fbf8e;
     --l-bad: #e0915a;
-    --l-c1: var(--l-accent);
-    --l-c2: #7fa7d9;
-    --l-c3: #d2b15c;
-    --l-c4: #6fb7ae;
     --l-serif: "Source Serif 4", "Iowan Old Style", Georgia, "Times New Roman", serif;
     --l-display: Fraunces, "Iowan Old Style", Georgia, serif;
     --l-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -54,9 +50,6 @@
         --l-accent: #8a2f2a;
         --l-good: #2f7a4d;
         --l-bad: #a5521b;
-        --l-c2: #2f5f94;
-        --l-c3: #86610f;
-        --l-c4: #2a6f68;
     }
 }
 * { box-sizing: border-box; }
@@ -257,32 +250,54 @@ body.louvre {
 .louvre .l-scroll { overflow-x: auto; margin: 1em 0; }
 .louvre .l-scroll table { margin: 0; }
 
-/* A chart: an inline SVG whose text is Louvre's sans, in the muted ink unless it says otherwise. */
-.louvre .l-chart { display: block; width: 100%; fill: var(--l-muted); font: 500 14px var(--l-sans); }
-.louvre .l-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3em 1.2em;
-    margin: 0.6em 0 0;
+/* A chart, as style_chart draws it: its finding over what it measures, the chart, its notes, and its source. */
+/* It sits between hairlines rather than in a box, and one accent marks what it is about. */
+.louvre figure.l-plot {
+    margin: 2.2em 0;
+    padding: 0.9em 0 0;
+    border: 0;
+    border-top: 1px solid var(--l-rule);
+    border-radius: 0;
+    background: none;
+}
+.louvre .l-plot figcaption { margin: 0 0 0.7em; font: inherit; }
+.louvre .l-say { display: block; font: 600 1.02em/1.3 var(--l-display); }
+.louvre .l-measure { display: block; margin-top: 0.2em; color: var(--l-muted); font: 0.72em/1.4 var(--l-sans); }
+/* The SVG's text: Louvre's sans in the muted ink, unless a mark says otherwise. */
+/* It is set larger on a phone, where the chart is drawn smaller. */
+.louvre .l-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    fill: var(--l-muted);
+    font: 12px var(--l-sans);
+    font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+    .louvre .l-chart { font-size: 14.5px; }
+}
+.louvre .l-chart .l-name { font-family: var(--l-serif); font-size: 1.17em; }
+.louvre .l-chart .l-label { font-family: var(--l-serif); font-size: 1.17em; font-style: italic; }
+.louvre .l-chart .l-value { font-weight: 600; }
+.louvre .l-chart .l-mark { fill: var(--l-accent); font-size: 0.92em; font-weight: 600; }
+.louvre .l-notes {
+    margin: 0.7em 0 0;
     padding: 0;
-    color: var(--l-muted);
-    font: 0.75em/1.4 var(--l-sans);
+    font-size: 0.82em;
+    line-height: 1.45;
     list-style: none;
+    counter-reset: l-note;
 }
-.louvre .l-legend li::before {
-    display: inline-block;
-    width: 0.8em;
-    height: 0.8em;
-    margin-right: 0.4em;
-    border-radius: 2px;
-    background: var(--l-muted);
-    content: "";
-    vertical-align: -0.05em;
+.louvre .l-notes li { position: relative; margin: 0.25em 0; padding-left: 1.3em; counter-increment: l-note; }
+.louvre .l-notes li::before {
+    position: absolute;
+    left: 0;
+    color: var(--l-accent);
+    content: counter(l-note);
+    font: 600 0.8em/1.9 var(--l-sans);
 }
-.louvre .l-legend .l-c1::before { background: var(--l-c1); }
-.louvre .l-legend .l-c2::before { background: var(--l-c2); }
-.louvre .l-legend .l-c3::before { background: var(--l-c3); }
-.louvre .l-legend .l-c4::before { background: var(--l-c4); }
+.louvre .l-source { margin: 0.5em 0 0; color: var(--l-muted); font: 0.7em/1.4 var(--l-sans); }
 
 /* The page's end: its sources, and how it was made. */
 .louvre footer {
