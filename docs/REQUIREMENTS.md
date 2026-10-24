@@ -40,7 +40,9 @@ errors, and its screenshots are checked in as the record of how it looks there (
 
 ### U5. Boards: several artifacts on one canvas to pan and zoom
 
-Planned (M3). The operator's example (2026-10-23): a design study, three directions each at a phone's and a laptop's
+Built over mock data (M3), awaiting the operator's word: the board is written down in code, the demo's design study,
+and finds its frames' artifacts in the store by their origin; an agent composing one is not built. The operator's
+example (2026-10-23): a design study, three directions each at a phone's and a laptop's
 size, is the kind of thing Louvre should serve. An agent composes a board from artifacts it published, each a frame at
 a size and place on one canvas, and the reader pans and zooms across it, by touch and by pointer, opens a frame to read
 it whole, and comments on a frame's passages as on any artifact's. A board's frames run sandboxed, each on its own

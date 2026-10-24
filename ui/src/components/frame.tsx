@@ -10,7 +10,7 @@ const FIRST_HEIGHT = 480
 /** The most the frame grows to, in pixels: a page taller than this scrolls inside it. */
 const MOST_HEIGHT = 60_000
 /** The sandbox: scripts, and links that open a tab of their own; never the same origin as Louvre (REQUIREMENTS L7). */
-const SANDBOX = 'allow-scripts allow-popups allow-popups-to-escape-sandbox'
+export const SANDBOX = 'allow-scripts allow-popups allow-popups-to-escape-sandbox'
 
 /** The frame an artifact's version is shown in, and what passes between it and the page. */
 export interface FrameProps {

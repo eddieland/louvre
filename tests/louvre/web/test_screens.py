@@ -52,7 +52,7 @@ class Scene:
     name: str
     #: What the gallery calls it.
     label: str
-    #: The page's path; `{checkout}`, `{notes}`, and `{weekly}` stand for the demo's artifacts' ids.
+    #: The page's path; `{checkout}`, `{notes}`, `{weekly}`, and `{gallery}` stand for the demo's artifacts' ids.
     path: str
     #: What to do on the page before it is checked, such as opening a thread.
     act: Callable[[Page], None] | None = None
@@ -69,6 +69,14 @@ def _artifact_shown(page: Page) -> None:
     """Wait until the bridge has marked the artifact's passages and the margin has placed their threads."""
     page.frame_locator("iframe.exhibit").locator("[data-louvre] span").first.wait_for()
     page.wait_for_function("document.querySelector('iframe.exhibit').offsetHeight > 480")
+
+
+def _board_shown(page: Page) -> None:
+    """Wait until the board is fitted to the screen and every frame's page has loaded."""
+    page.wait_for_selector(".world[data-ready]", state="attached")
+    page.wait_for_function("document.querySelectorAll('.board-frame iframe').length === 6")
+    for frame in page.frames[1:]:
+        frame.wait_for_load_state("load")
 
 
 def _report_open(page: Page) -> None:
@@ -99,6 +107,13 @@ SCENES = (
     Scene("artifact-older", "An artifact's older version", "/a/{checkout}?v=1", _artifact_shown),
     Scene("markdown", "A Markdown artifact, in the house style", "/a/{notes}", _artifact_shown),
     Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
+    Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
+    Scene(
+        "board-frame",
+        "A board's frame, opened at its size",
+        "/a/{gallery}?board=design-study&frame=gallery-phone",
+        _artifact_shown,
+    ),
     Scene("tokens", "Tokens", "/tokens"),
     Scene("directions", "Design directions", "/directions"),
     Scene("gallery", "Direction: Gallery, a thread open", "/directions/2026-10-23-directions/gallery", _open_thread),
@@ -108,7 +123,12 @@ SCENES = (
     Scene("open", "Blend: Open, a thread open", "/directions/2026-10-23-blends/open", _open_thread),
 )
 #: The demo's artifacts, by the name a scene's path gives each, and how its title starts.
-DEMO = {"checkout": "Checkout latency", "notes": "Release notes", "weekly": "Payments, week"}
+DEMO = {
+    "checkout": "Checkout latency",
+    "notes": "Release notes",
+    "weekly": "Payments, week",
+    "gallery": "Direction: Gallery",
+}
 
 browser_only = pytest.mark.skipif(MODE not in {"1", "update"}, reason="drives a browser: run `make screens`")
 

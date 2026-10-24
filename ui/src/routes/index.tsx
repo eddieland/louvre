@@ -4,8 +4,8 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
-import { ApiError, listArtifacts, sessionQuery } from '@/lib/api'
-import type { Listed } from '@/lib/api'
+import { ApiError, boardsQuery, listArtifacts, sessionQuery } from '@/lib/api'
+import type { Listed, ListedBoard } from '@/lib/api'
 import { ago, count, provenance } from '@/lib/format'
 
 /** The catalogue: every artifact the reader reaches, newest first (ui/DESIGN.md, "Catalogue"). */
@@ -27,6 +27,7 @@ function Catalogue() {
         enabled: reachable,
     })
     const artifacts = list.data?.pages.flatMap((page) => page.artifacts) ?? []
+    const boards = useQuery({ ...boardsQuery, enabled: reachable }).data?.boards ?? []
     return (
         <>
             <Header />
@@ -91,6 +92,18 @@ function Catalogue() {
                         to comment.
                     </p>
                 ) : null}
+                {boards.length > 0 ? (
+                    <section className="mb-12" aria-labelledby="boards-title">
+                        <h2 id="boards-title" className="title">
+                            Boards
+                        </h2>
+                        <ol className="mt-6 border-t border-rule">
+                            {boards.map((board) => (
+                                <BoardEntry key={board.id} board={board} />
+                            ))}
+                        </ol>
+                    </section>
+                ) : null}
                 <h1 id="catalogue-title" className="title">
                     Artifacts
                 </h1>
@@ -128,6 +141,25 @@ function Entry({ artifact }: { artifact: Listed }) {
                 </span>
                 {artifact.open_threads > 0 ? (
                     <span className="entry-open">{artifact.open_threads} open</span>
+                ) : (
+                    <span className="entry-open text-muted">&mdash;</span>
+                )}
+            </Link>
+        </li>
+    )
+}
+
+function BoardEntry({ board }: { board: ListedBoard }) {
+    return (
+        <li className="entry">
+            <Link to="/b/$boardId" params={{ boardId: board.id }} className="entry-link">
+                <span className="entry-title">{board.title}</span>
+                <span className="entry-meta">
+                    <span>{board.namespace}</span>
+                    <span className="text-ink">{count(board.frames, 'frame')}</span>
+                </span>
+                {board.open_threads > 0 ? (
+                    <span className="entry-open">{board.open_threads} open</span>
                 ) : (
                     <span className="entry-open text-muted">&mdash;</span>
                 )}

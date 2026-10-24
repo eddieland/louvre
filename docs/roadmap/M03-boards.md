@@ -11,4 +11,9 @@ REQUIREMENTS U5, U4, L7. Several artifacts on one canvas, as a design study puts
 Accept: on a phone and a laptop, the operator pans and zooms across the design-study board, opens a frame, and
 comments on it; the screen matrix holds the board at every size.
 
-Status: not started.
+Status: in progress: built, over mock data as planned for the board and over the store for its frames' artifacts,
+at the operator's word to build it before M2 is accepted (2026-10-24); waiting on the operator's pass on a phone and a
+laptop. The board is `louvre.core.demo.BOARD`, served at `/b/design-study`; Playwright holds panning, zooming, and
+opening a frame to comment, by pointer and by touch (`tests/louvre/web/test_flows.py`), and the screen matrix holds the
+board and a frame opened from it. Not built: an agent composing a board, which grows canopy's contract (REQUIREMENTS,
+Open).

@@ -158,6 +158,50 @@ Light:
 | --- | --- |
 | ![An HTML artifact in the house style, Phone, 390, light](house-style/phone-light.png) | ![An HTML artifact in the house style, Laptop, 1440, light](house-style/laptop-light.png) |
 
+## A board, fitted to the screen
+
+`/b/design-study`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![A board, fitted to the screen, Small phone, 360, dark](board/phone-small-dark.png) | ![A board, fitted to the screen, Phone, 390, dark](board/phone-dark.png) | ![A board, fitted to the screen, Tablet, 820, dark](board/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![A board, fitted to the screen, Tablet landscape, 1180, dark](board/tablet-landscape-dark.png) | ![A board, fitted to the screen, Laptop, 1440, dark](board/laptop-dark.png) | ![A board, fitted to the screen, Wide, 1920, dark](board/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![A board, fitted to the screen, Phone, 390, light](board/phone-light.png) | ![A board, fitted to the screen, Laptop, 1440, light](board/laptop-light.png) |
+
+## A board's frame, opened at its size
+
+`/a/{gallery}?board=design-study&frame=gallery-phone`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![A board's frame, opened at its size, Small phone, 360, dark](board-frame/phone-small-dark.png) | ![A board's frame, opened at its size, Phone, 390, dark](board-frame/phone-dark.png) | ![A board's frame, opened at its size, Tablet, 820, dark](board-frame/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![A board's frame, opened at its size, Tablet landscape, 1180, dark](board-frame/tablet-landscape-dark.png) | ![A board's frame, opened at its size, Laptop, 1440, dark](board-frame/laptop-dark.png) | ![A board's frame, opened at its size, Wide, 1920, dark](board-frame/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![A board's frame, opened at its size, Phone, 390, light](board-frame/phone-light.png) | ![A board's frame, opened at its size, Laptop, 1440, light](board-frame/laptop-light.png) |
+
 ## Tokens
 
 `/tokens`

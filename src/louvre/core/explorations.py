@@ -1,4 +1,4 @@
-"""The UI explorations under `docs/ui-explorations/`, which the preview deployment serves to compare on a phone.
+"""The UI explorations under `docs/ui-explorations/`: the web app serves them to compare, and the demo publishes some.
 
 In a source checkout they sit at the repository root. In an installed wheel they are bundled inside the package
 (`louvre/_data/explorations`, see `[tool.hatch.build.targets.wheel.force-include]` in pyproject.toml), which is how
@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-# This file is louvre/web/explorations.py; bundled files sit beside the top-level package.
+# This file is louvre/core/explorations.py; bundled files sit beside the top-level package.
 _PACKAGE = Path(__file__).resolve().parent.parent
 _CANDIDATES = (_PACKAGE / "_data" / "explorations", _PACKAGE.parent.parent / "docs" / "ui-explorations")
 _TITLE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
