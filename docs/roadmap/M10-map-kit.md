@@ -22,5 +22,7 @@ it, with no request leaving Louvre; the screen matrix holds the demo's map at ev
 
 Status: built, for the operator to accept. The basemap is Natural Earth's 1:50m as GeoJSON (land, lakes, borders,
 and cities, built by `scripts/basemap.py`), not Protomaps' PMTiles: Protomaps' builds were out of the build machine's
-reach, and Natural Earth is public domain, so the credit is a courtesy the check still asks for. A street's detail is
-for a later kit (REQUIREMENTS, Open). A phone keeps one map drawn at a time, the one in view.
+reach, and Natural Earth is public domain, so the credit is a courtesy the check still asks for. Past a city's scale
+the basemap fades to plain ground, and a page passes its own streets or kerbs as `context`, so annotated poles or a
+vehicle's trace read at a street's scale; a street basemap is for a later kit (REQUIREMENTS, Open). A phone keeps one
+map drawn at a time, the one in view.

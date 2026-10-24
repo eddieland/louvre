@@ -156,23 +156,28 @@ LouvreMap.draw("map", { data: { type: "FeatureCollection", features: [...] } });
 </script>
 ```
 
-- **`data`** is GeoJSON, with longitude before latitude: points for sites, lines for routes, polygons for regions. It
-  may instead be a file published beside the page, by its path: `data: "places.json"`.
+- **`data`** is GeoJSON, with longitude before latitude: points for sites or poles, lines for routes or a vehicle's
+  trace, polygons for regions or blocks, each with its parts if it has several. It may instead be a file published
+  beside the page, by its path: `data: "places.json"`.
+- **`context`**, GeoJSON or a file too, is what places the data at a street's scale: the streets, kerbs, or lanes
+  around it, drawn quietly under it. The basemap is Natural Earth's, at a city's scale at most: zoomed in past it, it
+  fades to plain ground, and a map of a street with no `context` is shapes on a blank page.
 - **`focus`**: give the place the map is about `"focus": true` in its properties, and it is in the accent; the rest
   are muted ink. With no `focus` anywhere, every place is in the accent.
-- **`name`** labels each place on the map; `label` names another property to label with instead.
+- **`name`** labels each feature on the map once: a point beside it, a line at its middle, an area at its centre;
+  `label` names another property to label with instead. A label with no room is left off; the page's table has it.
 - **`mark`**: a number, as `"mark": 1`, numbers a place as a chart's note is numbered; say each in the figure's
   `l-notes`, under the map.
 - **The key**, `<p class="l-key">` under the map, says what the accent marks, in a `<span class="l-focus">`, and what
   the muted rest are, in a `<span>`, each beside the mark the map draws for it.
 - **The basemap's credit**, "Basemap: Natural Earth.", goes in the figure's `l-source`; the map shows it too.
-- The map fits its places, zoomed in as far as `maxZoom` (6 unless said, about a country), with a scale bar. A reader
-  may pan and zoom it, with two fingers on a phone, or the buttons.
+- The map fits its data, from the whole earth down to a few streets (`maxZoom`, 17 unless said), with a scale bar. A
+  reader may pan and zoom it, with two fingers on a phone, or the buttons.
 - One map to a page, with every place on it. Each map holds a WebGL context, of which a phone keeps few: the kit
   draws a map while it is in view, and on a phone keeps one drawn at a time.
 - A map is a picture: say what it shows in the lede, the figure's finding, its `aria-label`, and a table of its
   places, so a reader who cannot see it, or quote it, still has it.
-- The basemap is Natural Earth's, at about a city's scale: a map of a street, a building, or a floor is not for it.
+- A map of a building's floor is not for the kit: draw it as a diagram.
 
 ## Tables
 

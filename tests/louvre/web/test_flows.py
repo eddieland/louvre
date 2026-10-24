@@ -213,6 +213,34 @@ def test_a_map_is_drawn_in_its_sandbox_from_the_kit_louvre_serves(context: Brows
     assert not refused
 
 
+def test_a_vehicles_trace_is_drawn_at_a_streets_scale_on_its_streets_and_named_once(context: BrowserContext) -> None:
+    def street(*cells: tuple[int, int]) -> list[list[float]]:
+        return [[-9.145 + 0.0016 * i, 38.71 + 0.0012 * j] for i, j in cells]
+
+    streets = [street((i, 0), (i, 4)) for i in range(5)] + [street((0, j), (4, j)) for j in range(5)]
+    trace = {"type": "MultiLineString", "coordinates": [street((0, 1), (2, 1), (2, 3)), street((3, 0), (3, 2))]}
+    data = {"type": "Feature", "properties": {"name": "Van 7", "mark": 1}, "geometry": trace}
+    context_ = {"type": "MultiLineString", "coordinates": streets}
+    starter = style.STARTERS[style.Kind.MAP]
+    start = starter.index('LouvreMap.draw("map", {')
+    drawn = f'LouvreMap.draw("map", {{ data: {json.dumps(data)}, context: {json.dumps(context_)} }});\n'
+    page = context.new_page()
+    page.goto(f"/a/{publish(context, starter[:start] + drawn + starter[starter.index('</script>', start) :])}")
+    frame = page.frame_locator("iframe.exhibit")
+
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    shown = frame.locator("#map").evaluate(
+        """(element) => {
+            const map = element.louvreMap;
+            const named = map.queryRenderedFeatures({ layers: ["labels"] }).map((f) => f.properties["louvre:label"]);
+            return { zoom: map.getZoom(), named };
+        }""",
+    )
+    # A few streets fill the map, and the trace in two parts is named once.
+    assert shown["zoom"] > 14
+    assert shown["named"] == ["Van 7"]
+
+
 def test_on_a_phone_a_page_keeps_one_map_drawn_the_one_in_view(browser: Browser, live_app: str) -> None:
     phone = browser.new_context(
         viewport={"width": 390, "height": 844},
