@@ -512,7 +512,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         """Open a thread on a passage of an artifact's latest version, or with no anchor on the whole artifact.
 
         With `pick`, the thread is on a place on a GeoJSON version's map instead (louvre.core.geodata), and its anchor
-        is the place's words: the feature's label, or the point's coordinates.
+        is the place's words: the feature's label, or the point's or the box's coordinates.
 
         Returns:
             The thread's id, its first comment's, and that comment's `seq`.
@@ -999,8 +999,8 @@ def _place(version: Row, pick: geodata.Pick) -> geodata.Place:
         The place.
 
     Raises:
-        Refused: `invalid` for a version that is no map or a point off the earth; `anchor_not_found` for a feature
-            the version does not have.
+        Refused: `invalid` for a version that is no map, or a point or a box off the earth; `anchor_not_found` for a
+            feature the version does not have.
     """
     if version["content_type"] != geodata.GEOJSON:
         raise Refused(Code.INVALID, "a place is on a map: only a GeoJSON version has one")

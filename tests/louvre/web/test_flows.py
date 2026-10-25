@@ -13,7 +13,7 @@ from collections.abc import Iterator, Sequence
 from typing import Any
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, CDPSession, ConsoleMessage, Page, expect
+from playwright.sync_api import Browser, BrowserContext, CDPSession, ConsoleMessage, FrameLocator, Page, expect
 
 from louvre.core import style
 from tests.conftest import WRITES
@@ -679,6 +679,20 @@ def test_the_design_study_is_a_board_to_read_without_a_database_or_signing_in(br
         context.close()
 
 
+def draw_box(page: Page, frame: FrameLocator, west: tuple[float, float], east: tuple[float, float]) -> None:
+    """Draw a box on a map with the mouse, from 30 pixels south-west of `west` to 30 pixels north-east of `east`."""
+    on_page = frame.locator("#map").bounding_box()
+    assert on_page is not None
+    a = frame.locator("#map").evaluate(f"(e) => Object.values(e.louvreMap.project([{west[0]}, {west[1]}]))")
+    b = frame.locator("#map").evaluate(f"(e) => Object.values(e.louvreMap.project([{east[0]}, {east[1]}]))")
+    frame.locator("button.louvre-box").click()
+    page.mouse.move(on_page["x"] + a[0] - 30, on_page["y"] + a[1] + 30)
+    page.mouse.down()
+    page.mouse.move(on_page["x"] + b[0] + 30, on_page["y"] + b[1] - 30, steps=5)
+    page.mouse.up()
+    expect(frame.locator("button.louvre-box")).to_have_attribute("aria-pressed", "false")
+
+
 def fingers(session: CDPSession, steps: Sequence[Sequence[tuple[int, int]]]) -> None:
     """Touch the screen: the fingers go down where the first step has them, move through the rest, and lift."""
     for i, step in enumerate(steps):
@@ -812,7 +826,7 @@ def test_a_reader_taps_a_feature_of_geojson_reads_it_and_comments_and_a_new_vers
     assert kept["comments"][0]["body"] == "Which crew?"
 
 
-def test_a_reader_comments_on_a_feature_and_a_point_and_the_feature_goes_with_a_new_version(
+def test_a_reader_comments_on_a_feature_a_point_and_a_box_and_the_feature_goes_with_a_new_version(
     context: BrowserContext,
 ) -> None:
     secret = context.request.post(
@@ -851,21 +865,99 @@ def test_a_reader_comments_on_a_feature_and_a_point_and_the_feature_goes_with_a_
     comment_at(-9.139, 38.71, "Lamp out?")
     comment_at(-9.1395, 38.7101, "A pole is missing here.")
 
-    # Both are marked on the map, numbered as the margin numbers them, once the map has drawn them.
+    # A box around both poles, drawn with the box button by a drag from one corner to the other.
+    draw_box(page, frame, (-9.14, 38.71), (-9.139, 38.71))
+    page.click("button.add")
+    page.fill(".thread[data-id=draft] textarea", "Is this block lit?")
+    page.keyboard.press("Control+Enter")
+    expect(page.locator(".thread.is-active .comments")).to_contain_text("Is this block lit?")
+
+    # All three are marked on the map, numbered as the margin numbers them, once the map has drawn them; the box's
+    # edges too.
     numbered = "(e) => e.louvreMap.queryRenderedFeatures({ layers: ['thread-numbers'] }).map((f) => f.properties.n)"
+    edged = "(e) => e.louvreMap.queryRenderedFeatures({ layers: ['thread-boxes'] }).length"
     deadline = time.monotonic() + DEADLINE
-    while sorted(frame.locator("#map").evaluate(numbered)) != ["1", "2"]:
+    while sorted(frame.locator("#map").evaluate(numbered)) != ["1", "2", "3"] or not frame.locator("#map").evaluate(
+        edged,
+    ):
         assert time.monotonic() < deadline, frame.locator("#map").evaluate(numbered)
         page.wait_for_timeout(50)
 
     def threads() -> list[Any]:
         return json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"]
 
-    on_feature, on_point = threads()
+    on_feature, on_point, on_box = threads()
     assert on_feature["anchor"]["exact"] == "P-102"
     assert on_feature["place"]["id"] == "pole-102"
     assert on_point["anchor"]["exact"].startswith("38.710")
     assert on_point["place"]["kind"] == "point"
+    assert on_box["place"]["kind"] == "box"
+    box_west, box_south, box_east, box_north = on_box["place"]["geometry"]["bbox"]
+    assert box_west < -9.14 < -9.139 < box_east
+    assert box_south < 38.71 < box_north
+    assert " to " in on_box["anchor"]["exact"]
 
     call(context, secret, "map_publish", title="Poles", data=poles(101), artifact_id=artifact)
-    assert [t["anchor_status"] for t in threads()] == ["passage_gone", "found"]
+    assert [t["anchor_status"] for t in threads()] == ["passage_gone", "found", "found"]
+
+
+def test_on_a_phone_a_reader_draws_a_box_with_one_finger_and_comments_on_it(browser: Browser, live_app: str) -> None:
+    """With the box button pressed, a finger's drag draws the box: it neither moves the map nor scrolls the page."""
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        base_url=live_app,
+    )
+    try:
+        signed = context.request.post("/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES)
+        assert signed.status == 204
+        secret = context.request.post(
+            "/api/tokens",
+            data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
+            headers=WRITES,
+        ).json()["secret"]
+        poles = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {"name": n}, "geometry": {"type": "Point", "coordinates": at}}
+                for n, at in (("P-101", [-9.14, 38.71]), ("P-102", [-9.139, 38.711]))
+            ],
+        }
+        artifact = json.loads(call(context, secret, "map_publish", title="Poles", data=poles))["artifact_id"]
+        page = context.new_page()
+        page.goto(f"/a/{artifact}")
+        frame = page.frame_locator("iframe.exhibit")
+        expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+        frame.locator("#map").scroll_into_view_if_needed()
+        on_page = frame.locator("#map").bounding_box()
+        assert on_page is not None
+        center = "(e) => Object.values(e.louvreMap.getCenter())"
+        before = frame.locator("#map").evaluate(center)
+
+        def scrolled() -> list[object]:
+            return [page.evaluate("scrollY"), frame.locator("body").evaluate("() => scrollY")]
+
+        scrolls = scrolled()
+
+        frame.locator("button.louvre-box").tap()
+        left, top = int(on_page["x"] + on_page["width"] * 0.3), int(on_page["y"] + on_page["height"] * 0.35)
+        touch = context.new_cdp_session(page)
+        fingers(touch, [[(left + n * 15, top + n * 12)] for n in range(8)])
+
+        expect(frame.locator("button.louvre-box")).to_have_attribute("aria-pressed", "false")
+        assert frame.locator("#map").evaluate(center) == before, "the drag moved the map"
+        assert scrolled() == scrolls, "the drag scrolled the page"
+        # Clicked, not tapped: a headless shell takes a tap so soon after the drag for a double tap's start, and
+        # sends no click.
+        page.locator("button.add").click()
+        page.fill(".thread[data-id=draft] textarea", "Is this block lit?")
+        page.keyboard.press("Control+Enter")
+        expect(page.locator(".thread.is-active .comments")).to_contain_text("Is this block lit?")
+
+        [thread] = json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"]
+        assert thread["place"]["kind"] == "box"
+        assert thread["anchor_status"] == "found"
+    finally:
+        context.close()

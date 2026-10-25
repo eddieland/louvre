@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
+import { mapPlaceOf } from '@/bridge/protocol'
 import type { FromBridge, MapPlace, Mark, Place, Selected } from '@/bridge/protocol'
 import type { Anchor } from '@/bridge/text'
 import { ChangeNote } from '@/components/change-note'
@@ -42,17 +43,15 @@ function isGone(thread: Thread): boolean {
     return thread.anchor_status === 'passage_gone'
 }
 
-/** A thread's place on a map, as the map kit names it: a feature by its id, or a point by its coordinates. */
+/** A thread's place on a map, as the map kit names it: a feature by its id, a point or a box by its coordinates. */
 function mapPlace(thread: Thread): MapPlace | null {
     const kept = thread.place
-    if (kept?.kind === 'feature' && kept.id) {
-        return { kind: 'feature', id: kept.id, coordinates: null }
+    if (!kept) {
+        return null
     }
-    const at = kept?.kind === 'point' ? kept.geometry?.coordinates : null
-    if (Array.isArray(at) && typeof at[0] === 'number' && typeof at[1] === 'number') {
-        return { kind: 'point', id: '', coordinates: [at[0], at[1]] }
-    }
-    return null
+    // A box is drawn by its sides, its `bbox`; a point by its coordinates.
+    const coordinates = kept.kind === 'box' ? kept.geometry?.bbox : kept.geometry?.coordinates
+    return mapPlaceOf({ kind: kept.kind, id: kept.id, coordinates })
 }
 
 /** Find a thread's note in the margin. */

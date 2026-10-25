@@ -87,6 +87,11 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
   shows "comment" level with it. A place's thread is marked on the map by a disc ringed in `accent` with its number,
   filled `accent` while hovered or active, `muted` when resolved, and its note sits level with the disc. Its quote is
   the feature's label or the point's latitude and longitude.
+- **A box on a map.** The map's controls end with a box button, a dashed square; pressed, it fills `accent`, and a
+  drag, a finger's too, draws a box rather than moving the map, dashed in `accent` over a faint `accent` tint, and
+  shows "comment" beside it. Its thread's box is edged in `accent` (`muted` when resolved, dashed while a draft),
+  tinted while hovered or active, its disc on its north-west corner. Its quote is its south-west and north-east
+  corners', each as a point's. Escape, or a drag too short to be a box, draws none.
 - **Keyboard.** `j` and `k` move between threads in page order, Escape closes one, `c` comments on a selection.
 
 ## Chrome
@@ -228,7 +233,7 @@ gridline a `rule` hairline. Each series is labeled where it is, in Source Serif 
 moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
 quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
-**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-1`) in the same look, in a figure like a chart's.
+**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-2`) in the same look, in a figure like a chart's.
 The basemap is quiet: water is `bg`, land a mix of `card` and `rule`, borders a hairline, and cities in Noto Sans
 italic, a step lighter than `muted`, the larger ones zoomed out and more zoomed in. The page's places are over it: what
 the map is about in `accent`, filled; the rest hollow in `muted`. Each is labeled in Noto Sans, toward the map's middle

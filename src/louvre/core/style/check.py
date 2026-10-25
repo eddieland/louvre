@@ -109,9 +109,11 @@ _CSS_WIDTH = re.compile(r"(?<![-\w])(?:min-)?width\s*:\s*(\d+(?:\.\d+)?)px", re.
 _FIXED_COLOR = re.compile(r"#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|lab)\(", re.IGNORECASE)
 #: SVG attributes that take a color.
 _COLOR_ATTRIBUTES = frozenset({"fill", "stroke", "color", "stop-color", "flood-color", "lighting-color"})
-#: Where Louvre serves a map kit, of any version, and the script a page loads of the one it serves.
+#: Where Louvre serves a map kit, of any version; the script a new page loads, the current kit's; and every version's,
+#: which a page written with an earlier one still loads.
 _KITS = maps.ROOT
 _KIT_SCRIPT = f"{maps.PATH}map.js"
+_KIT_SCRIPTS = frozenset(f"{maps.ROOT}{version}/map.js" for version in maps.VERSIONS)
 #: A map a script draws with the kit.
 _DRAW = re.compile(r"\bLouvreMap\s*\.\s*draw\s*\(")
 #: The most maps a page should draw: each holds a WebGL context, of which a phone keeps few, and the kit keeps one
@@ -378,7 +380,7 @@ def _storage(page: _Page) -> Iterator[Finding]:
 def _maps(named: Sequence[_Url], page: _Page, markup: str) -> Iterator[Finding]:
     kits = [n for n in named if n.url.startswith(_KITS)]
     for n in kits:
-        if n.path() != _KIT_SCRIPT:
+        if n.path() not in _KIT_SCRIPTS:
             yield Finding(
                 Rule.MAP,
                 Severity.ERROR,
@@ -386,7 +388,7 @@ def _maps(named: Sequence[_Url], page: _Page, markup: str) -> Iterator[Finding]:
                 n.excerpt,
             )
     draws = sum(len(_DRAW.findall(script)) for script in page.scripts)
-    if draws and not any(n.path() == _KIT_SCRIPT for n in kits):
+    if draws and not any(n.path() in _KIT_SCRIPTS for n in kits):
         yield Finding(
             Rule.MAP,
             Severity.ERROR,

@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import re
 from unittest import mock
 
 import pytest
@@ -113,3 +114,36 @@ def test_its_text_is_its_features_labels_and_properties_in_order() -> None:
         in text
     )
     assert "One pole of three needs a crew." in text
+
+
+def test_a_box_drawn_on_the_map_is_kept_by_its_sides_said_by_its_corners_and_never_gone() -> None:
+    content = json.dumps(POLES)
+
+    box = geodata.place_on(content, geodata.Pick(geodata.PlaceKind.BOX, coordinates=(-9.2, 38.65, -9.05, 38.8)))
+
+    assert box.json() == {
+        "kind": "box",
+        "geometry": {
+            "type": "Polygon",
+            "bbox": [-9.2, 38.65, -9.05, 38.8],
+            "coordinates": [[[-9.2, 38.65], [-9.05, 38.65], [-9.05, 38.8], [-9.2, 38.8], [-9.2, 38.65]]],
+        },
+    }
+    assert box.quote() == "38.65000° N, 9.20000° W to 38.80000° N, 9.05000° W"
+    assert geodata.place_from(box.json()) == box
+    assert geodata.found(json.dumps({"type": "FeatureCollection", "features": []}), box)
+
+
+@pytest.mark.parametrize(
+    ("coordinates", "why"),
+    [
+        ((-9.2, 38.65), "is not [west, south, east, north]"),
+        ((-9.05, 38.65, -9.2, 38.8), "has no area"),
+        ((-9.2, 38.8, -9.05, 38.8), "has no area"),
+        ((-9.2, 38.65, -9.05, 91), "is off the earth"),
+        ((-190, 38.65, -9.05, 38.8), "is off the earth"),
+    ],
+)
+def test_a_box_with_no_area_or_off_the_earth_is_refused_saying_why(coordinates: tuple[float, ...], why: str) -> None:
+    with pytest.raises(GeodataError, match=re.escape(why)):
+        geodata.place_on(json.dumps(POLES), geodata.Pick(geodata.PlaceKind.BOX, coordinates=coordinates))

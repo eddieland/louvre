@@ -460,3 +460,36 @@ def test_a_place_is_a_feature_the_map_has_or_a_point_on_the_earth_of_a_map(agent
     refused(Code.ANCHOR_NOT_FOUND, lambda: ana.comment(on_map, None, "?", pick=Pick(PlaceKind.FEATURE, "P-999")))
     refused(Code.INVALID, lambda: ana.comment(on_map, None, "?", pick=Pick(PlaceKind.POINT, coordinates=(0, 91))))
     refused(Code.INVALID, lambda: ana.comment(page, None, "?", pick=Pick(PlaceKind.POINT, coordinates=(0, 0))))
+
+
+def test_a_thread_on_a_box_stays_where_it_is_on_the_earth_when_its_features_go(agent: MakeAgent, ana: Store) -> None:
+    def poles(*names: str) -> str:
+        features = [
+            {"type": "Feature", "properties": {"name": n}, "geometry": {"type": "Point", "coordinates": [-9.14, 38.71]}}
+            for n in names
+        ]
+        return json.dumps({"type": "FeatureCollection", "features": features})
+
+    sam = agent()
+    artifact = str(
+        sam.publish(title="Poles", content_type="application/geo+json", content=poles("P-101"))["artifact_id"],
+    )
+    made = ana.comment(
+        artifact,
+        None,
+        "Is this block lit?",
+        pick=Pick(PlaceKind.BOX, coordinates=(-9.15, 38.7, -9.13, 38.72)),
+    )
+    sam.publish(title="Poles", content_type="application/geo+json", content=poles(), artifact_id=artifact)
+
+    [thread] = sam.threads(artifact)["threads"]  # type: ignore[misc]
+
+    assert thread["id"] == made["thread_id"]
+    assert thread["anchor"] == {
+        "exact": "38.70000° N, 9.15000° W to 38.72000° N, 9.13000° W",
+        "prefix": "",
+        "suffix": "",
+    }
+    assert thread["place"]["geometry"]["bbox"] == [-9.15, 38.7, -9.13, 38.72]  # type: ignore[index]
+    assert thread["anchor_status"] == "found"
+    refused(Code.INVALID, lambda: ana.comment(artifact, None, "?", pick=Pick(PlaceKind.BOX, coordinates=(1, 1, 0, 2))))

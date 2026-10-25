@@ -19,7 +19,9 @@ words.
 Accept: on a phone and a laptop, the operator comments on a feature and on a point; an agent reads both threads over
 MCP and publishes a version without the feature, whose thread reads `passage_gone` while the point's stays.
 
-Status: built for features and points, for the operator to accept; a box drawn on the map is not built yet. The place
-is Louvre's own beside the contract (D011): a thread carries `place` beside an anchor whose words are the feature's
-label or the point's coordinates. A feature is named by its GeoJSON `id`, or without one by its label. People open
-place threads on the web; `comment_create` stays the contract's, words only.
+Status: built, for the operator to accept: features, points, and boxes. The place is Louvre's own beside the contract
+(D011): a thread carries `place` beside an anchor whose words are the feature's label, the point's coordinates, or the
+box's corners. A feature is named by its GeoJSON `id`, or without one by its label. A box is drawn with the map's box
+button, by a drag, a finger's too, and kept as a GeoJSON Polygon with its `bbox`; it is the kit's one change in
+`louvre-map-2`, which holds only its `kit.js` and serves `louvre-map-1`'s other files. People open place threads on
+the web; `comment_create` stays the contract's, words only.

@@ -61,16 +61,19 @@ export interface Thread {
     unread: boolean
 }
 
-/** A thread's place on a map, as the server keeps it: a feature by its layer and id, or a point. */
+/** A thread's place on a map, as the server keeps it: a feature by its layer and id, a point, or a box. */
 export interface ThreadPlace {
-    /** A feature, or a point. */
-    kind: 'feature' | 'point'
-    /** The feature's id; absent for a point. */
+    /** A feature, a point, or a box. */
+    kind: 'feature' | 'point' | 'box'
+    /** The feature's id; absent for a point or a box. */
     id?: string
-    /** The feature's label when the thread was opened; absent for a point. */
+    /** The feature's label when the thread was opened; absent for a point or a box. */
     label?: string
-    /** The feature's geometry, or the point's, as GeoJSON. */
-    geometry: { type: string; coordinates?: unknown } | null
+    /**
+     * The feature's geometry, or the point's or the box's, as GeoJSON: a box's `bbox` is its west, south, east, and
+     * north.
+     */
+    geometry: { type: string; coordinates?: unknown; bbox?: unknown } | null
 }
 
 /** An artifact, as a list or its page shows it. */

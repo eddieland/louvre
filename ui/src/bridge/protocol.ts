@@ -11,16 +11,39 @@ import type { Anchor } from './text'
 export const CHANNEL = 'louvre:bridge/1'
 
 /**
- * A place on a map, as the map kit names one and the page's thread is on it: a feature of the data by its id, or a
- * point by its longitude and latitude. Words, never pixels (REQUIREMENTS L2).
+ * A place on a map, as the map kit names one and the page's thread is on it: a feature of the data by its id, a point
+ * by its longitude and latitude, or a box drawn on the map by its sides. Words, never pixels (REQUIREMENTS L2).
  */
-export interface MapPlace {
-    /** A feature, or a point. */
-    kind: 'feature' | 'point'
-    /** The feature's id, as the page's map names it; empty for a point. */
+export type MapPlace = FeaturePlace | PointPlace | BoxPlace
+
+/** A feature of a map's data. */
+interface FeaturePlace {
+    /** Always `feature`. */
+    kind: 'feature'
+    /** Its id, as the page's map names it. */
     id: string
-    /** The point's longitude and latitude; null for a feature. */
-    coordinates: [number, number] | null
+    /** None. */
+    coordinates: null
+}
+
+/** A point on the earth. */
+interface PointPlace {
+    /** Always `point`. */
+    kind: 'point'
+    /** None. */
+    id: ''
+    /** Its longitude and latitude. */
+    coordinates: [number, number]
+}
+
+/** A box on the earth, its sides along meridians and parallels. */
+interface BoxPlace {
+    /** Always `box`. */
+    kind: 'box'
+    /** None. */
+    id: ''
+    /** Its west, south, east, and north. */
+    coordinates: [number, number, number, number]
 }
 
 /** A thread's passage, or a change's, as the page asks the bridge to mark it. */
@@ -190,13 +213,24 @@ export function mapPlaceOf(value: unknown): MapPlace | null {
     if (kind === 'feature' && typeof id === 'string' && id) {
         return { kind, id, coordinates: null }
     }
-    if (kind === 'point' && Array.isArray(coordinates)) {
+    if (kind === 'point' && Array.isArray(coordinates) && coordinates.length === 2) {
         const [lon, lat] = coordinates as unknown[]
-        if (finite(lon) && finite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90) {
+        if (finite(lon) && finite(lat) && onEarth(lon, lat)) {
             return { kind, id: '', coordinates: [lon, lat] }
         }
     }
+    if (kind === 'box' && Array.isArray(coordinates) && coordinates.length === 4) {
+        const [west, south, east, north] = coordinates as unknown[]
+        const sides = finite(west) && finite(south) && finite(east) && finite(north)
+        if (sides && onEarth(west, south) && onEarth(east, north) && west < east && south < north) {
+            return { kind, id: '', coordinates: [west, south, east, north] }
+        }
+    }
     return null
+}
+
+function onEarth(lon: number, lat: number): boolean {
+    return Math.abs(lon) <= 180 && Math.abs(lat) <= 90
 }
 
 function anchorOf(value: unknown): Anchor | null {
