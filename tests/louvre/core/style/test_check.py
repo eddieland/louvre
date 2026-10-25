@@ -140,7 +140,7 @@ def test_a_page_names_its_files_by_their_paths_and_every_file_is_named() -> None
 
 #: A map as the guide has it: the kit, the map's key, and its basemap's credit, with `{}` where its drawing goes.
 MAP = (
-    '<script src="/kit/louvre-map-1/map.js"></script><div class="l-map" id="map" role="img" aria-label="Sites"></div>'
+    '<script src="/kit/louvre-map-2/map.js"></script><div class="l-map" id="map" role="img" aria-label="Sites"></div>'
     '<p class="l-key"><span class="l-focus">Over target</span><span>Under it</span></p>'
     '<p class="l-source">Basemap: Natural Earth; streets © OpenStreetMap contributors.</p>{}'
 )
@@ -155,7 +155,9 @@ def test_a_map_loads_the_kit_credits_its_basemap_and_has_a_key() -> None:
         ]
 
     assert rules(MAP.format(DRAW)) == []
-    assert rules(MAP.replace('<script src="/kit/louvre-map-1/map.js"></script>', "").format(DRAW)) == [
+    # A page written with an earlier kit still loads it, as Louvre serves every version.
+    assert rules(MAP.replace("louvre-map-2", "louvre-map-1").format(DRAW)) == []
+    assert rules(MAP.replace('<script src="/kit/louvre-map-2/map.js"></script>', "").format(DRAW)) == [
         (Rule.MAP, Severity.ERROR, "The page draws a map without the map kit"),
     ]
     assert rules(MAP.replace("; streets © OpenStreetMap contributors", "").format(DRAW)) == [

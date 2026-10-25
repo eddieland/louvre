@@ -97,7 +97,7 @@ feature shows them too. The demo publishes one, street poles in Lisbon.
 
 ### U10. Comments and decisions on places
 
-Built for features and points on GeoJSON (M12); areas, and the rest, planned (M13). A thread is anchored on a map's
+Built for features, points, and boxes drawn on GeoJSON (M12); the rest planned (M13). A thread is anchored on a map's
 feature, a point, or an area, as on a passage's words. L2 holds
 on a map: a feature's id and a place's coordinates are its words, and a pixel is a position. A feature found nowhere
 in a new version reads `passage_gone` and never moves to its neighbour; a point stays where it is on the earth. Two

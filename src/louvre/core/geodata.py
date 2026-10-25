@@ -40,6 +40,8 @@ _POSITION = frozenset({2, 3})
 #: The furthest a longitude and a latitude reach from zero, in degrees.
 _LONGITUDE = 180.0
 _LATITUDE = 90.0
+#: How many numbers a box has: its west, south, east, and north.
+_BOX = 4
 #: How many features' labels the map's description for a screen reader names, before "and more".
 _NAMED = 10
 #: The basemap's credit, under the map, as the house style's guide has it.
@@ -163,14 +165,17 @@ class PlaceKind(StrEnum):
     FEATURE = "feature"
     #: A point on the earth, which stays where it is.
     POINT = "point"
+    #: A box drawn on the map, its sides along meridians and parallels, which stays where it is as a point does.
+    BOX = "box"
 
 
 @dataclass(frozen=True)
 class Place:
-    """Where on a map a thread is: a feature of the data, or a point on the earth, as its words are where a passage is.
+    """Where on a map a thread is: a feature of the data, or a point or a box on the earth, as words are a passage's.
 
     A feature is named by its layer and its id, its label and geometry kept beside them as they were when the thread
-    was opened; a point by its coordinates. Words, never positions (REQUIREMENTS L2): a pixel is never kept.
+    was opened; a point by its coordinates, and a box by its corners. Words, never positions (REQUIREMENTS L2): a
+    pixel is never kept.
     """
 
     kind: PlaceKind
@@ -180,21 +185,24 @@ class Place:
     id: str = ""
     #: The feature's label, when the thread was opened.
     label: str = ""
-    #: The feature's geometry, when the thread was opened, or the point's, as GeoJSON.
+    #: The feature's geometry, when the thread was opened, or the point's or the box's, as GeoJSON: a box's is a
+    #: Polygon with its `bbox`, west, south, east, and north.
     geometry: Mapping[str, object] | None = None
 
     def quote(self) -> str:
         """Say where the thread is in words, for a reader that knows only words, as its anchor's `exact`.
 
         Returns:
-            The feature's label, or the point's latitude and longitude.
+            The feature's label, the point's latitude and longitude, or the box's south-west and north-east corners'.
         """
         match self.kind:
             case PlaceKind.FEATURE:
                 return self.label
             case PlaceKind.POINT:
-                lon, lat = _point(self.geometry)
-                return f"{abs(lat):.5f}° {'N' if lat >= 0 else 'S'}, {abs(lon):.5f}° {'E' if lon >= 0 else 'W'}"
+                return _said(*_point(self.geometry))
+            case PlaceKind.BOX:
+                west, south, east, north = _box(self.geometry)
+                return f"{_said(west, south)} to {_said(east, north)}"
             case _:
                 assert_never(self.kind)
 
@@ -202,9 +210,9 @@ class Place:
         """Give the place as the API and the tools show it, and as it is stored.
 
         Returns:
-            Its kind, and its layer, id, label, and geometry for a feature, or its geometry for a point.
+            Its kind, and its layer, id, label, and geometry for a feature, or its geometry for a point or a box.
         """
-        if self.kind == PlaceKind.POINT:
+        if self.kind in {PlaceKind.POINT, PlaceKind.BOX}:
             return {"kind": self.kind, "geometry": dict(self.geometry or {})}
         return {"kind": self.kind, "layer": self.layer, "id": self.id, "label": self.label, "geometry": self.geometry}
 
@@ -217,26 +225,27 @@ PLACE_ID = "louvre:id"
 
 @dataclass(frozen=True)
 class Pick:
-    """What a reader picked on a map, as their page says it: a feature by its id, or a point by its coordinates."""
+    """What a reader picked on a map, as their page says it: a feature by its id, or a point or a box on the earth."""
 
     kind: PlaceKind
     #: The feature's id, as the page's map names it.
     id: str = ""
-    #: The point's longitude and latitude.
+    #: The point's longitude and latitude, or the box's west, south, east, and north.
     coordinates: Sequence[float] = ()
 
 
 def place_on(content: str, pick: Pick) -> Place:
     """Make the place a reader picked on a GeoJSON version's map, from what the version itself says of it.
 
-    Only the feature's id, or the point's coordinates, are taken from the reader (D008): the label and geometry are
-    the version's own.
+    Only the feature's id, or the point's or the box's coordinates, are taken from the reader (D008): the label and
+    geometry are the version's own.
 
     Returns:
         The place.
 
     Raises:
-        GeodataError: The content is not GeoJSON Louvre draws, the point is off the earth, or no feature has the id.
+        GeodataError: The content is not GeoJSON Louvre draws, the point or the box is off the earth, the box has no
+            area or its west is east of its east, or no feature has the id.
     """
     features, look = check(content)
     match pick.kind:
@@ -244,6 +253,8 @@ def place_on(content: str, pick: Pick) -> Place:
             _position(list(pick.coordinates), "the point")
             point = [float(c) for c in pick.coordinates[:2]]
             return Place(pick.kind, geometry={"type": "Point", "coordinates": point})
+        case PlaceKind.BOX:
+            return Place(pick.kind, geometry=_box_geometry(pick.coordinates))
         case PlaceKind.FEATURE:
             for i, feature in enumerate(features):
                 if pick.id and _id_of(feature, look) == pick.id:
@@ -256,7 +267,7 @@ def place_on(content: str, pick: Pick) -> Place:
 
 
 def found(content: str, place: Place) -> bool:
-    """Tell whether a place is on a version's map: its feature, by its layer and id, or any point.
+    """Tell whether a place is on a version's map: its feature, by its layer and id, or any point or box.
 
     A feature found nowhere is gone, and never moves to the nearest one.
 
@@ -267,7 +278,7 @@ def found(content: str, place: Place) -> bool:
         features, look = check(content)
     except GeodataError:
         return False
-    if place.kind == PlaceKind.POINT:
+    if place.kind in {PlaceKind.POINT, PlaceKind.BOX}:
         return True
     return place.layer == LAYER and any(_id_of(feature, look) == place.id for feature in features)
 
@@ -471,3 +482,41 @@ def _point(geometry: Mapping[str, object] | None) -> tuple[float, float]:
     if isinstance(coordinates, list) and len(coordinates) >= 2:  # noqa: PLR2004  (longitude and latitude)
         return float(coordinates[0]), float(coordinates[1])
     return 0.0, 0.0
+
+
+def _said(lon: float, lat: float) -> str:
+    """Say a point as Louvre quotes one, and as the kit does: its latitude, then its longitude, to five places.
+
+    Returns:
+        The point in words.
+    """
+    return f"{abs(lat):.5f}° {'N' if lat >= 0 else 'S'}, {abs(lon):.5f}° {'E' if lon >= 0 else 'W'}"
+
+
+def _box_geometry(coordinates: Sequence[float]) -> dict[str, object]:
+    """Make a box's geometry from its west, south, east, and north, as a reader drew it.
+
+    Returns:
+        A Polygon, its ring from the south-west corner anticlockwise, with its `bbox`.
+
+    Raises:
+        GeodataError: It is not four numbers, a corner is off the earth, or it has no area, or its west is east of its
+            east: a map Louvre draws never crosses the antimeridian.
+    """
+    if len(coordinates) != _BOX or not all(map(_is_number, coordinates)):
+        raise GeodataError("the box is not [west, south, east, north]")
+    west, south, east, north = (float(c) for c in coordinates)
+    _position([west, south], "the box's south-west corner")
+    _position([east, north], "the box's north-east corner")
+    if not (west < east and south < north):
+        raise GeodataError("the box has no area: its west must be west of its east, and its south south of its north")
+    ring = [[west, south], [east, south], [east, north], [west, north], [west, south]]
+    return {"type": "Polygon", "bbox": [west, south, east, north], "coordinates": [ring]}
+
+
+def _box(geometry: Mapping[str, object] | None) -> tuple[float, float, float, float]:
+    bbox = (geometry or {}).get("bbox")
+    if isinstance(bbox, list) and len(bbox) == _BOX:
+        west, south, east, north = (float(c) for c in bbox)
+        return west, south, east, north
+    return 0.0, 0.0, 0.0, 0.0

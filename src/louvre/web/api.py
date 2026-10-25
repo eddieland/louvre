@@ -33,13 +33,13 @@ class AnchorBody(_Body):
 
 
 class PlaceBody(_Body):
-    """A place on a map, as the kit reports a tap on it: a feature by its id, or a point by its coordinates."""
+    """A place on a map, as the kit reports one: a feature by its id, or a point or a box drawn by its coordinates."""
 
     kind: geodata.PlaceKind
     #: The feature's id, as the page's map names it.
     id: Annotated[str, Field(max_length=MAX_EXACT)] = ""
-    #: The point's longitude and latitude.
-    coordinates: Annotated[tuple[float, float] | None, Field()] = None
+    #: The point's longitude and latitude, or the box's west, south, east, and north.
+    coordinates: tuple[float, float] | tuple[float, float, float, float] | None = None
 
 
 class ThreadBody(_Body):
