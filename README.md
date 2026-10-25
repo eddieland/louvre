@@ -19,7 +19,20 @@ operator shares an artifact with, serving the same MCP tools, so a skill written
 What Louvre must do, and where it stands on each, is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). The order it is
 built in is [docs/roadmap/](docs/roadmap/README.md). Deploying it, and connecting an agent, is
 [docs/DEPLOY.md](docs/DEPLOY.md), and the skill that tells an agent how to build a page people read is in
-[skills/](skills/README.md). How every page looks at every screen size is [docs/screenshots/](docs/screenshots/).
+[skills/](skills/README.md).
+
+## Screenshots
+
+The demo, on a laptop. Every page at every screen size, dark and light, is in the gallery,
+[docs/screenshots/](docs/screenshots/README.md), which `make screenshots` keeps current.
+
+| The demo, signed in | An artifact, a thread open |
+| --- | --- |
+| [![The demo, signed in](docs/screenshots/catalogue/laptop-dark.png)](docs/screenshots/README.md#the-demo-signed-in) | [![An artifact, a thread open](docs/screenshots/artifact/laptop-dark.png)](docs/screenshots/README.md#an-artifact-a-thread-open) |
+
+| A decision waiting on the reader | The inbox |
+| --- | --- |
+| [![An artifact, a decision waiting on the reader](docs/screenshots/decision/laptop-dark.png)](docs/screenshots/README.md#an-artifact-a-decision-waiting-on-the-reader) | [![The inbox, with a reply and a thread resolved](docs/screenshots/inbox/laptop-dark.png)](docs/screenshots/README.md#the-inbox-with-a-reply-and-a-thread-resolved) |
 
 ## Develop
 
