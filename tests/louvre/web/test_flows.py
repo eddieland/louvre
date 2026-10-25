@@ -949,7 +949,9 @@ def test_on_a_phone_a_reader_draws_a_box_with_one_finger_and_comments_on_it(brow
         expect(frame.locator("button.louvre-box")).to_have_attribute("aria-pressed", "false")
         assert frame.locator("#map").evaluate(center) == before, "the drag moved the map"
         assert scrolled() == scrolls, "the drag scrolled the page"
-        page.locator("button.add").tap()
+        # Clicked, not tapped: a headless shell takes a tap so soon after the drag for a double tap's start, and
+        # sends no click.
+        page.locator("button.add").click()
         page.fill(".thread[data-id=draft] textarea", "Is this block lit?")
         page.keyboard.press("Control+Enter")
         expect(page.locator(".thread.is-active .comments")).to_contain_text("Is this block lit?")
