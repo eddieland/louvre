@@ -7,11 +7,12 @@ ever shown.
 import os
 from collections.abc import Mapping
 from collections.abc import Set as AbstractSet
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self
 
 from louvre.core import db
 from louvre.core.maps import streets
+from louvre.web.site import Site
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,8 @@ class Settings:
     secure_cookies: bool
     #: The TileJSON of the street tiles Louvre passes on to a map (louvre.core.maps.streets); empty for none.
     streets: str = streets.OPENFREEMAP
+    #: What the deployment's owner says on its pages: its name, a banner, a footer, and notes (louvre.web.site).
+    site: Site = field(default_factory=Site)
 
     @classmethod
     def from_environ(cls, environ: Mapping[str, str] | None = None) -> Self:
@@ -57,6 +60,7 @@ class Settings:
             # Vercel serves only HTTPS; a local run is plain HTTP.
             secure_cookies=bool(env.get("VERCEL")) or _flag(env, "LOUVRE_SECURE_COOKIES"),
             streets=env.get("LOUVRE_STREETS", streets.OPENFREEMAP).strip(),
+            site=Site.from_environ(env),
         )
 
     @property

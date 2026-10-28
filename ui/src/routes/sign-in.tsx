@@ -3,7 +3,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
+import { Footer } from '@/components/site'
 import { localPath } from '@/lib/paths'
+import { usePageTitle } from '@/lib/title'
 
 /** What the sign-in page is told: why the last try came back unfinished, and the page to return to. */
 interface SignInSearch {
@@ -24,6 +26,7 @@ export const Route = createFileRoute('/sign-in')({
 
 function SignInPage() {
     const { sign_in: why, next } = Route.useSearch()
+    usePageTitle('Sign in')
     return (
         <>
             <Header />
@@ -33,6 +36,7 @@ function SignInPage() {
                     <SignIn why={why} next={next ?? '/'} />
                 </Notice>
             </main>
+            <Footer />
         </>
     )
 }

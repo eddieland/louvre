@@ -5,7 +5,9 @@ import { Catalogue, NeedsDatabase } from '@/components/catalogue'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
+import { Footer } from '@/components/site'
 import { sessionQuery } from '@/lib/api'
+import { usePageTitle } from '@/lib/title'
 
 /** The catalogue: every artifact the reader reaches but the demo's, newest first (ui/DESIGN.md, "Catalogue"). */
 export const Route = createFileRoute('/')({
@@ -14,10 +16,12 @@ export const Route = createFileRoute('/')({
 
 function Home() {
     const session = useQuery(sessionQuery)
+    usePageTitle()
     return (
         <>
             <Header />
             <main>{body()}</main>
+            <Footer />
         </>
     )
 

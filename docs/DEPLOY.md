@@ -21,11 +21,40 @@ request after a deploy.
    | `LOUVRE_ALLOWED_LOGINS` | The GitHub logins who may sign in, comma-separated; `*` lets anyone in |
    | `LOUVRE_DEMO` | `1` to publish the demo's artifacts at `/demo`, which anyone may read without signing in |
    | `LOUVRE_STREETS` | Optional: the TileJSON of the street tiles maps draw, OpenFreeMap's unless set; empty for none |
+   | `LOUVRE_NAME`, `LOUVRE_BANNER`, ... | Optional: your organization's words on Louvre's pages (below) |
 
 4. Open the deployment, sign in with GitHub, and mint a token for an agent on the Tokens page.
 
 A preview with no database still serves its pages, and says what is missing. `LOUVRE_DEV_SIGN_IN=1` lets anyone sign
 in as anyone by typing a name: it is for a local run and the tests, never a deployment people use.
+
+## Your organization's words
+
+A deployment can say what is its own on Louvre's pages: whose it is, what may be posted to it, where to ask for help,
+and its conventions for agents. Each variable is optional, and each is shown only when set.
+
+| Variable | Shown |
+|---|---|
+| `LOUVRE_NAME` | In every page's title, in place of Louvre, such as `Inbox · Acme Louvre`: to tell deployments apart in tabs |
+| `LOUVRE_BANNER` | A line over every page, an artifact's and a board's too, such as whose deployment it is |
+| `LOUVRE_FOOTER` | At the foot of the catalogue, the demo, the inbox, decisions, tokens, and signing in |
+| `LOUVRE_SIGN_IN_NOTE` | Wherever a person is asked to sign in, above the ways to: who may, and how to ask for access |
+| `LOUVRE_TOKENS_NOTE` | On the Tokens page, under what a token is: how to name a namespace, which agents to give one |
+
+All but the name are Markdown, of which Louvre keeps paragraphs (a blank line between them), line breaks (a new line),
+`**bold**`, `_italics_`, `` `code` ``, and links to `https://`, `http://`, `mailto:`, or a path of Louvre's own such as
+`/demo`. Anything else, HTML included, is shown as the text it is: what you write is never run as markup on the pages
+that hold people's sessions. A link to another site opens in a tab of its own. For example:
+
+```sh
+LOUVRE_NAME="Acme Louvre"
+LOUVRE_BANNER="For work inside Acme. Read the [publishing policy](https://wiki.acme.example/louvre) first."
+LOUVRE_FOOTER="Run by Platform. Help: **#louvre**, or [louvre@acme.example](mailto:louvre@acme.example)."
+LOUVRE_SIGN_IN_NOTE="Sign in with the GitHub account in Acme's organization. Not on the list? Ask in **#louvre**."
+LOUVRE_TOKENS_NOTE="Name a namespace for your team and its tool, such as \`payments/canopy\`."
+```
+
+Inside its frame an artifact is its author's page alone: none of this is added to it (REQUIREMENTS L7).
 
 ## Anywhere else
 

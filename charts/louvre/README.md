@@ -69,6 +69,7 @@ start empty. `postgresql.networkPolicy.enabled` lets only Louvre's pods, and the
 | `config.github.*` | off | The GitHub OAuth app people sign in with. |
 | `config.secureCookies` | on | The session cookie over HTTPS only. |
 | `config.demo`, `config.devSignIn` | off | The demo's artifacts, and sign-in by name, for a local cluster. |
+| `config.site.*` | empty | Your organization's name, banner, footer, and notes on Louvre's pages. |
 | `postgresql.enabled` | `true` | Run the bundled PostgreSQL. |
 | `externalDatabase.*` | | The database to use when the bundled one is off. |
 | `extraEnv` | `[]` | More environment variables for Louvre's container. |

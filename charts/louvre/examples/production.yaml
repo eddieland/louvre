@@ -52,6 +52,15 @@ config:
     clientId: Iv1.0123456789abcdef
     existingSecret: louvre-github
     existingSecretKey: client-secret
+  # What your organization says on Louvre's pages (docs/DEPLOY.md), in Markdown; leave out any you do not want.
+  site:
+    name: Example Louvre
+    banner: For work inside Example. Read the [publishing policy](https://wiki.example.com/louvre) first.
+    footer: |-
+      Run by Platform Engineering. Help: **#louvre**, or [louvre@example.com](mailto:louvre@example.com).
+      [Acceptable use](https://wiki.example.com/aup) · [Privacy](https://wiki.example.com/privacy)
+    signInNote: Sign in with the GitHub account in Example's organization. Not on the list? Ask in **#louvre**.
+    tokensNote: Name a namespace for your team and its tool, such as `payments/canopy`.
 
 postgresql:
   enabled: false

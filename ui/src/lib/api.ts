@@ -354,7 +354,35 @@ export interface Account {
     name: string
 }
 
-/** Who is signed in, and how one can sign in. */
+/** A run of the owner's words: text, as a link or marked when the owner's Markdown said so (louvre.web.site). */
+export interface Run {
+    /** Its text; a newline in it breaks the line. */
+    text: string
+    /** Where it links to: the web, an address, or a page of Louvre's; absent for text. */
+    href?: string
+    /** Set in bold. */
+    strong?: boolean
+    /** Set in italics. */
+    em?: boolean
+    /** Set as code. */
+    code?: boolean
+}
+
+/** What a deployment's owner says on its pages, each note as paragraphs of runs, none when it says nothing. */
+export interface Site {
+    /** What the deployment is called, in each page's title; empty for Louvre. */
+    name: string
+    /** Above the header of every page. */
+    banner: Run[][]
+    /** At the foot of the pages that list things, and of signing in. */
+    footer: Run[][]
+    /** Where a person signs in. */
+    sign_in: Run[][]
+    /** On the Tokens page. */
+    tokens: Run[][]
+}
+
+/** Who is signed in, how one can sign in, and what the deployment's owner says on its pages. */
 export interface Session {
     /** The signed-in person, or null. */
     account: Account | null
@@ -364,6 +392,8 @@ export interface Session {
     demo: boolean
     /** The ways to sign in. */
     sign_in: { github: boolean; dev: boolean }
+    /** What the deployment's owner says on its pages. */
+    site: Site
 }
 
 /** A token a person minted for an agent. */

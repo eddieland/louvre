@@ -121,6 +121,15 @@ they are. C1 binds Louvre's readers of the feed, not people.
 
 Gap. A reader finds an artifact, a passage, or a comment by its words, across every namespace they read.
 
+### U13. A deployment says what is its own
+
+Built, at the operator's word (2026-10-28), outside the milestones. Louvre is self-hosted, so an organization that runs
+it says on its pages what is its own: a banner over every page (whose deployment it is, what may be posted to it), a
+footer (where to ask for help, its policies), a note where people sign in (who may, and how to ask), one where they
+mint tokens (its conventions for agents), and a name for its tabs. Each is set in the deployment's environment
+(docs/DEPLOY.md), in Markdown of which Louvre keeps paragraphs, emphasis, code, and links, and draws as text, never as
+HTML, so the owner's words cannot run as markup beside a person's session (L7). An artifact's page is untouched.
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP

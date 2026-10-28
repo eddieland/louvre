@@ -11,6 +11,7 @@ from louvre.core.files import File, Type
 from louvre.core.text import Anchor
 from louvre.web import ui
 from louvre.web.app import FILE_POLICY, artifact_policy
+from louvre.web.site import Site
 from tests.conftest import BASE_URL, WRITES, MakeAgent, MakeWeb, lock_held, sign_in
 
 #: The query that lists the demo's namespace, which a list leaves out unless it names it.
@@ -32,11 +33,30 @@ def test_the_session_says_who_is_signed_in_and_how_to_sign_in(web: MakeWeb) -> N
         "configured": True,
         "demo": False,
         "sign_in": {"github": True, "dev": True},
+        "site": {"name": "", "banner": [], "footer": [], "sign_in": [], "tokens": []},
     }
 
     sign_in(client, "ana", "Ana Ruiz")
 
     assert client.get("/api/session").json()["account"] == {"id": "dev:ana", "login": "ana", "name": "Ana Ruiz"}
+
+
+def test_the_session_says_what_the_deployment_s_owner_says_on_its_pages(web: MakeWeb) -> None:
+    client = web(site=Site(name="Acme Louvre", banner="Internal to **Acme**.", tokens="[Conventions](/wiki)"))
+
+    said = client.get("/api/session").json()["site"]
+
+    assert said == {
+        "name": "Acme Louvre",
+        "banner": [[{"text": "Internal to "}, {"text": "Acme", "strong": True}, {"text": "."}]],
+        "footer": [],
+        "sign_in": [],
+        "tokens": [[{"text": "Conventions", "href": "/wiki"}]],
+    }
+    # Without a database too: the pages say it while they say what is missing.
+    assert web(database_url=None, site=Site(name="Acme Louvre")).get("/api/session").json()["site"]["name"] == (
+        "Acme Louvre"
+    )
 
 
 def test_without_a_database_the_session_says_so_and_the_rest_is_unavailable(web: MakeWeb) -> None:

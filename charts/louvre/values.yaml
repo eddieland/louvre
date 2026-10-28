@@ -89,6 +89,19 @@ config:
   demo: false
   # Let anyone sign in as anyone by typing a name: for a local cluster only, never a deployment people use.
   devSignIn: false
+  # Your organization's words on Louvre's pages (docs/DEPLOY.md, "Your organization's words"), each shown only when
+  # set: the tabs' name, then Markdown of which Louvre keeps paragraphs, emphasis, code, and links, never HTML.
+  site:
+    # In every page's title in place of Louvre, such as "Acme Louvre".
+    name: ""
+    # A line over every page, such as whose deployment this is.
+    banner: ""
+    # At the foot of the catalogue and the other pages that list things, such as where to ask for help.
+    footer: ""
+    # Wherever a person is asked to sign in: who may, and how to ask for access.
+    signInNote: ""
+    # On the Tokens page: how to name a namespace, which agents to give a token.
+    tokensNote: ""
   # The GitHub OAuth app people sign in with. Its callback URL is baseUrl with /auth/github/callback.
   github:
     clientId: ""
