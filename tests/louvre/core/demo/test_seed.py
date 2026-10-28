@@ -197,7 +197,29 @@ def test_its_decisions_are_asked_once_and_a_database_without_them_gets_them_alon
     found = Decisions(reader(conn)).listed()["decisions"]
     assert isinstance(found, list)
     assert [(d["question"], d["state"], [o["count"] for o in d["options"]]) for d in found] == [
+        ("Which pole does tonight's crew fix first?", "open", [1, 0, 0]),
         ("Ship these notes with Thursday's release?", "closed", [2, 0]),
         ("Which fix ships first?", "open", [2, 0, 0]),
     ]
-    assert [(p["login"], p["answered"]) for p in found[1]["asked"]] == [("ana", False), ("raj", True)]
+    assert [(p["login"], p["answered"]) for p in found[2]["asked"]] == [("ana", False), ("raj", True)]
+    assert [o["place"]["id"] for o in found[0]["options"]] == ["P-113", "P-104", "P-117"]
+
+
+def test_its_street_poles_map_has_a_second_version_a_database_with_only_the_first_gets(conn: Connection) -> None:
+    demo.seed(conn)
+    [poles] = [
+        a for a in everything(reader(conn)) if a["origin"] == {"canopy.ticket": "OPS-88", "canopy.repo": "street-ops"}
+    ]
+    artifact = str(poles["id"])
+    conn.execute("DELETE FROM versions WHERE artifact_id = %s AND n = 2", (artifact,))
+    conn.execute("UPDATE artifacts SET latest_version = 1 WHERE id = %s", (artifact,))
+
+    assert demo.seed(conn) is True
+    assert demo.seed(conn) is False
+
+    compared = reader(conn).compare(artifact, 1)
+    assert [(f["kind"], f["id"]) for f in compared["features"]] == [  # type: ignore[union-attr]
+        ("moved", "P-104"),
+        ("added", "P-122"),
+        ("removed", "P-120"),
+    ]

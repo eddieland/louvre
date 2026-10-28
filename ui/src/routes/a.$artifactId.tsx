@@ -26,17 +26,21 @@ import {
     useMarkRead,
     useThreadWrites,
 } from '@/lib/api'
-import type { Account, Decision, Detail, Thread } from '@/lib/api'
-import { changeMarks, notesOf, SUMMARY, tally } from '@/lib/changes'
+import type { Account, Decision, Detail, Thread, ThreadPlace } from '@/lib/api'
+import { changeMarks, featureMarks, featureNotes, notesOf, SUMMARY, tally } from '@/lib/changes'
 import { passageId, rank } from '@/lib/decisions'
-import { ago, count, provenance, roman } from '@/lib/format'
-import { clearSelection } from '@/lib/frame'
+import { ago, count, provenance, roman, whereSaid } from '@/lib/format'
+import { clearSelection, showPlace } from '@/lib/frame'
 import { GAP, place } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
 import { usePageTitle } from '@/lib/title'
 
 /** At this width and below, the margin is a bottom sheet (ui/DESIGN.md, "Layout"). */
 const NARROW = '(max-width: 960px)'
+/** A screen read by touch, a phone's or a tablet's, where a reader may comment where they stand. */
+const TOUCH = '(pointer: coarse)'
+/** How a reading of where the reader stands is asked for: as near as the device can, fresh within half a minute. */
+const READING: PositionOptions = { enableHighAccuracy: true, timeout: 20_000, maximumAge: 30_000 }
 /** How long Undo stays offered after a thread is resolved, in milliseconds. */
 const UNDO_MS = 5000
 
@@ -44,15 +48,24 @@ function isGone(thread: Thread): boolean {
     return thread.anchor_status === 'passage_gone'
 }
 
-/** A thread's place on a map, as the map kit names it: a feature by its id, a point or a box by its coordinates. */
-function mapPlace(thread: Thread): MapPlace | null {
-    const kept = thread.place
+/**
+ * A thread's place on a map, or a decision's option's, as the map kit names it: a feature by its id, a point or a box
+ * by its coordinates, and a point read where its reader stood with how sure the reading is.
+ */
+function mapPlace(kept: ThreadPlace | null): MapPlace | null {
     if (!kept) {
         return null
     }
     // A box is drawn by its sides, its `bbox`; a point by its coordinates.
     const coordinates = kept.kind === 'box' ? kept.geometry?.bbox : kept.geometry?.coordinates
-    return mapPlaceOf({ kind: kept.kind, id: kept.id, coordinates })
+    return mapPlaceOf({ kind: kept.kind, id: kept.id, coordinates, accuracy: kept.accuracy })
+}
+
+/** Say why the browser gave no reading of where the reader stands. */
+function unread(error: GeolocationPositionError): string {
+    return error.code === error.PERMISSION_DENIED
+        ? 'Louvre may not read where you are: allow it for this site in your browser’s settings.'
+        : 'Your device could not say where you are. Try again in the open.'
 }
 
 /** Find a thread's note in the margin. */
@@ -146,7 +159,10 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         enabled: comparing !== null,
     })
     const comparison = comparing === null ? undefined : comparisonResult.data
-    const changes = comparison ? notesOf(comparison) : []
+    // The changes to its words, then to the features on its map, each noted in the margin level with it.
+    const wordChanges = comparison ? notesOf(comparison) : []
+    const mapChanges = comparison ? featureNotes(comparison) : []
+    const changes = [...wordChanges, ...mapChanges]
     const since = versions.find((v) => v.n === comparing)?.created_at ?? ''
     // The page as it is, without the comparison: where leaving it, or a link to another version's, goes.
     const here = { ...(latest ? {} : { v: version }), ...framed }
@@ -161,6 +177,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const shownWhole = (d: Decision) => toggled[d.id] ?? (d.state === 'open' || d.id === search.decision)
     const theme = useTheme()
     const narrow = useMedia(NARROW)
+    const touch = useMedia(TOUCH)
 
     const [active, setActive] = useState<string | null>(search.t ?? null)
     const [hover, setHover] = useState<string | null>(null)
@@ -170,8 +187,11 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const [selection, setSelection] = useState<{ selected: Selected; top: number; left: number } | null>(null)
     const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null)
     const [deleting, setDeleting] = useState(false)
+    const [locating, setLocating] = useState(false)
     // A thread opened from the comparison's summary, to scroll to once the page has placed its passage.
     const pendingScroll = useRef<string | null>(null)
+    // A place the map is to pan and zoom to, once the frame has been told of its mark.
+    const pendingShow = useRef<string | null>(null)
     // The threads with news for the reader on this visit: kept once the page has marked them read, so they still say
     // so, and grown as news comes while the page is open.
     const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
@@ -210,10 +230,10 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
 
     const threadMarks = threads.flatMap((t): Mark[] =>
         t.anchor && !isGone(t)
-            ? [{ id: t.id, anchor: t.anchor, place: mapPlace(t), state: t.state, n: numbers.get(t.id) ?? null }]
+            ? [{ id: t.id, anchor: t.anchor, place: mapPlace(t.place), state: t.state, n: numbers.get(t.id) ?? null }]
             : [],
     )
-    const marks: Mark[] = comparing === null ? threadMarks : changeMarks(changes)
+    const marks: Mark[] = comparing === null ? threadMarks : [...changeMarks(wordChanges), ...featureMarks(mapChanges)]
     if (draft?.anchor) {
         marks.push({ id: 'draft', anchor: draft.anchor, place: draft.place, state: 'draft', n: null })
     }
@@ -221,7 +241,8 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     for (const d of comparing === null ? decisions : []) {
         for (const o of d.options) {
             if (o.anchor) {
-                marks.push({ id: passageId(d, o), anchor: o.anchor, place: null, state: 'passage', n: null })
+                const onMap = mapPlace(o.place)
+                marks.push({ id: passageId(d, o), anchor: o.anchor, place: onMap, state: 'passage', n: null })
             }
         }
     }
@@ -248,6 +269,27 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         }
     }
 
+    // Pan and zoom the map to a place, or a feature changed, once the frame has its mark: the page renders first.
+    const show = (id: string) => {
+        pendingShow.current = id
+    }
+    const showPending = useEffectEvent(() => {
+        const id = pendingShow.current
+        if (id && marks.some((m) => m.id === id)) {
+            pendingShow.current = null
+            showPlace(frameRef.current, id)
+        }
+    })
+    useEffect(() => showPending())
+
+    // A change to a feature on the map is shown there as its note opens, wherever the map was.
+    const openChange = (id: string) => {
+        activate(id)
+        if (mapChanges.some((c) => c.id === id)) {
+            show(id)
+        }
+    }
+
     const step = (delta: number) => {
         if (order.length === 0) {
             return
@@ -256,7 +298,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         const next = at < 0 ? (delta > 0 ? 0 : order.length - 1) : (at + delta + order.length) % order.length
         const id = order[next]
         if (id) {
-            activate(id)
+            openChange(id)
             scrollToPassage(id)
         }
     }
@@ -286,6 +328,31 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const close = () => {
         setDraft(null)
         setActive(null)
+    }
+
+    // A comment where the reader stands: Louvre's page reads where they are, never the artifact's frame, and opens a
+    // point's thread there, with how sure the reading is, the map shown at it.
+    const commentHere = () => {
+        setLocating(true)
+        navigator.geolocation.getCurrentPosition(
+            ({ coords }) => {
+                setLocating(false)
+                const [lon, lat] = [coords.longitude, coords.latitude].map((v) => Math.round(v * 1e6) / 1e6)
+                const standing = mapPlaceOf({ kind: 'point', coordinates: [lon, lat], accuracy: coords.accuracy })
+                if (standing?.kind !== 'point') {
+                    setToast({ text: 'Your device said where you are in a way Louvre cannot read.' })
+                    return
+                }
+                const words = whereSaid(standing.coordinates, standing.accuracy)
+                startDraft({ exact: words, prefix: '', suffix: '' }, standing)
+                show('draft')
+            },
+            (error) => {
+                setLocating(false)
+                setToast({ text: unread(error) })
+            },
+            READING,
+        )
     }
 
     // Leave the comparison for one of the threads its summary lists, open on the page.
@@ -338,7 +405,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
             }
             case 'click': {
                 if (message.id) {
-                    activate(message.id)
+                    openChange(message.id)
                 } else if (active !== 'draft') {
                     setActive(null)
                 }
@@ -557,6 +624,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const kind = { 'text/html': 'HTML', 'text/markdown': 'Markdown', 'application/geo+json': 'GeoJSON' }[
         shown?.content_type ?? 'text/html'
     ]
+    const isMap = shown?.content_type === 'application/geo+json'
     const activeThread = threads.find((t) => t.id === active)
     return (
         <>
@@ -640,6 +708,12 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                         >
                             <span className="long">{count(goneOpen.length, 'note')} on passages since removed</span>
                             <span className="short">{goneOpen.length} removed</span>
+                        </button>
+                    ) : null}
+                    {writable && comparing === null && isMap && touch && 'geolocation' in navigator ? (
+                        <button type="button" className="pill" disabled={locating} onClick={commentHere}>
+                            <span className="long">{locating ? 'Finding you…' : 'Comment where you are'}</span>
+                            <span className="short">{locating ? 'Finding…' : 'Here'}</span>
                         </button>
                     ) : null}
                     {writable && comparing === null ? (
@@ -734,7 +808,15 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                             onLight={(o) => setHover(o ? passageId(d, o) : null)}
                             onShow={(o) => {
                                 setHover(passageId(d, o))
-                                scrollToPassage(passageId(d, o))
+                                if (o.place && !places[passageId(d, o)]) {
+                                    // Its map is not drawn yet, or the place is off it: to the map, which pans to it.
+                                    frameRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+                                } else {
+                                    scrollToPassage(passageId(d, o))
+                                }
+                                if (o.place) {
+                                    show(passageId(d, o))
+                                }
                             }}
                         />
                     ))}
@@ -791,7 +873,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                                     change={change}
                                     active={active === change.id}
                                     hovered={hover === change.id}
-                                    onActivate={() => activate(change.id)}
+                                    onActivate={() => openChange(change.id)}
                                     onHover={(on) => setHover(on ? change.id : null)}
                                 />
                             ))}

@@ -293,6 +293,20 @@ class Resolve(_Request):
     resolved: Annotated[StrictBool, Field(description="true to resolve it, false to reopen it.")]
 
 
+class PlaceRequest(_Request):
+    """A place on the map of an artifact published with map_publish: one of its features, a point, or a box."""
+
+    kind: Annotated[geodata.PlaceKind, Field(description="A feature of the data, a point, or a box.")]
+    id: Annotated[
+        StrictStr,
+        Field(description="A feature's id: its GeoJSON id, or without one its label. Empty for a point or a box."),
+    ] = ""
+    coordinates: Annotated[
+        Sequence[FiniteFloat],
+        Field(description="A point's [longitude, latitude], or a box's [west, south, east, north], in WGS 84."),
+    ] = ()
+
+
 class OptionRequest(_Request):
     """One option a decision offers."""
 
@@ -301,6 +315,13 @@ class OptionRequest(_Request):
     anchor: Annotated[
         AnchorRequest | None,
         Field(description="The passage of the artifact's latest version it is about, shown beside it."),
+    ] = None
+    place: Annotated[
+        PlaceRequest | None,
+        Field(
+            description="Instead of a passage, the place on the map of a map_publish artifact's latest version it is "
+            "about, lit on the map beside it; its anchor is then the place's words.",
+        ),
     ] = None
 
 
@@ -449,8 +470,9 @@ TOOLS = (
     tool(
         "decision_create",
         "Ask people to decide something about an artifact by choosing among options, rather than in a comment: which "
-        "direction to take, whether to ship. An option may point at a passage. Name the people whose answers you want "
-        "in asked. People answer on the artifact's page; read their answers with decision_read or decision_feed.",
+        "direction to take, whether to ship. An option may point at a passage, or at a place on a map_publish map. "
+        "Name the people whose answers you want in asked. People answer on the artifact's page; read their answers "
+        "with decision_read or decision_feed.",
         DecisionCreate,
         lambda store, r: Decisions(store).ask(
             r.artifact_id,
@@ -460,6 +482,7 @@ TOOLS = (
                     o.label,
                     o.detail,
                     None if o.anchor is None else Anchor.of(o.anchor.exact, o.anchor.prefix, o.anchor.suffix),
+                    None if o.place is None else geodata.Pick(o.place.kind, o.place.id, o.place.coordinates),
                 )
                 for o in r.options
             ],

@@ -5,6 +5,10 @@
 /* its `mark` if it has one. `context`, GeoJSON or a file too, such as streets or kerbs, is drawn quietly under it. */
 /* The basemap is a city's scale at most: zoomed in past it, it fades to plain ground, and the context places the */
 /* data. A map is drawn while it is in view, and put away out of view when another needs its WebGL context. */
+/* On a map that takes places, as one Louvre draws from GeoJSON does, a reader comments on a feature or a point by */
+/* tapping it, or on a box they draw with the box button. While versions are compared it lights the features a */
+/* later version added, removed, or moved; it lights a decision's option's place while it is hovered, pans and */
+/* zooms to a place when asked, and rings a point read where its reader stood with how sure the reading is. */
 (() => {
     const base = new URL(".", document.currentScript.src).href;
     const css = /* maplibre-gl.css */ "";
@@ -28,6 +32,20 @@
     const MAX_ZOOM = 17;
     /** A label's sides under its place and over it, as MapLibre's anchors and offsets, in ems. */
     const UNDER_OVER = ["top", [0, 0.75], "bottom", [0, -0.75]];
+    /** How far in a map zooms to show a place it is asked to, unless it is in further already: a street's width. */
+    const SHOW_ZOOM = 16;
+    /** The longest a map flies to show a place, in ms: further, it jumps there. */
+    const FLIGHT = 1500;
+    /** The earth's mean radius, in metres, as a reading's accuracy is drawn around its point. */
+    const EARTH = 6371008.8;
+    /** The layers a feature a later version changed is lit in, which a tap on it picks. */
+    const CHANGED = [
+        "change-now-points",
+        "change-now-lines",
+        "change-now-areas",
+        "change-was-points",
+        "change-was-lines",
+    ];
 
     const style = document.createElement("style");
     style.textContent = `${css}
@@ -68,6 +86,19 @@
 .louvre-popup dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.6rem; margin: 0; }
 .louvre-popup dt { color: var(--l-muted, #666); }
 .louvre-popup dd { margin: 0; overflow-wrap: anywhere; }
+.maplibregl-ctrl-group button.louvre-box::before {
+    content: "";
+    display: block;
+    width: 11px;
+    height: 11px;
+    margin: auto;
+    border: 1.5px dashed var(--l-ink, #222);
+}
+.maplibregl-ctrl-group button.louvre-box[aria-pressed="true"] { background: var(--l-accent, #8a2f2a); }
+.maplibregl-ctrl-group button.louvre-box[aria-pressed="true"]::before { border: 1.5px solid var(--l-card, #fff); }
+/* While a box is drawn, a finger's drag is the box's, not the page's: over MapLibre's own rules, which give a */
+/* one-finger drag to the page when the map does not pan. */
+.louvre-boxing, .louvre-boxing .maplibregl-canvas { cursor: crosshair; touch-action: none !important; }
 @media (prefers-color-scheme: dark) { :root { --l-icon: invert(0.85); } }`;
     document.head.append(style);
 
@@ -166,6 +197,8 @@
             ? ["interpolate", ["linear"], value, ramp.min, c.muted, ramp.max, c.accent]
             : ["case", focus, c.accent, c.muted];
         const ground = mix(c.card, c.rule, 0.55);
+        // The hue Louvre's page marks changed words in, given by the bridge; the accent until it has been.
+        const hue = changeHue || c.accent;
         const kit = (name) => ({ type: "geojson", data: `${base}basemap/${name}.json` });
         // Past a city's scale, Natural Earth's coast and borders are a kilometre or more out: they fade away, and the
         // map is plain ground, rather than put a street in the river.
@@ -189,6 +222,12 @@
                 data: { type: "geojson", data: entry.data },
                 anchors: { type: "geojson", data: entry.anchors },
                 threads: { type: "geojson", data: entry.threads },
+                boxes: { type: "geojson", data: entry.boxes },
+                sketch: { type: "geojson", data: entry.sketch },
+                reach: { type: "geojson", data: entry.reach },
+                changed: { type: "geojson", data: entry.changed },
+                was: { type: "geojson", data: entry.was },
+                moves: { type: "geojson", data: entry.moves },
             },
             layers: [
                 { id: "water", type: "background", paint: { "background-color": fade(c.bg, ground) } },
@@ -239,6 +278,81 @@
                     paint: {
                         "line-color": mix(c.rule, c.muted, 0.12),
                         "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.5, 17, 3],
+                    },
+                },
+                // While versions are compared, each feature the later one changed, in the change's hue: where it
+                // was, dashed and hollow, for one removed or moved; a dashed line from there to where it is now, for
+                // one moved; and a halo under it where it is now, for one added or moved. Stronger while it is active
+                // or hovered.
+                {
+                    id: "change-was-areas",
+                    type: "fill",
+                    source: "was",
+                    filter: ["==", ["geometry-type"], "Polygon"],
+                    paint: { "fill-color": hue, "fill-opacity": ["case", ["get", "lit"], 0.2, 0.08] },
+                },
+                {
+                    id: "change-was-lines",
+                    type: "line",
+                    source: "was",
+                    filter: ["in", ["geometry-type"], ["literal", ["Polygon", "LineString"]]],
+                    paint: {
+                        "line-color": hue,
+                        "line-width": ["case", ["get", "lit"], 2.5, 1.5],
+                        "line-dasharray": [3, 2],
+                    },
+                },
+                {
+                    id: "change-was-points",
+                    type: "circle",
+                    source: "was",
+                    filter: ["==", ["geometry-type"], "Point"],
+                    paint: {
+                        "circle-radius": ["case", ["get", "lit"], 7, 5],
+                        "circle-color": "rgba(0, 0, 0, 0)",
+                        "circle-stroke-color": hue,
+                        "circle-stroke-width": 1.5,
+                        "circle-stroke-opacity": ["case", ["get", "lit"], 1, 0.75],
+                    },
+                },
+                {
+                    id: "change-moves",
+                    type: "line",
+                    source: "moves",
+                    paint: {
+                        "line-color": hue,
+                        "line-width": ["case", ["get", "lit"], 2, 1],
+                        "line-dasharray": [1, 2],
+                    },
+                },
+                {
+                    id: "change-now-areas",
+                    type: "fill",
+                    source: "changed",
+                    filter: ["==", ["geometry-type"], "Polygon"],
+                    paint: { "fill-color": hue, "fill-opacity": ["case", ["get", "lit"], 0.45, 0.25] },
+                },
+                {
+                    id: "change-now-lines",
+                    type: "line",
+                    source: "changed",
+                    filter: ["in", ["geometry-type"], ["literal", ["Polygon", "LineString"]]],
+                    layout: { "line-cap": "round", "line-join": "round" },
+                    paint: {
+                        "line-color": hue,
+                        "line-width": ["case", ["get", "lit"], 9, 6],
+                        "line-opacity": ["case", ["get", "lit"], 0.8, 0.5],
+                    },
+                },
+                {
+                    id: "change-now-points",
+                    type: "circle",
+                    source: "changed",
+                    filter: ["==", ["geometry-type"], "Point"],
+                    paint: {
+                        "circle-radius": ["case", ["get", "lit"], 11, 9],
+                        "circle-color": hue,
+                        "circle-opacity": ["case", ["get", "lit"], 0.8, 0.5],
                     },
                 },
                 {
@@ -321,8 +435,63 @@
                     },
                     paint: { "text-color": c.accent, "text-halo-color": c.card, "text-halo-width": 1.5 },
                 },
+                // Each thread on a box, its edges in the accent, and its area tinted while it is active or hovered;
+                // a draft's edges dashed, and a box being drawn, or drawn and not yet commented on, dashed too.
+                {
+                    id: "thread-box-areas",
+                    type: "fill",
+                    source: "boxes",
+                    paint: { "fill-color": c.accent, "fill-opacity": ["case", ["get", "lit"], 0.12, 0] },
+                },
+                {
+                    id: "thread-boxes",
+                    type: "line",
+                    source: "boxes",
+                    filter: ["!=", ["get", "state"], "draft"],
+                    paint: {
+                        "line-color": ["case", ["==", ["get", "state"], "resolved"], c.muted, c.accent],
+                        "line-width": 1.5,
+                    },
+                },
+                {
+                    id: "thread-box-drafts",
+                    type: "line",
+                    source: "boxes",
+                    filter: ["==", ["get", "state"], "draft"],
+                    paint: { "line-color": c.accent, "line-width": 1.5, "line-dasharray": [3, 2] },
+                },
+                {
+                    id: "sketch-area",
+                    type: "fill",
+                    source: "sketch",
+                    paint: { "fill-color": c.accent, "fill-opacity": 0.08 },
+                },
+                {
+                    id: "sketch",
+                    type: "line",
+                    source: "sketch",
+                    paint: { "line-color": c.accent, "line-width": 1.5, "line-dasharray": [3, 2] },
+                },
+                // How sure a point read where its reader stood is: a ring of that many metres around it.
+                {
+                    id: "reach-area",
+                    type: "fill",
+                    source: "reach",
+                    paint: { "fill-color": c.accent, "fill-opacity": ["case", ["get", "lit"], 0.14, 0.07] },
+                },
+                {
+                    id: "reach-line",
+                    type: "line",
+                    source: "reach",
+                    paint: {
+                        "line-color": ["case", ["==", ["get", "state"], "resolved"], c.muted, c.accent],
+                        "line-width": 1,
+                        "line-opacity": 0.6,
+                    },
+                },
                 // Each thread on a place, as Louvre numbers its threads: a disc in the accent's ring, filled while
-                // it is active or hovered; a draft's ring empty.
+                // it is active or hovered; a draft's ring empty. A box's sits on its north-west corner. A decision's
+                // option on a place is a disc too, filled, while its option is hovered or focused.
                 {
                     id: "thread-marks",
                     type: "circle",
@@ -433,10 +602,16 @@
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 96 }), "bottom-left");
         if (settings.popups || settings.places) pickable(map, entry);
         if (settings.places) {
+            map.addControl(new BoxControl(entry), "top-right");
+            boxable(map, entry);
             map.on("moveend", () => reportSpots(entry));
             map.once("idle", () => markThreads(entry));
         }
-        if (!entry.view && settings.bounds) {
+        if (entry.target) {
+            // Asked to show a place while it was put away: drawn there.
+            fly(entry, entry.target, 0);
+            entry.target = null;
+        } else if (!entry.view && settings.bounds) {
             map.fitBounds(settings.bounds, { padding: 48, maxZoom: settings.maxZoom ?? MAX_ZOOM, duration: 0 });
         }
         map.once("idle", () => {
@@ -454,6 +629,8 @@
 
     /** Puts a map out of view away, freeing its WebGL context for one in view. */
     const release = (entry) => {
+        entry.boxing = false;
+        entry.from = null;
         entry.view = { center: entry.map.getCenter(), zoom: entry.map.getZoom() };
         entry.map.remove();
         entry.map = null;
@@ -518,18 +695,28 @@
         const layers = ["points", "edges", "areas"];
         const label = entry.settings.label ?? "name";
         map.on("click", (event) => {
+            // A box just drawn ends with its pointer let go, which is no tap.
+            if (entry.boxing || entry.boxed) return;
             const { x, y } = event.point;
             const box = [
                 [x - REACH, y - REACH],
                 [x + REACH, y + REACH],
             ];
-            const [thread] = entry.settings.places ? map.queryRenderedFeatures(box, { layers: ["thread-marks"] }) : [];
-            if (thread) {
-                document.dispatchEvent(new CustomEvent("louvre:click", { detail: { id: thread.properties.id } }));
+            // A decision's option's place is lit, never a thread to open.
+            const marked = entry.settings.places ? map.queryRenderedFeatures(box, { layers: ["thread-marks"] }) : [];
+            const [thread] = marked.filter((f) => f.properties.state !== "passage");
+            // A feature a later version changed, while versions are compared, is its change's note to open.
+            const [changed] = entry.settings.places ? map.queryRenderedFeatures(box, { layers: CHANGED }) : [];
+            const tapped = thread ?? changed;
+            if (tapped) {
+                document.dispatchEvent(new CustomEvent("louvre:click", { detail: { id: tapped.properties.id } }));
                 return;
             }
             const [hit] = map.queryRenderedFeatures(box, { layers });
-            if (entry.settings.places) pick(entry, event, hit);
+            if (entry.settings.places) {
+                sketch(entry, null);
+                pick(entry, event, hit);
+            }
             if (!hit) return;
             const index = hit.properties[INDEX];
             const feature = entry.data.features[index - 1];
@@ -581,6 +768,132 @@
         document.dispatchEvent(new CustomEvent("louvre:pick", { detail }));
     };
 
+    /** The button that starts drawing a box on a map that takes places, and stops it before the box is drawn. */
+    class BoxControl {
+        constructor(entry) {
+            this.entry = entry;
+        }
+
+        onAdd() {
+            this.group = document.createElement("div");
+            this.group.className = "maplibregl-ctrl maplibregl-ctrl-group";
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "louvre-box";
+            button.title = "Draw a box to comment on";
+            button.setAttribute("aria-label", "Draw a box to comment on");
+            button.setAttribute("aria-pressed", "false");
+            button.addEventListener("click", () => boxing(this.entry, !this.entry.boxing));
+            this.group.append(button);
+            return this.group;
+        }
+
+        onRemove() {
+            this.group.remove();
+        }
+    }
+
+    /** Starts or stops drawing a box: while drawing, a drag draws the box rather than moving the map. */
+    const boxing = (entry, on) => {
+        const { map } = entry;
+        if (!map) return;
+        entry.boxing = on;
+        entry.from = null;
+        entry.element.querySelector("button.louvre-box")?.setAttribute("aria-pressed", String(on));
+        map.getCanvasContainer().classList.toggle("louvre-boxing", on);
+        if (on) map.dragPan.disable();
+        else map.dragPan.enable();
+    };
+
+    /** Lets a reader draw a box on the map, by a drag from one corner to the other, once the box button is pressed. */
+    const boxable = (map, entry) => {
+        const canvas = map.getCanvasContainer();
+        const at = (event) => {
+            const box = canvas.getBoundingClientRect();
+            return [event.clientX - box.left, event.clientY - box.top];
+        };
+        canvas.addEventListener("pointerdown", (event) => {
+            if (!entry.boxing || !event.isPrimary) return;
+            // Kept from the map, which would move, and from the page, which would select its words.
+            event.preventDefault();
+            canvas.setPointerCapture(event.pointerId);
+            entry.from = at(event);
+        });
+        canvas.addEventListener("pointermove", (event) => {
+            if (entry.from) sketch(entry, cornersOf(map, entry.from, at(event)));
+        });
+        const end = (event) => {
+            if (!entry.from) return;
+            const [a, b] = [entry.from, at(event)];
+            boxing(entry, false);
+            entry.boxed = true;
+            setTimeout(() => (entry.boxed = false));
+            // A drag too short to be a box is no box: it leaves nothing drawn.
+            const corners = cornersOf(map, a, b);
+            if (event.type === "pointercancel" || Math.abs(a[0] - b[0]) < REACH || Math.abs(a[1] - b[1]) < REACH) {
+                sketch(entry, null);
+                return;
+            }
+            sketch(entry, corners);
+            pickBox(entry, corners, a, b);
+        };
+        canvas.addEventListener("pointerup", end);
+        canvas.addEventListener("pointercancel", end);
+    };
+
+    // Escape stops drawing a box, and takes away one half drawn.
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        for (const entry of all) {
+            if (!entry.boxing) continue;
+            sketch(entry, null);
+            boxing(entry, false);
+        }
+    });
+
+    /** The box between two points on a map's screen, as [west, south, east, north], to five places as it is said. */
+    const cornersOf = (map, a, b) => {
+        const [p, q] = [map.unproject(a), map.unproject(b)];
+        const round = (v) => Math.round(v * 1e5) / 1e5;
+        const clamp = (v, most) => Math.max(-most, Math.min(most, v));
+        const [west, east] = [Math.min(p.lng, q.lng), Math.max(p.lng, q.lng)].map((v) => round(clamp(v, 180)));
+        const [south, north] = [Math.min(p.lat, q.lat), Math.max(p.lat, q.lat)].map((v) => round(clamp(v, 90)));
+        return [west, south, east, north];
+    };
+
+    /** A box as GeoJSON: a Polygon from its south-west corner, anticlockwise. */
+    const boxShape = ([west, south, east, north]) => ({
+        type: "Polygon",
+        coordinates: [
+            [
+                [west, south],
+                [east, south],
+                [east, north],
+                [west, north],
+                [west, south],
+            ],
+        ],
+    });
+
+    /** Draws the box being drawn, or drawn and not yet commented on; none when `corners` is null. */
+    const sketch = (entry, corners) => {
+        entry.sketched = corners;
+        const features = corners ? [{ type: "Feature", properties: {}, geometry: boxShape(corners) }] : [];
+        entry.sketch = { type: "FeatureCollection", features };
+        entry.map?.getSource("sketch")?.setData(entry.sketch);
+    };
+
+    /** Tells the bridge a reader drew a box to comment on, and where on the page it is. */
+    const pickBox = (entry, corners, a, b) => {
+        const box = entry.element.getBoundingClientRect();
+        const [west, south, east, north] = corners;
+        const at = { top: box.top + scrollY + Math.min(a[1], b[1]), bottom: box.top + scrollY + Math.max(a[1], b[1]) };
+        const side = { left: box.left + Math.min(a[0], b[0]), right: box.left + Math.max(a[0], b[0]) };
+        const words = `${pointWords({ lng: west, lat: south })} to ${pointWords({ lng: east, lat: north })}`;
+        const detail = { place: { kind: "box", id: "", coordinates: corners }, words, ...at, ...side };
+        document.dispatchEvent(new CustomEvent("louvre:pick", { detail }));
+    };
+
     /** Says a point as Louvre quotes one: its latitude, then its longitude, to five places. */
     const pointWords = ({ lng, lat }) =>
         `${Math.abs(lat).toFixed(5)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lng).toFixed(5)}° ${lng >= 0 ? "E" : "W"}`;
@@ -589,39 +902,139 @@
     const markThreads = (entry) => {
         const at = new Map(entry.anchors.features.map((a) => [a.properties[PLACE_ID], a.geometry.coordinates]));
         const features = [];
+        const boxes = [];
+        const reach = [];
+        const spots = [];
         for (const mark of threadMarks) {
-            const coordinates = mark.place.kind === "point" ? mark.place.coordinates : at.get(mark.place.id);
+            const { kind, coordinates: given } = mark.place;
+            const corner = kind === "box" ? [given[0], given[3]] : null;
+            const coordinates = kind === "point" ? given : corner ?? at.get(mark.place.id);
             if (!coordinates) continue;
+            spots.push({ id: mark.id, coordinates });
+            // A decision's option's place is drawn only while its option is hovered or focused.
+            if (mark.state === "passage" && !mark.lit) continue;
             const n = mark.n === null ? "" : String(mark.n);
             const properties = { id: mark.id, n, state: mark.state, lit: mark.lit };
             features.push({ type: "Feature", properties, geometry: { type: "Point", coordinates } });
+            if (kind === "box") boxes.push({ type: "Feature", properties, geometry: boxShape(given) });
+            if (kind === "point" && mark.place.accuracy > 0) {
+                reach.push({ type: "Feature", properties, geometry: around(given, mark.place.accuracy) });
+            }
+            // A box drawn is drawn as its thread, or its draft, once there is one.
+            if (kind === "box" && String(given) === String(entry.sketched)) sketch(entry, null);
+        }
+        const changed = [];
+        const was = [];
+        const moves = [];
+        for (const change of changeMarks) {
+            const properties = { id: change.mark, lit: change.lit };
+            const feature = (geometry) => ({ type: "Feature", properties, geometry });
+            const now = change.kind === "removed" ? null : change.geometry;
+            const then = change.kind === "removed" ? change.geometry : change.was;
+            if (now) changed.push(feature(now));
+            if (then) was.push(feature(then));
+            const [from, to] = [anchorOf(then), anchorOf(now)];
+            if (from && to) moves.push(feature({ type: "LineString", coordinates: [from, to] }));
+            const spot = to ?? from;
+            if (spot) spots.push({ id: change.mark, coordinates: spot });
         }
         entry.threads = { type: "FeatureCollection", features };
-        entry.map?.getSource("threads")?.setData(entry.threads);
+        entry.boxes = { type: "FeatureCollection", features: boxes };
+        entry.reach = { type: "FeatureCollection", features: reach };
+        entry.changed = { type: "FeatureCollection", features: changed };
+        entry.was = { type: "FeatureCollection", features: was };
+        entry.moves = { type: "FeatureCollection", features: moves };
+        entry.spots = spots;
+        for (const name of ["threads", "boxes", "reach", "changed", "was", "moves"]) {
+            entry.map?.getSource(name)?.setData(entry[name]);
+        }
         reportSpots(entry);
     };
 
+    /** A ring `metres` around a point on the earth, as a Polygon: near enough round at the scale a reading has. */
+    const around = ([lon, lat], metres) => {
+        const rise = ((metres / EARTH) * 180) / Math.PI;
+        const run = rise / Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
+        const ring = Array.from({ length: 65 }, (_, i) => {
+            const turn = (i % 64) * ((2 * Math.PI) / 64);
+            return [lon + run * Math.cos(turn), lat + rise * Math.sin(turn)];
+        });
+        return { type: "Polygon", coordinates: [ring] };
+    };
+
+    /** The box around a mark the bridge asked for, by its id: a place's, or a change's, where it was and is now. */
+    const boxOfMark = (entry, id) => {
+        const mark = threadMarks.find((m) => m.id === id);
+        if (mark?.place.kind === "box") return mark.place.coordinates;
+        if (mark?.place.kind === "point") {
+            const [lon, lat] = mark.place.coordinates;
+            const ring = mark.place.accuracy > 0 ? around([lon, lat], mark.place.accuracy) : null;
+            return ring ? boundsOf([{ geometry: ring }]) : [lon, lat, lon, lat];
+        }
+        if (mark) {
+            const feature = entry.data.features.find((f) => f.properties[PLACE_ID] === mark.place.id);
+            return feature ? boundsOf([feature]) : null;
+        }
+        const change = changeMarks.find((c) => c.mark === id);
+        return change ? boundsOf([{ geometry: change.geometry }, { geometry: change.was }]) : null;
+    };
+
+    /**
+     * Pans and zooms a map to a box, as near as a street unless it is nearer already: over `duration` ms, or as a
+     * flight, which jumps there instead when it would take longer than `FLIGHT` ms.
+     */
+    const fly = (entry, box, duration) => {
+        const most = Math.max(entry.map.getZoom(), Math.min(entry.settings.maxZoom ?? MAX_ZOOM, SHOW_ZOOM));
+        const timing = duration === undefined ? { maxDuration: FLIGHT } : { duration };
+        entry.map.fitBounds(box, { padding: 64, maxZoom: most, ...timing });
+    };
+
+    // The bridge asks a map to show a place, as a decision's option's link does: the map pans and zooms to it, there
+    // and then if it is drawn, or once it is.
+    document.addEventListener("louvre:show", (event) => {
+        const id = event.detail?.id;
+        for (const entry of all) {
+            if (!entry.settings.places || typeof id !== "string") continue;
+            const box = boxOfMark(entry, id);
+            if (!box) continue;
+            if (entry.map) fly(entry, box);
+            else entry.target = box;
+        }
+    });
+
     /** Tells the bridge where each thread on this map sits, from the map's top, while it is on the map in view. */
     const reportSpots = (entry) => {
-        if (!entry.map) return;
+        // While the map moves its spots move with it: they are told once it stops, as each move ends, so the page is
+        // not laid out again at every frame of a pan.
+        if (!entry.map || entry.map.isMoving()) return;
         const height = entry.element.clientHeight;
         const width = entry.element.clientWidth;
         const spots = {};
-        for (const thread of entry.threads.features) {
-            const p = entry.map.project(thread.geometry.coordinates);
+        for (const spot of entry.spots) {
+            const p = entry.map.project(spot.coordinates);
             if (p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
-                spots[thread.properties.id] = { top: p.y - REACH, bottom: p.y + REACH };
+                spots[spot.id] = { top: p.y - REACH, bottom: p.y + REACH };
             }
         }
         document.dispatchEvent(new CustomEvent("louvre:spots", { detail: { map: entry.element, spots } }));
     };
 
-    /** The threads on places the bridge last asked the maps to mark. */
+    /** The threads and options on places the bridge last asked the maps to mark, and the features changed. */
     let threadMarks = [];
+    let changeMarks = [];
+    /** The hue the bridge marks what a later version changed in, as `#rrggbb`; empty until it says. */
+    let changeHue = "";
     document.addEventListener("louvre:marks", (event) => {
-        const marks = event.detail?.marks;
+        const { marks, changes, hue } = event.detail ?? {};
         threadMarks = Array.isArray(marks) ? marks : [];
-        for (const entry of all) if (entry.settings.places) markThreads(entry);
+        changeMarks = Array.isArray(changes) ? changes : [];
+        const recolor = typeof hue === "string" && hue !== changeHue;
+        if (recolor) changeHue = hue;
+        for (const entry of all) {
+            if (!entry.settings.places) continue;
+            if (recolor) entry.map?.setStyle(styleOf(entry));
+            markThreads(entry);
+        }
     });
 
     /** Draws `options.data` in `where` once it is in view; resolves to its MapLibre map, the first time it is drawn. */
@@ -650,6 +1063,18 @@
                 data: { type: "FeatureCollection", features },
                 anchors: { type: "FeatureCollection", features: anchors },
                 threads: { type: "FeatureCollection", features: [] },
+                boxes: { type: "FeatureCollection", features: [] },
+                sketch: { type: "FeatureCollection", features: [] },
+                reach: { type: "FeatureCollection", features: [] },
+                changed: { type: "FeatureCollection", features: [] },
+                was: { type: "FeatureCollection", features: [] },
+                moves: { type: "FeatureCollection", features: [] },
+                spots: [],
+                target: null,
+                sketched: null,
+                boxing: false,
+                from: null,
+                boxed: false,
                 context,
                 settings: { ...options, focusAll, bounds },
                 map: null,

@@ -54,24 +54,24 @@ it whole, and comments on a frame's passages as on any artifact's. A board's fra
 Built (`louvre-1`). The operator wants agents to reuse Louvre's styles and practices in what they publish, when they
 choose to (2026-10-23). Louvre is the source of it: a versioned stylesheet, dark and light from the same tokens, with
 its components (a report's header, figures, callouts, tables) and the rules for using them. Agents get it over the MCP
-server they already reach Louvre by, so nothing is installed and it never lags Louvre; a skill only says when to use
-it (`skills/louvre-artifacts`). An artifact that opts in names a version, so a later style never restyles a published
-page. The `style_get` tool hands over the stylesheet, its guide (the page's shape, its components, color, charts,
-tables, phones, and writing for comments), and a starter page for the kind of artifact asked for, a report, a
-decision, or a plan, which the artifact inlines; the same files are MCP resources a person attaches, and the `style`
-prompt asks for a page of a kind in it. The `style_chart` tool draws a line, bar, or dot chart in it from data, and the
-`style_check` tool checks a page against the guide before it is published: errors for what would not work in Louvre,
-warnings for the rest. A Markdown artifact is shown in it already.
+server they already reach Louvre by, so nothing is installed and it never lags Louvre; a skill only says when to use it
+(`skills/louvre-artifacts`). An artifact that opts in names a version, `louvre-1` until Louvre's 1.0 (D008), and from
+1.0 a later style never restyles a published page. The `style_get` tool hands over the stylesheet, its guide (the page's
+shape, its components, color, charts, tables, phones, and writing for comments), and a starter page for the kind of
+artifact asked for, a report, a decision, or a plan, which the artifact inlines; the same files are MCP resources a
+person attaches, and the `style` prompt asks for a page of a kind in it. The `style_chart` tool draws a line, bar, or
+dot chart in it from data, and the `style_check` tool checks a page against the guide before it is published: errors for
+what would not work in Louvre, warnings for the rest. A Markdown artifact is shown in it already.
 
 ### U7. Decisions: people answer what agents ask, and agents read the answers back
 
 Built (M7), awaiting the operator's word. The operator's call (2026-10-24): a comment is the wrong shape for a choice,
 so an agent that needs one (which direction, which fix first, whether to ship) asks it as a decision on an artifact,
-with two or more options, each of which may point at a passage, and names the people whose answers it wants. A
-signed-in person answers on the artifact's page by choosing, with a note, and may change their answer while it is
-open; how others chose shows only once they have answered, so it does not sway them. An agent never answers. Whoever
-asked reads the answers back over MCP, whole or as a feed in the comment feed's shape, and closes the decision,
-naming the option decided on. Each person sees what waits on them: in the header, the catalogue, and a page of
+with two or more options, each of which may point at a passage, or a place on a map (U10), and names the people whose
+answers it wants. A signed-in person answers on the artifact's page by choosing, with a note, and may change their
+answer while it is open; how others chose shows only once they have answered, so it does not sway them. An agent never
+answers. Whoever asked reads the answers back over MCP, whole or as a feed in the comment feed's shape, and closes the
+decision, naming the option decided on. Each person sees what waits on them: in the header, the catalogue, and a page of
 decisions.
 
 ### U8. Comparing versions
@@ -97,12 +97,13 @@ feature shows them too. The demo publishes one, street poles in Lisbon.
 
 ### U10. Comments and decisions on places
 
-Built for features, points, and boxes drawn on GeoJSON (M12); the rest planned (M13). A thread is anchored on a map's
-feature, a point, or an area, as on a passage's words. L2 holds
-on a map: a feature's id and a place's coordinates are its words, and a pixel is a position. A feature found nowhere
-in a new version reads `passage_gone` and never moves to its neighbour; a point stays where it is on the earth. Two
-versions of a map compare as any artifact's do (U8), a decision's option may point at a place (U7), and on a phone a
-person may comment where they stand.
+Built (M12, M13), awaiting the operator's word. A thread is anchored on a map's feature, a point, or an area, as on a
+passage's words. L2 holds on a map: a feature's id and a place's coordinates are its words, and a pixel is a position.
+A feature found nowhere in a new version reads `passage_gone` and never moves to its neighbour; a point stays where it
+is on the earth. Two versions of a map compare as any artifact's do (U8), and the features the later one added,
+removed, or moved are lit on the map and noted in the margin; a decision's option may point at a place (U7), lit on
+the map while it is hovered; and on a phone a person may comment where they stand, the reading's accuracy kept with
+the point.
 
 ### U11. A person hears what waits on them
 

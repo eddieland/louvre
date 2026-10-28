@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ago, count, provenance, roman } from './format'
+import { ago, count, provenance, roman, whereSaid } from './format'
 
 describe('format', () => {
     const now = Date.parse('2026-10-23T12:00:00Z')
@@ -24,5 +24,10 @@ describe('format', () => {
     it('counts', () => {
         expect(count(1, 'thread')).toBe('1 thread')
         expect(count(2, 'reply', 'replies')).toBe('2 replies')
+    })
+
+    it('says a point as the server quotes one, with how sure a reading of it is', () => {
+        expect(whereSaid([-9.13987, 38.71238], null)).toBe('38.71238° N, 9.13987° W')
+        expect(whereSaid([151.2093, -33.8688], 1200.2)).toBe('33.86880° S, 151.20930° E, within 1,201 m')
     })
 })

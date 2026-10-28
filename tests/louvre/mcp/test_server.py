@@ -472,6 +472,31 @@ def test_an_agent_asks_a_decision_and_reads_back_what_people_chose(client: Clien
     assert client.refused("decision_close", decision_id=asked["decision_id"]) == "closed"
 
 
+def test_a_decisions_options_may_be_places_on_a_map_an_agent_published(client: Client) -> None:
+    poles = [
+        {"type": "Feature", "properties": {"name": n}, "geometry": {"type": "Point", "coordinates": [-9.1, 38.7]}}
+        for n in ("P-104", "P-113")
+    ]
+    made = client.call("map_publish", title="Poles", data={"type": "FeatureCollection", "features": poles})
+    options = [
+        {"label": "The lamp", "place": {"kind": "feature", "id": "P-104"}},
+        {"label": "The corner", "place": {"kind": "point", "coordinates": [-9.1, 38.71]}},
+    ]
+
+    asked = client.call("decision_create", artifact_id=made["artifact_id"], question="Which first?", options=options)
+    read = client.call("decision_read", decision_id=asked["decision_id"])
+    missing = [{"label": "Gone", "place": {"kind": "feature", "id": "P-999"}}, {"label": "Neither"}]
+
+    assert [o["place"]["kind"] for o in read["options"]] == ["feature", "point"]
+    assert [o["anchor"]["exact"] for o in read["options"]] == ["P-104", "38.71000° N, 9.10000° W"]
+    assert client.refused(
+        "decision_create",
+        artifact_id=made["artifact_id"],
+        question="?",
+        options=missing,
+    ) == ("anchor_not_found")
+
+
 def test_a_decision_is_never_answered_with_a_token(client: Client, agent: MakeAgent) -> None:
     artifact = client.publish()["artifact_id"]
     options = [{"label": "Yes"}, {"label": "No"}]

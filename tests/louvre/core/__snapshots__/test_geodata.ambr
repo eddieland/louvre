@@ -363,7 +363,7 @@
   }
   .louvre footer ol, .louvre footer ul { padding-left: 1.2em; }
   </style>
-  <script src="/kit/louvre-map-2/map.js"></script>
+  <script src="/kit/louvre-map-1/map.js"></script>
   </head>
   <body class="louvre">
   <main>

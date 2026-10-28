@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from louvre.core import accounts
 from louvre.core.db import Connection
 from louvre.core.decisions import MAX_OPTIONS, Decisions, Option
+from louvre.core.geodata import Pick, PlaceKind
 from louvre.core.store import Code, Refused, Store
 from louvre.core.text import Anchor
 from tests.conftest import BASE_URL, MakeAgent, person
@@ -78,6 +80,7 @@ def test_a_decision_reads_back_with_its_options_and_who_it_asks(
             "label": "Batch the tax quote",
             "detail": "A day's work.",
             "anchor": {"exact": "Batch the tax quote.", "prefix": "", "suffix": ""},
+            "place": None,
             "count": 0,
         },
         {
@@ -85,9 +88,10 @@ def test_a_decision_reads_back_with_its_options_and_who_it_asks(
             "label": "Warm the pool",
             "detail": "",
             "anchor": {"exact": "Warm the pool.", "prefix": "", "suffix": ""},
+            "place": None,
             "count": 0,
         },
-        {"id": "o3", "label": "Neither yet", "detail": "", "anchor": None, "count": 0},
+        {"id": "o3", "label": "Neither yet", "detail": "", "anchor": None, "place": None, "count": 0},
     ]
     assert read["asked"] == [
         {"login": "ana", "name": "Ana Ruiz", "answered": False},
@@ -321,3 +325,38 @@ def test_two_accounts_with_one_login_are_each_asked_and_either_answering_counts_
     other.answer(asked, ["o1"])
     assert signed_in.read(asked)["asked"][0] == {"login": "ana", "name": "Ana R", "answered": True}  # type: ignore[index]
     assert signed_in.read(asked)["awaits_me"] is True
+
+
+def test_an_option_may_be_about_a_place_on_a_map_said_in_its_words(sam_agent: Decisions, agent: MakeAgent) -> None:
+    feature = {"type": "Feature", "properties": {"name": "P-113"}, "geometry": {"type": "Point", "coordinates": [0, 0]}}
+    poles = json.dumps({"type": "FeatureCollection", "features": [feature]})
+    on_map = str(agent().publish(title="Poles", content_type="application/geo+json", content=poles)["artifact_id"])
+
+    made = sam_agent.ask(
+        on_map,
+        "Where does the crew start?",
+        (
+            Option("The leaning pole", place=Pick(PlaceKind.FEATURE, "P-113")),
+            Option("The corner", place=Pick(PlaceKind.POINT, coordinates=(0.001, 0.002))),
+        ),
+    )
+    pole, corner = sam_agent.read(str(made["decision_id"]))["options"]  # type: ignore[misc]
+
+    assert pole["anchor"] == {"exact": "P-113", "prefix": "", "suffix": ""}
+    assert pole["place"] == {
+        "kind": "feature",
+        "layer": "data",
+        "id": "P-113",
+        "label": "P-113",
+        "geometry": feature["geometry"],
+    }
+    assert corner["anchor"]["exact"] == "0.00200° N, 0.00100° E"
+    assert corner["place"]["kind"] == "point"
+
+
+def test_an_option_is_about_a_passage_or_a_place_its_map_has(sam_agent: Decisions, report: str) -> None:
+    place = Pick(PlaceKind.FEATURE, "P-113")
+    both = Option("Both", anchor=Anchor.of("Warm the pool."), place=place)
+
+    refused(Code.INVALID, lambda: sam_agent.ask(report, "?", (both, Option("Neither"))))
+    refused(Code.INVALID, lambda: sam_agent.ask(report, "?", (Option("On a page", place=place), Option("Neither"))))

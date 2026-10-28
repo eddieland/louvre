@@ -140,12 +140,12 @@ it shows. Color a mark with its `fill` or `stroke` attribute, set to one of the 
 
 ## Maps
 
-Louvre serves a map kit, `louvre-map-2`: a basemap of land, borders, and cities, drawn in the page's colors, dark and
+Louvre serves a map kit, `louvre-map-1`: a basemap of land, borders, and cities, drawn in the page's colors, dark and
 light, with your places over it. Load its one script in `<head>`, and draw in a `<div class="l-map">` inside a figure
 of class `l-plot`, as the `map` starter does:
 
 ```html
-<script src="/kit/louvre-map-2/map.js"></script>
+<script src="/kit/louvre-map-1/map.js"></script>
 ...
 <div class="l-map" id="map" role="img" aria-label="What the map shows, naming each place"></div>
 <p class="l-key"><span class="l-focus">What the accent marks</span><span>What the rest are</span></p>

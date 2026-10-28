@@ -81,9 +81,11 @@ the log reads as what is true now; the old text is in git history. Numbers are n
   `/style/<version>/fonts/` (settled by the operator, 2026-10-24), and the map kit, at `/kit/<version>/`, whose one
   script may run, whose worker runs from a blob, and whose basemap, street tiles, and glyphs it reads
   (`louvre.core.maps`). Beside them, its own version's files (D012). Anything else a page shows it carries inline.
-- Louvre serves every version of the style's fonts and of the kit, not only the current one, and a version's served
-  files never change once published: a page loads the version it was written with, and browsers keep each file for
-  a year. A change is a new version, beside the old; the tests hold each version's files to their hashes.
+- Until 1.0 the style and the kit each have one version, `louvre-1` and `louvre-map-1`, changed in place (settled by
+  the operator, 2026-10-28): a published page picks up a change, and their files are served with an ETag for a
+  browser to check before each use, never kept unasked. From 1.0 a change is a new version beside the old, every
+  version stays served, and a version's files never change. The tests snapshot each file's hash, so a change is seen
+  in review.
 - The street tiles are the one thing Louvre's server fetches from another site for a page: OpenStreetMap's, from
   OpenFreeMap (picked by the operator, 2026-10-24, over hosting tiles ourselves), passed on at the kit's path, so a
   page still reaches nothing but Louvre. `LOUVRE_STREETS` names another source, or none.
@@ -120,7 +122,7 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - So does a content type of Louvre's own: `artifact_publish` takes the contract's two, and only `map_publish` writes
   `application/geo+json`, which `artifact_read` returns as it is for the versions it wrote.
 - A thread on a place on a map carries `place` beside its `anchor`, whose `exact` holds the place's words, so a reader
-  of `thread_list` or `comment_feed` that knows only words reads it unchanged.
+  of `thread_list` or `comment_feed` that knows only words reads it unchanged; so does a decision's option.
 - Rejected: decisions' events in `comment_feed` (a reader written against the contract meets kinds it does not know).
 - Revisit: when canopy's contract takes a tool of Louvre's, which then follows the contract's word.
 

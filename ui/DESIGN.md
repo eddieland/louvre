@@ -92,6 +92,10 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
   shows "comment" beside it. Its thread's box is edged in `accent` (`muted` when resolved, dashed while a draft),
   tinted while hovered or active, its disc on its north-west corner. Its quote is its south-west and north-east
   corners', each as a point's. Escape, or a drag too short to be a box, draws none.
+- **Where you stand.** On a map Louvre draws, read by touch, "Comment where you are" in the toolbar ("Here" on a
+  phone) asks the browser where the reader is, from Louvre's own page and never the artifact's frame, and opens a
+  point's thread there, the map shown at it. The reading's accuracy rings the point, a faint `accent` tint edged in
+  `accent`, and its quote ends with it: "within 12 m". A reading refused, or that does not come, says so in a toast.
 - **Keyboard.** `j` and `k` move between threads in page order, Escape closes one, `c` comments on a selection.
 
 ## Chrome
@@ -142,8 +146,15 @@ margin are the page's own, and the artifact keeps its author's look.
   replies since. Activating one leaves the comparison with that thread open. Below the summary, each change is a note
   level with its passage, like a thread's: its kind as a label (Added, Removed, Rewritten), the words it removed
   struck through, and the words it added on a `chg-strong` underline, four lines of each at most.
+- **On a map** Louvre draws, each feature the later version added, removed, or moved is lit on the map in the same
+  sage, at full strength: a halo under it where it is now, for one added or moved; where it was, dashed and hollow, for
+  one removed or moved; and a dotted line between the two for one moved. Each is a note in the margin level with it,
+  its kind as a label ("Moved on the map"), the feature's label on a `chg-strong` underline, struck through when
+  removed, and how far and which way it moved in `muted` (`14 m north-west`, or "Reshaped where it was"). Opening a
+  note, or tapping the feature, pans and zooms the map to it, wherever the map was. Both versions are drawn on the one
+  map, rather than two maps side by side or swiped across: a phone draws one map at a time.
 - **The bar** under the toolbar names the earlier version as a row of roman pills, any earlier one to pick, and how
-  much changed, which activates the summary.
+  much changed, which activates the summary: on a map, the features too (`1 feature moved, 1 added, 1 removed`).
 - **Moving.** `j` and `k` step through the summary and the changes in page order; on a narrow screen each opens in
   the sheet, and the summary opens with the comparison. The toolbar's Open and All, and commenting on the page, wait
   until the comparison is left; selecting words and commenting leaves it, the comment on the page as it is.
@@ -217,8 +228,10 @@ starts reading; the margin stays the conversation's.
   left, as an active thread does.
 - **Options** are rows in Source Serif: a radio, or a checkbox where several may be chosen, in `accent` once checked;
   the label in `ink`; its detail under it in `muted`. An option about a passage lights that passage in the frame while
-  it is hovered or focused, with the `hl-strong` band, and "Passage" at its right scrolls the page to it. The note is
-  a single line that grows, as a reply is. Answering is the filled button: it is what the page asks for.
+  it is hovered or focused, with the `hl-strong` band, and "Passage" at its right scrolls the page to it. An option
+  about a place on a map Louvre draws lights it the same way, as a filled `accent` disc on the map, and "Place" at its
+  right pans and zooms the map to it. The note is a single line that grows, as a reply is. Answering is the filled
+  button: it is what the page asks for.
 - **Results** show once the reader has answered, once it is closed, or to a reader who cannot answer: never before
   they choose, so the count does not sway them. Each option's count is a number and a hairline bar, `muted`, and
   `accent` for the reader's choice and the outcome, each tagged in `accent`. Answers follow as notes do in the
@@ -234,9 +247,10 @@ starts reading; the margin stays the conversation's.
 
 `louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
 first, light when the reader's system is, every color a custom property. It is set in Louvre's own faces, which Louvre
-serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. A later style
-is a new version, beside this one: a page that inlined `louvre-1` keeps it, and its fonts stay served. A page Louvre
-draws itself, Markdown or GeoJSON, is drawn in the current style each time it is shown.
+serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. Until 1.0 it
+is the one version, changed in place (D008); from 1.0 a later style is a new version beside it, a page that inlined
+`louvre-1` keeps it, and its fonts stay served. A page Louvre draws itself, Markdown or GeoJSON, is drawn in the current
+style each time it is shown.
 
 Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
 page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome
@@ -252,7 +266,7 @@ gridline a `rule` hairline. Each series is labeled where it is, in Source Serif 
 moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
 quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
-**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-2`) in the same look, in a figure like a chart's.
+**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-1`) in the same look, in a figure like a chart's.
 The basemap is quiet: water is `bg`, land a mix of `card` and `rule`, borders a hairline, and cities in Noto Sans
 italic, a step lighter than `muted`, the larger ones zoomed out and more zoomed in. The page's places are over it: what
 the map is about in `accent`, filled; the rest hollow in `muted`. Each is labeled in Noto Sans, toward the map's middle

@@ -2,12 +2,12 @@
 
 It is Annotated's type and color (ui/DESIGN.md) made for a page inside the artifact's frame: dark first, light when the
 reader's system is, every color a custom property. Its faces are Louvre's own, which Louvre serves at `FONTS_PATH`, the
-one thing an artifact's sandbox lets it load; elsewhere, such as in canopy's local store, they fall back to the
-reader's own serif and sans. Louvre wraps every Markdown artifact in it, and the
-`style_get` tool, the MCP server's resources, and its `style` prompt hand it to an agent writing HTML, which inlines
-it in a `<style>` element. The version is in the name: a later style is a new version, and never restyles a page
-already published. A page that inlined a version keeps its stylesheet, but loads its version's faces from Louvre, so
-Louvre serves every version's fonts for as long as a page may name them. A page Louvre draws itself, Markdown or
+one thing an artifact's sandbox lets it load; elsewhere, such as in canopy's local store, they fall back to the reader's
+own serif and sans. Louvre wraps every Markdown artifact in it, and the `style_get` tool, the MCP server's resources,
+and its `style` prompt hand it to an agent writing HTML, which inlines it in a `<style>` element. The version is in the
+name: until 1.0 there is one, changed in place (D008); from 1.0 a later style is a new version, and never restyles a
+page already published. A page that inlined a version keeps its stylesheet, but loads its version's faces from Louvre,
+so Louvre serves every version's fonts for as long as a page may name them. A page Louvre draws itself, Markdown or
 GeoJSON, is drawn whole each time it is shown, its markup and the current style together.
 
 Each version's files sit in a directory named for it, beside this module: `style.css`, `rules.md`, the guide, a

@@ -139,7 +139,7 @@ def test_a_page_without_a_built_bridge_is_served_as_it_is() -> None:
     assert re.fullmatch(r"<p>Hi</p>\n<script>x</script>\n", with_bridge("<p>Hi</p>", "x"))
 
 
-def test_every_version_of_the_house_styles_fonts_is_served_to_any_origin_and_kept(client: TestClient) -> None:
+def test_every_version_of_the_house_styles_fonts_is_served_to_any_origin_checked_again(client: TestClient) -> None:
     assert style.VERSION in style.FONTS_BY_VERSION
     for style_version, fonts in style.FONTS_BY_VERSION.items():
         for name, font in fonts.items():
@@ -149,7 +149,7 @@ def test_every_version_of_the_house_styles_fonts_is_served_to_any_origin_and_kep
             assert response.content == font
             assert response.headers["content-type"] == "font/woff2"
             assert response.headers["access-control-allow-origin"] == "*"
-            assert "immutable" in response.headers["cache-control"]
+            assert response.headers["cache-control"] == "public, no-cache"
 
 
 @pytest.mark.parametrize(
@@ -178,7 +178,7 @@ def test_an_artifact_runs_only_its_own_scripts_and_the_map_kits_louvre_serves() 
     assert directives["worker-src"] == "blob:"
 
 
-def test_every_version_of_the_map_kits_files_is_served_to_any_origin_and_kept(client: TestClient) -> None:
+def test_every_version_of_the_map_kits_files_is_served_to_any_origin_checked_again(client: TestClient) -> None:
     assert maps.VERSION in maps.KITS
     for kit_version, kit in maps.KITS.items():
         for path, (media_type, data) in kit.items():
@@ -189,9 +189,21 @@ def test_every_version_of_the_map_kits_files_is_served_to_any_origin_and_kept(cl
             assert response.headers["content-type"].split(";")[0] == media_type
             assert response.headers["access-control-allow-origin"] == "*"
             assert response.headers["content-security-policy"] == FILE_POLICY
-            assert "immutable" in response.headers["cache-control"]
+            assert response.headers["cache-control"] == "public, no-cache"
     assert b"window.LouvreMap" in maps.FILES["map.js"][1]
     assert b".maplibregl-map" in maps.FILES["map.js"][1]
+
+
+def test_a_kit_file_or_font_a_browser_has_already_is_answered_with_no_body(client: TestClient) -> None:
+    """Until 1.0 the kit and the style change in place, so a browser checks its copy first, by its ETag (D008)."""
+    for path in (f"{maps.PATH}map.js", f"{style.FONTS_PATH}fraunces.woff2"):
+        first = client.get(path)
+        again = client.get(path, headers={"If-None-Match": first.headers["etag"]})
+        stale = client.get(path, headers={"If-None-Match": '"an-older-one"'})
+
+        assert (again.status_code, again.content) == (304, b"")
+        assert again.headers["access-control-allow-origin"] == "*"
+        assert (stale.status_code, stale.content) == (200, first.content)
 
 
 @pytest.mark.parametrize(

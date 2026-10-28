@@ -109,6 +109,34 @@ def _map_drawn(page: Page) -> None:
     frame.locator(".l-map[data-drawn]").wait_for(state="attached", timeout=DEADLINE * 1000)
 
 
+def _map_changes_shown(page: Page) -> None:
+    """The map's changes since its first version lit, and the moved pole's note open, the map panned to it."""
+    # While comparing, no thread is numbered in the frame: the changes are lit instead.
+    page.wait_for_selector(".changes-summary", state="attached")
+    page.wait_for_function("document.querySelector('iframe.exhibit').offsetHeight > 480")
+    frame = page.frame_locator("iframe.exhibit")
+    frame.locator(".l-map").scroll_into_view_if_needed()
+    frame.locator(".l-map[data-drawn]").wait_for(state="attached", timeout=DEADLINE * 1000)
+    # A tap on the pole that moved, lit where it stands now, opens its note: in the margin, or in the sheet.
+    map_frame = next(f for f in page.frames if "/content/" in f.url)
+    map_frame.wait_for_function(
+        "() => document.querySelector('.l-map').louvreMap"
+        ".queryRenderedFeatures({ layers: ['change-now-points'] }).length",
+        timeout=DEADLINE * 1000,
+    )
+    x, y = frame.locator(".l-map").evaluate("(e) => Object.values(e.louvreMap.project([-9.13796, 38.71087]))")
+    frame.locator(".l-map").click(position={"x": x, "y": y})
+    page.wait_for_selector(".thread.change[data-kind=moved].is-active", state="visible")
+    map_frame.wait_for_function(
+        """() => {
+            const map = document.querySelector('.l-map').louvreMap;
+            return !map.isMoving() && map.areTilesLoaded()
+                && map.queryRenderedFeatures({ layers: ['change-now-points'] }).length > 0;
+        }""",
+        timeout=DEADLINE * 1000,
+    )
+
+
 def _decision_waiting(page: Page) -> None:
     """The artifact drawn, with the decision that waits on the reader above it."""
     _artifact_shown(page)
@@ -189,7 +217,13 @@ SCENES = (
     Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
     Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
     Scene("house-style-map", "A map in the house style, drawn by the map kit", "/a/{map}", _map_drawn),
-    Scene("geodata", "GeoJSON, drawn by Louvre as a map", "/a/{poles}", _map_drawn),
+    Scene("geodata", "GeoJSON, drawn by Louvre as a map, a decision on its places", "/a/{poles}", _map_drawn),
+    Scene(
+        "geodata-changes",
+        "GeoJSON's changes since its first version, a moved feature's note open",
+        "/a/{poles}?changes=1",
+        _map_changes_shown,
+    ),
     Scene("board", "A board, fitted to the screen", "/b/design-study", _board_shown),
     Scene(
         "board-frame",
