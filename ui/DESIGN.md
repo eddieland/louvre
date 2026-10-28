@@ -175,6 +175,17 @@ the catalogue at `/` leaves it out, and links to it, as the sign-in a reader is 
 title says what it is filtered by ("From PAY-142"), and under it, in Instrument Sans and `muted`, the pairs and "Every
 artifact", the way back. Boards are left out: they are not filtered by origin. Nothing found says so, with the way back.
 
+**Searched.** A search field sits at the title's right, one line where it fits and under the title where it does not
+(on a phone, always): Instrument Sans at 13, a `faint` underline that turns `accent` on focus, as a reply's does, and
+"Search" in `muted` while empty. Enter searches; `/` anywhere on the page but a field puts the cursor in it. A search is
+a link (`?q=`), kept with an origin the list is filtered by, and lists, newest first, the artifacts holding every word
+at a word's start, in their title, their latest version, or a comment (REQUIREMENTS U12): the catalogue's entries,
+without boards, under the line that names what the list is filtered by, `holding "cache"`, and "Every artifact". Under
+each entry, as the inbox quotes its news, up to three passages of its page in `muted` and up to three comments, the
+author's name in small caps and their words; each at most three lines. A word found is marked in the title and the
+quotes with the `hl-strong` band, in `ink`, as a passage hovered is. An entry with a comment found opens the artifact
+at its thread. Nothing found says so in a line of `muted`, under the field.
+
 ## Inbox
 
 What is new to the signed-in person on the artifacts they take part in (REQUIREMENTS U11), at `/inbox`: the

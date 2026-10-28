@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-from louvre.core import accounts, boards, demo, explorations, geodata, inbox, style
+from louvre.core import accounts, boards, demo, explorations, geodata, inbox, search, style
 from louvre.core.decisions import MAX_OPTIONS, Decisions
 from louvre.core.store import MAX_BODY, MAX_EXACT, Code, Refused, iso
 from louvre.core.text import CONTEXT, Anchor
@@ -124,14 +124,17 @@ def session(request: Request, found: Annotated[Database, Depends(database)]) -> 
 def artifacts(
     store: Reader,
     found: Annotated[Database, Depends(database)],
+    *,
     cursor: str | None = None,
     namespace: Annotated[str | None, Query(max_length=64)] = None,
     # A JSON object, as a key may hold any character: `{"canopy.ticket": "PAY-142"}`.
     origin: Annotated[str | None, Query(max_length=MAX_ORIGIN_QUERY)] = None,
+    q: Annotated[str, Query(max_length=search.MAX_QUERY)] = "",
 ) -> dict[str, object]:
     """The artifacts the request reaches whose origin holds every pair of `origin`, newest first, by page.
 
-    The demo's are listed only when its namespace is named.
+    With `q`, only those holding its words, each saying where they were found (louvre.core.search), an agent's
+    comment with whom it writes for. The demo's are listed only when its namespace is named.
 
     Raises:
         Refused: `invalid` for an origin that is not a JSON object of strings.
@@ -142,7 +145,19 @@ def artifacts(
             pairs = _ORIGIN.validate_json(origin)
         except ValidationError:
             raise Refused(Code.INVALID, "an origin is a JSON object of strings") from None
-    return store.overview(origin=pairs, cursor=cursor, namespace=namespace, leave_out=_set_apart(found, namespace))
+    listed = store.overview(
+        origin=pairs,
+        cursor=cursor,
+        namespace=namespace,
+        leave_out=_set_apart(found, namespace),
+        query=q,
+    )
+    # The comments a search quotes, each agent's naming whom it writes for, as a thread's do.
+    quoted = [
+        c for a in _dicts(listed["artifacts"]) if isinstance(f := a.get("found"), dict) for c in _dicts(f["comments"])
+    ]
+    _name_agents(store.connection, [c["author"] for c in quoted])
+    return listed
 
 
 @router.get("/artifacts/{artifact_id}")

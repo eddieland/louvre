@@ -249,6 +249,35 @@ def test_a_list_is_filtered_by_origin(web: MakeWeb, agent: MakeAgent) -> None:
         assert response.json()["code"] == "invalid"
 
 
+def test_a_list_is_searched_by_words_and_names_whom_an_agent_writes_for(
+    web: MakeWeb,
+    agent: MakeAgent,
+    published: str,
+) -> None:
+    """A search lists what holds its words, beside an origin, and leaves the demo out unless its namespace is named."""
+    agent().comment(published, Anchor.of("retry the fraud check twice"), "Twice keeps declines down.")
+    client = web(demo=True)
+    sign_in(client, "ana")
+
+    [found] = client.get("/api/artifacts", params={"q": "twice"}).json()["artifacts"]
+    in_demo = client.get("/api/artifacts", params={"q": "checkout", **DEMO}).json()["artifacts"]
+
+    assert found["id"] == published
+    [comment] = found["found"]["comments"]
+    assert comment["author"]["on_behalf_of_name"] == "Sam Okafor"
+    assert [r for r in comment["body"] if r.get("hit")] == [{"text": "Twice", "hit": True}]
+    assert client.get("/api/artifacts", params={"q": "checkout"}).json()["artifacts"] == []
+    assert in_demo
+    assert all(a["namespace"] == "demo" for a in in_demo)
+    assert client.get("/api/artifacts", params={"q": "twice", "origin": '{"canopy.ticket": "X"}'}).json() == {
+        "artifacts": [],
+        "next_cursor": None,
+    }
+    assert "found" not in client.get("/api/artifacts").json()["artifacts"][0]
+    too_many = client.get("/api/artifacts", params={"q": "a b c d e f g h i"})
+    assert (too_many.status_code, too_many.json()["code"]) == (422, "invalid")
+
+
 def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb) -> None:
     client = web(demo=True)
     listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]

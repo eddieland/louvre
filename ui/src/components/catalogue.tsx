@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { Notice } from '@/components/notice'
+import { FoundLines, Marked, SearchField } from '@/components/search'
 import { ApiError, boardsQuery, inboxQuery, listArtifacts, sessionQuery } from '@/lib/api'
 import type { Listed, ListedBoard } from '@/lib/api'
 import { ago, count, provenance } from '@/lib/format'
@@ -13,6 +14,8 @@ export interface CatalogueProps {
     namespace?: string
     /** The origin pairs every artifact listed holds, such as its ticket; the list is titled by them, without boards. */
     origin?: Record<string, string>
+    /** The words every artifact listed holds, in its title, its words, or its comments; the list has no boards. */
+    query?: string
     /** The list's title. */
     title: string
     /** Said above the boards and the list, such as what the demo is. */
@@ -24,32 +27,53 @@ export interface CatalogueProps {
 }
 
 /** A list of artifacts, newest first, under the boards there are (ui/DESIGN.md, "Catalogue"). */
-export function Catalogue({ namespace, origin, title, intro, empty, after }: CatalogueProps) {
+export function Catalogue({ namespace, origin, query, title, intro, empty, after }: CatalogueProps) {
     const list = useInfiniteQuery({
-        queryKey: ['artifacts', namespace ?? null, origin ?? null],
-        queryFn: ({ pageParam }) => listArtifacts(pageParam, namespace, origin),
+        queryKey: ['artifacts', namespace ?? null, origin ?? null, query ?? null],
+        queryFn: ({ pageParam }) => listArtifacts(pageParam, namespace, origin, query),
         initialPageParam: null as string | null,
         getNextPageParam: (last) => last.next_cursor,
     })
     const artifacts = list.data?.pages.flatMap((page) => page.artifacts) ?? []
-    // Boards are not filtered by origin: a filtered list is the artifacts alone.
-    const boards = useQuery({ ...boardsQuery(namespace), enabled: origin === undefined }).data?.boards ?? []
+    // Boards are neither filtered by origin nor searched: a filtered or searched list is the artifacts alone.
+    const whole = origin === undefined && query === undefined
+    const boards = useQuery({ ...boardsQuery(namespace), enabled: whole }).data?.boards ?? []
     // The artifacts with news for a signed-in reader (their inbox), marked in the list.
     const signedIn = Boolean(useQuery(sessionQuery).data?.account)
     const inbox = useQuery({ ...inboxQuery, enabled: signedIn }).data?.entries ?? []
     const news = new Set(inbox.map((entry) => entry.artifact.id))
+    const from = origin === undefined ? null : provenance(origin)
+    // What the list is filtered by, said under its title: the origin's pairs, then the words searched for.
+    const filters = [
+        ...Object.entries(origin ?? {}).map(([key, value]) => `${key} ${value}`),
+        ...(query === undefined ? [] : [`holding “${query}”`]),
+    ]
+    const head = (
+        <div className="catalogue-head">
+            <h1 id="catalogue-title" className="title">
+                {from === null ? title : `From ${from}`}
+            </h1>
+            <SearchField query={query} origin={origin} />
+        </div>
+    )
     if (list.error) {
-        return (
+        const said = list.error instanceof ApiError ? list.error.message : 'Try again in a moment.'
+        // A search the server refused keeps its field, to search again.
+        return query === undefined ? (
             <Notice title="The list did not load">
-                <p>{list.error instanceof ApiError ? list.error.message : 'Try again in a moment.'}</p>
+                <p>{said}</p>
             </Notice>
+        ) : (
+            <section className="catalogue" aria-labelledby="catalogue-title">
+                {head}
+                <p className="mt-3 max-w-prose text-muted">{said}</p>
+            </section>
         )
     }
     if (list.isPending) {
         return null
     }
-    const from = origin === undefined ? null : provenance(origin)
-    if (from !== null && artifacts.length === 0) {
+    if (query === undefined && from !== null && artifacts.length === 0) {
         return (
             <Notice title={`Nothing from ${from}`}>
                 <p>No artifact you can read came from {from}.</p>
@@ -57,7 +81,7 @@ export function Catalogue({ namespace, origin, title, intro, empty, after }: Cat
             </Notice>
         )
     }
-    if (artifacts.length === 0 && boards.length === 0) {
+    if (whole && artifacts.length === 0 && boards.length === 0) {
         return empty
     }
     return (
@@ -75,22 +99,24 @@ export function Catalogue({ namespace, origin, title, intro, empty, after }: Cat
                     </ol>
                 </section>
             ) : null}
-            <h1 id="catalogue-title" className="title">
-                {from === null ? title : `From ${from}`}
-            </h1>
-            {origin === undefined ? null : (
+            {head}
+            {whole ? null : (
                 <p className="mt-2 font-ui text-sm text-muted">
-                    {Object.entries(origin)
-                        .map(([key, value]) => `${key} ${value}`)
-                        .join(', ')}{' '}
-                    &middot; <EveryArtifact />
+                    {filters.join(', ')} &middot; <EveryArtifact />
                 </p>
             )}
-            <ol className="mt-6 border-t border-rule">
-                {artifacts.map((artifact) => (
-                    <Entry key={artifact.id} artifact={artifact} news={news.has(artifact.id)} />
-                ))}
-            </ol>
+            {query !== undefined && artifacts.length === 0 ? (
+                <p className="mt-6 max-w-prose text-muted">
+                    Nothing you can read holds these words in its title, its page, or its comments. A word is found
+                    where a word starts: &ldquo;retr&rdquo; finds &ldquo;retry&rdquo;.
+                </p>
+            ) : (
+                <ol className="mt-6 border-t border-rule">
+                    {artifacts.map((artifact) => (
+                        <Entry key={artifact.id} artifact={artifact} news={news.has(artifact.id)} />
+                    ))}
+                </ol>
+            )}
             {list.hasNextPage ? (
                 <button
                     type="button"
@@ -130,10 +156,18 @@ function EveryArtifact() {
 
 function Entry({ artifact, news }: { artifact: Listed; news: boolean }) {
     const from = provenance(artifact.origin)
+    const { found } = artifact
+    // A search that found words in a comment opens the artifact at its thread, as the inbox opens its news.
+    const thread = found?.comments[0]?.thread_id
     return (
         <li className="entry">
-            <Link to="/a/$artifactId" params={{ artifactId: artifact.id }} className="entry-link">
-                <span className="entry-title">{artifact.title}</span>
+            <Link
+                to="/a/$artifactId"
+                params={{ artifactId: artifact.id }}
+                search={thread === undefined ? {} : { t: thread }}
+                className="entry-link"
+            >
+                <span className="entry-title">{found ? <Marked runs={found.title} /> : artifact.title}</span>
                 <span className="entry-meta">
                     {news ? <span className="text-accent">New to you</span> : null}
                     <span>{artifact.namespace}</span>
@@ -151,6 +185,7 @@ function Entry({ artifact, news }: { artifact: Listed; news: boolean }) {
                 ) : (
                     <span className="entry-open text-muted">&mdash;</span>
                 )}
+                {found ? <FoundLines found={found} /> : null}
             </Link>
         </li>
     )

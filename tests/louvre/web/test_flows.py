@@ -745,6 +745,35 @@ def test_a_reader_follows_an_artifacts_ticket_to_the_others_from_it_and_back(con
     expect(page.locator(".entry-title", has_text="Elsewhere")).to_have_count(1)
 
 
+def test_a_reader_searches_finds_a_comment_and_opens_its_thread_then_goes_back(context: BrowserContext) -> None:
+    """The catalogue's field finds what holds the words, marks them, and opens a found comment's thread."""
+    secret = mint(context)
+    artifact = publish(context)
+    call(context, secret, "artifact_publish", title="Unrelated", content_type="text/markdown", content="# Nothing")
+    thread = json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"][0]["id"]
+    page = context.new_page()
+    page.goto("/")
+    expect(page.get_by_role("searchbox")).to_be_visible()
+
+    page.keyboard.press("/")
+    expect(page.get_by_role("searchbox")).to_be_focused()
+    page.keyboard.type("shard fix")
+    page.keyboard.press("Enter")
+
+    expect(page).to_have_url(re.compile(r"/\?q=shard(\+|%20)fix$"))
+    entry = page.locator(".entry", has_text="Cache report")
+    expect(page.locator(".entry")).to_have_count(1)
+    expect(entry.locator("mark.hit")).to_have_text(["shard", "Shard", "fix"])
+    expect(entry).to_contain_text("Sharding is the fix I would try first.")
+    entry.locator("a").click()
+    expect(page).to_have_url(re.compile(rf"/a/{artifact}\?t={thread}$"))
+    page.go_back()
+    expect(page.get_by_role("searchbox")).to_have_value("shard fix")
+    page.click("text=Every artifact")
+    expect(page.get_by_role("searchbox")).to_have_value("")
+    expect(page.locator(".entry-title", has_text="Unrelated").first).to_be_visible()
+
+
 def test_a_person_answers_an_agents_decision_and_the_agent_reads_it_back(context: BrowserContext) -> None:
     secret = context.request.post(
         "/api/tokens",

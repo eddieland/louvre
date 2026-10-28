@@ -17,7 +17,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-    const { origin } = Route.useSearch()
+    const { origin, q } = Route.useSearch()
     const session = useQuery(sessionQuery)
     usePageTitle()
     return (
@@ -56,6 +56,7 @@ function Home() {
         return (
             <Catalogue
                 origin={origin}
+                query={q}
                 title="Artifacts"
                 after={demo}
                 empty={

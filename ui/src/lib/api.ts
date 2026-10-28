@@ -104,6 +104,38 @@ export interface Listed extends Artifact {
     open_decisions: number
     /** How many of those ask the reader, who has not answered them. */
     awaiting: number
+    /** Where a search's words were found in it; absent from a list that is not a search. */
+    found?: Found
+}
+
+/** A run of a quote a search found: text, marked when it is one of the words searched for (louvre.core.search). */
+export interface Hit {
+    /** Its text. */
+    text: string
+    /** Set when it is a word searched for. */
+    hit?: boolean
+}
+
+/** Where a search's words were found in an artifact. */
+export interface Found {
+    /** Its title, the words found marked. */
+    title: Hit[]
+    /** A few passages of its latest version holding them, in its order. */
+    passages: Hit[][]
+    /** A few comments holding them, those holding the most first. */
+    comments: FoundComment[]
+}
+
+/** A comment a search found. */
+export interface FoundComment {
+    /** The thread it is in. */
+    thread_id: string
+    /** Its id. */
+    comment_id: string
+    /** Who wrote it. */
+    author: Author
+    /** Its words around the first found, the words found marked. */
+    body: Hit[]
 }
 
 /** A version of an artifact. */
@@ -492,9 +524,14 @@ export const DEMO_NAMESPACE = 'demo'
 
 /**
  * Read a page of the list of artifacts, newest first, from `cursor`, in `namespace` alone if given, and of those only
- * the ones whose origin holds every pair of `origin` if given.
+ * the ones whose origin holds every pair of `origin` if given, and that hold the words of `query` if given.
  */
-export function listArtifacts(cursor: string | null, namespace?: string, origin?: Record<string, string>) {
+export function listArtifacts(
+    cursor: string | null,
+    namespace?: string,
+    origin?: Record<string, string>,
+    query?: string,
+) {
     const params = new URLSearchParams()
     if (cursor) {
         params.set('cursor', cursor)
@@ -506,8 +543,11 @@ export function listArtifacts(cursor: string | null, namespace?: string, origin?
         // A JSON object, as the API takes it: an origin's key may hold any character.
         params.set('origin', JSON.stringify(origin))
     }
-    const query = params.size > 0 ? `?${params.toString()}` : ''
-    return request<{ artifacts: Listed[]; next_cursor: string | null }>('GET', `/api/artifacts${query}`)
+    if (query !== undefined) {
+        params.set('q', query)
+    }
+    const search = params.size > 0 ? `?${params.toString()}` : ''
+    return request<{ artifacts: Listed[]; next_cursor: string | null }>('GET', `/api/artifacts${search}`)
 }
 
 /** The boards the reader reaches a frame of, in `namespace` alone if given. */

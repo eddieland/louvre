@@ -26,7 +26,7 @@ from typing import Literal, Self
 
 from psycopg.pq import TransactionStatus
 
-from louvre.core import compare, geodata, render
+from louvre.core import compare, geodata, render, search
 from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.files import File, FilesError, new_key
 from louvre.core.files import check as check_files
@@ -252,6 +252,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         cursor: str | None = None,
         namespace: str | None = None,
         leave_out: AbstractSet[str] = frozenset(),
+        query: str = "",
     ) -> dict[str, object]:
         """List the artifacts the scope reaches for the web's list: as `artifacts`, with what the list shows.
 
@@ -260,28 +261,38 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             cursor: Where the page starts, from an earlier page.
             namespace: The one namespace to list, or None for every one the scope reaches.
             leave_out: Namespaces not to list, such as the demo's in a catalogue of people's work.
+            query: Words each artifact holds, in its title, its latest version, or its comments (louvre.core.search).
 
         Returns:
             A page of artifacts, each with when its latest version came, how many open threads and open decisions
-            it has, and how many of those decisions await the scope's person; and the cursor of the next page.
+            it has, and how many of those decisions await the scope's person; and the cursor of the next page. For a
+            query, each artifact says where its words were `found`: its title's runs, and its passages and comments.
 
         Raises:
-            Refused: `invalid` for a cursor this store did not give.
+            Refused: `invalid` for a cursor this store did not give, or a query of more than `search.MAX_WORDS` words;
+                `too_long` for a query over `search.MAX_QUERY` characters.
         """
-        rows, more = self._listed(origin, cursor, namespace=namespace, leave_out=leave_out)
-        return {
-            "artifacts": [
-                {
-                    **_artifact_json(row),
-                    "updated_at": iso(row["updated_at"]),
-                    "open_threads": row["open_threads"],
-                    "open_decisions": row["open_decisions"],
-                    "awaiting": row["awaiting"],
-                }
-                for row in rows
-            ],
-            "next_cursor": _next(rows, more),
-        }
+        bounded("query", query, search.MAX_QUERY)
+        words = search.Query.of(query)
+        if len(words.words) > search.MAX_WORDS:
+            raise Refused(Code.INVALID, f"a search is at most {search.MAX_WORDS} words")
+        with self.reading():
+            rows, more = self._listed(origin, cursor, namespace=namespace, leave_out=leave_out, query=words)
+            where = search.found(self._conn, [str(row["id"]) for row in rows], words) if words.words else {}
+        listed: list[dict[str, object]] = []
+        for row in rows:
+            shown = {
+                **_artifact_json(row),
+                "updated_at": iso(row["updated_at"]),
+                "open_threads": row["open_threads"],
+                "open_decisions": row["open_decisions"],
+                "awaiting": row["awaiting"],
+            }
+            if words.words:
+                inside = where.get(str(row["id"]), {"passages": [], "comments": []})
+                shown["found"] = {"title": words.runs(str(row["title"])), **inside}
+            listed.append(shown)
+        return {"artifacts": listed, "next_cursor": _next(rows, more)}
 
     def versions(self, artifact_id: str) -> dict[str, object]:
         """List an artifact's versions, oldest first.
@@ -778,6 +789,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         *,
         namespace: str | None,
         leave_out: AbstractSet[str] = frozenset(),
+        query: search.Query = search.EVERYTHING,
     ) -> tuple[list[Row], bool]:
         before = None
         if cursor is not None:
@@ -798,6 +810,12 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 " AND (%(namespace)s::text IS NULL OR a.namespace = %(namespace)s)"
                 " AND NOT a.namespace = ANY(%(leave_out)s)"
                 " AND (%(before)s::bigint IS NULL OR a.n < %(before)s) AND a.origin @> %(filter)s::jsonb"
+                # Each of the query's words in the title, the latest version's text, or a comment not deleted.
+                " AND NOT EXISTS (SELECT 1 FROM unnest(%(patterns)s::text[]) p WHERE NOT (a.title ~* p"
+                " OR EXISTS (SELECT 1 FROM versions v WHERE v.artifact_id = a.id AND v.n = a.latest_version"
+                " AND v.text ~* p)"
+                " OR EXISTS (SELECT 1 FROM threads t JOIN comments c ON c.thread_id = t.id WHERE t.artifact_id = a.id"
+                " AND c.deleted_at IS NULL AND c.body ~* p)))"
                 " ORDER BY a.n DESC LIMIT %(limit)s",
                 {
                     "namespace": namespace,
@@ -805,6 +823,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                     "account": self.scope.account_id,
                     "before": before,
                     "filter": json.dumps(dict(origin or {})),
+                    "patterns": query.patterns,
                     "limit": LIST_PAGE + 1,
                 }
                 | self.reach(),
