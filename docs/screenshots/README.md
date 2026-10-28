@@ -48,6 +48,28 @@ Light:
 | --- | --- |
 | ![The demo, signed in, Phone, 390, light](catalogue/phone-light.png) | ![The demo, signed in, Laptop, 1440, light](catalogue/laptop-light.png) |
 
+## The demo, filtered by a ticket
+
+`/demo?origin=%7B%22canopy.ticket%22%3A%22LOUVRE-M1%22%7D`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![The demo, filtered by a ticket, Small phone, 360, dark](catalogue-origin/phone-small-dark.png) | ![The demo, filtered by a ticket, Phone, 390, dark](catalogue-origin/phone-dark.png) | ![The demo, filtered by a ticket, Tablet, 820, dark](catalogue-origin/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![The demo, filtered by a ticket, Tablet landscape, 1180, dark](catalogue-origin/tablet-landscape-dark.png) | ![The demo, filtered by a ticket, Laptop, 1440, dark](catalogue-origin/laptop-dark.png) | ![The demo, filtered by a ticket, Wide, 1920, dark](catalogue-origin/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![The demo, filtered by a ticket, Phone, 390, light](catalogue-origin/phone-light.png) | ![The demo, filtered by a ticket, Laptop, 1440, light](catalogue-origin/laptop-light.png) |
+
 ## The demo, read without signing in
 
 `/demo`

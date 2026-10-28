@@ -18,4 +18,5 @@ across a new version, and says it is right; Playwright holds each of those inter
 
 Status: in progress: built over the store (M4) rather than mock data, at the operator's word to build the MVP end to
 end (2026-10-23); waiting on the operator's word on the running page. Playwright holds the interactions
-(`tests/louvre/web/test_flows.py`). Not built: filtering the list by origin (the API takes a namespace).
+(`tests/louvre/web/test_flows.py`). The list is filtered by origin (2026-10-28): an artifact's ticket in its header
+lists every artifact from that ticket.

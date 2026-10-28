@@ -204,6 +204,12 @@ SCREENS = (
 SCENES = (
     Scene("front-door", "The catalogue, before signing in", "/", signed_in=False),
     Scene("catalogue", "The demo, signed in", "/demo"),
+    # The origin is JSON, percent-encoded: its braces would read as a name of DEMO's.
+    Scene(
+        "catalogue-origin",
+        "The demo, filtered by a ticket",
+        "/demo?origin=%7B%22canopy.ticket%22%3A%22LOUVRE-M1%22%7D",
+    ),
     Scene("reader", "The demo, read without signing in", "/demo", signed_in=False),
     Scene("sign-in", "Signing in", "/sign-in", signed_in=False),
     Scene("artifact", "An artifact, a thread open", "/a/{checkout}", _report_open),

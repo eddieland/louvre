@@ -7,14 +7,17 @@ import { Notice } from '@/components/notice'
 import { SignInLink } from '@/components/sign-in'
 import { Footer } from '@/components/site'
 import { DEMO_NAMESPACE, sessionQuery } from '@/lib/api'
+import { catalogueSearch } from '@/lib/search'
 import { usePageTitle } from '@/lib/title'
 
 /** The demo: its artifacts and its board, which anyone reads without signing in (ui/DESIGN.md, "Catalogue"). */
 export const Route = createFileRoute('/demo')({
+    validateSearch: catalogueSearch,
     component: DemoPage,
 })
 
 function DemoPage() {
+    const { origin } = Route.useSearch()
     const session = useQuery(sessionQuery)
     usePageTitle('Demo')
     return (
@@ -45,6 +48,7 @@ function DemoPage() {
         const signedIn = session.data.account !== null
         return (
             <Catalogue
+                origin={origin}
                 namespace={DEMO_NAMESPACE}
                 title="The demo"
                 intro={

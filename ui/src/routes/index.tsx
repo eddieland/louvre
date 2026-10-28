@@ -7,14 +7,17 @@ import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
 import { Footer } from '@/components/site'
 import { sessionQuery } from '@/lib/api'
+import { catalogueSearch } from '@/lib/search'
 import { usePageTitle } from '@/lib/title'
 
 /** The catalogue: every artifact the reader reaches but the demo's, newest first (ui/DESIGN.md, "Catalogue"). */
 export const Route = createFileRoute('/')({
+    validateSearch: catalogueSearch,
     component: Home,
 })
 
 function Home() {
+    const { origin } = Route.useSearch()
     const session = useQuery(sessionQuery)
     usePageTitle()
     return (
@@ -52,6 +55,7 @@ function Home() {
         }
         return (
             <Catalogue
+                origin={origin}
                 title="Artifacts"
                 after={demo}
                 empty={

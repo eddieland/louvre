@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ago, count, provenance, roman, whereSaid } from './format'
+import { ago, count, provenance, provenancePair, roman, whereSaid } from './format'
 
 describe('format', () => {
     const now = Date.parse('2026-10-23T12:00:00Z')
@@ -19,6 +19,15 @@ describe('format', () => {
         expect(provenance({ 'canopy.repo': 'payments', 'canopy.ticket': 'PAY-142' })).toBe('PAY-142')
         expect(provenance({ zeta: 'z', alpha: 'a' })).toBe('a')
         expect(provenance({})).toBeNull()
+    })
+
+    it('gives the pair an origin is named by, to filter the list by', () => {
+        expect(provenancePair({ 'canopy.repo': 'payments', 'canopy.ticket': 'PAY-142' })).toEqual([
+            'canopy.ticket',
+            'PAY-142',
+        ])
+        expect(provenancePair({ zeta: 'z', alpha: 'a' })).toEqual(['alpha', 'a'])
+        expect(provenancePair({})).toBeNull()
     })
 
     it('counts', () => {

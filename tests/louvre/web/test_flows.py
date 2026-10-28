@@ -715,6 +715,36 @@ def call(context: BrowserContext, secret: str, name: str, **arguments: object) -
     return str(called["result"]["content"][0]["text"])
 
 
+def test_a_reader_follows_an_artifacts_ticket_to_the_others_from_it_and_back(context: BrowserContext) -> None:
+    """The ticket in an artifact's header lists every artifact from that ticket, and the list leads back to them all."""
+    secret = mint(context)
+    made = {
+        title: json.loads(
+            call(
+                context,
+                secret,
+                "artifact_publish",
+                title=title,
+                content_type="text/markdown",
+                content=f"# {title}",
+                origin={"canopy.ticket": ticket, "canopy.repo": "flows"},
+            ),
+        )["artifact_id"]
+        for title, ticket in [("Plan for FLOW-7", "FLOW-7"), ("Elsewhere", "FLOW-8"), ("Review of FLOW-7", "FLOW-7")]
+    }
+    page = context.new_page()
+
+    page.goto(f"/a/{made['Plan for FLOW-7']}")
+    page.locator(".provenance a", has_text="FLOW-7").click()
+
+    expect(page.locator("h1")).to_have_text("From FLOW-7")
+    expect(page.locator(".entry-title")).to_have_text(["Review of FLOW-7", "Plan for FLOW-7"])
+    expect(page.locator("#boards-title")).to_have_count(0)
+    page.click("text=Every artifact")
+    expect(page.locator("h1")).to_have_text("Artifacts")
+    expect(page.locator(".entry-title", has_text="Elsewhere")).to_have_count(1)
+
+
 def test_a_person_answers_an_agents_decision_and_the_agent_reads_it_back(context: BrowserContext) -> None:
     secret = context.request.post(
         "/api/tokens",

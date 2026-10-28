@@ -170,6 +170,11 @@ dash. The tokens page and signing in are the same column.
 The demo, where a deployment publishes it, is its own catalogue at `/demo`, which anyone reads without signing in;
 the catalogue at `/` leaves it out, and links to it, as the sign-in a reader is first asked for does.
 
+**Filtered by origin.** Where an artifact came from, in its header, links to the catalogue filtered by it
+(`?origin=`, the pairs as JSON): every artifact from its ticket, in the demo's catalogue for one of the demo's. The
+title says what it is filtered by ("From PAY-142"), and under it, in Instrument Sans and `muted`, the pairs and "Every
+artifact", the way back. Boards are left out: they are not filtered by origin. Nothing found says so, with the way back.
+
 ## Inbox
 
 What is new to the signed-in person on the artifacts they take part in (REQUIREMENTS U11), at `/inbox`: the

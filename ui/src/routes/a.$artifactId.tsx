@@ -20,6 +20,7 @@ import {
     artifactQuery,
     boardQuery,
     compareQuery,
+    DEMO_NAMESPACE,
     request,
     sessionQuery,
     threadsQuery,
@@ -29,7 +30,7 @@ import {
 import type { Account, Decision, Detail, Thread, ThreadPlace } from '@/lib/api'
 import { changeMarks, featureMarks, featureNotes, notesOf, SUMMARY, tally } from '@/lib/changes'
 import { passageId, rank } from '@/lib/decisions'
-import { ago, count, provenance, roman, whereSaid } from '@/lib/format'
+import { ago, count, provenancePair, roman, whereSaid } from '@/lib/format'
 import { clearSelection, showPlace } from '@/lib/frame'
 import { GAP, place } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
@@ -143,6 +144,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     const { artifact, versions } = detail
     const search = Route.useSearch()
     const navigate = useNavigate()
+    const demo = useQuery(sessionQuery).data?.demo ?? false
     const version = Math.min(search.v ?? artifact.latest_version, artifact.latest_version)
     const latest = version === artifact.latest_version
     const shown = versions.find((v) => v.n === version)
@@ -620,7 +622,9 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         )
     }
 
-    const from = provenance(artifact.origin)
+    const from = provenancePair(artifact.origin)
+    // The demo's own list holds the demo's artifacts; the catalogue leaves them out while the demo is on.
+    const list = demo && artifact.namespace === DEMO_NAMESPACE ? '/demo' : '/'
     const kind = { 'text/html': 'HTML', 'text/markdown': 'Markdown', 'application/geo+json': 'GeoJSON' }[
         shown?.content_type ?? 'text/html'
     ]
@@ -632,7 +636,19 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                 provenance={
                     <>
                         <span className="long">{artifact.namespace} &middot; </span>
-                        <b>{from ?? artifact.title}</b>
+                        <b>
+                            {from === null ? (
+                                artifact.title
+                            ) : (
+                                <Link
+                                    to={list}
+                                    search={{ origin: { [from[0]]: from[1] } }}
+                                    title={`Every artifact from ${from[1]}`}
+                                >
+                                    {from[1]}
+                                </Link>
+                            )}
+                        </b>
                     </>
                 }
             />

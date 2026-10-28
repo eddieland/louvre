@@ -490,14 +490,21 @@ export const sessionQuery = queryOptions({
 /** The namespace the demo publishes in (louvre.core.demo.NAMESPACE): a list leaves it out unless it names it. */
 export const DEMO_NAMESPACE = 'demo'
 
-/** Read a page of the list of artifacts, newest first, from `cursor`, in `namespace` alone if given. */
-export function listArtifacts(cursor: string | null, namespace?: string) {
+/**
+ * Read a page of the list of artifacts, newest first, from `cursor`, in `namespace` alone if given, and of those only
+ * the ones whose origin holds every pair of `origin` if given.
+ */
+export function listArtifacts(cursor: string | null, namespace?: string, origin?: Record<string, string>) {
     const params = new URLSearchParams()
     if (cursor) {
         params.set('cursor', cursor)
     }
     if (namespace !== undefined) {
         params.set('namespace', namespace)
+    }
+    if (origin !== undefined) {
+        // A JSON object, as the API takes it: an origin's key may hold any character.
+        params.set('origin', JSON.stringify(origin))
     }
     const query = params.size > 0 ? `?${params.toString()}` : ''
     return request<{ artifacts: Listed[]; next_cursor: string | null }>('GET', `/api/artifacts${query}`)

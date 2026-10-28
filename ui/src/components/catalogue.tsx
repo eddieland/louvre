@@ -11,6 +11,8 @@ import { ago, count, provenance } from '@/lib/format'
 export interface CatalogueProps {
     /** The one namespace to list, or every one the reader reaches but the demo's. */
     namespace?: string
+    /** The origin pairs every artifact listed holds, such as its ticket; the list is titled by them, without boards. */
+    origin?: Record<string, string>
     /** The list's title. */
     title: string
     /** Said above the boards and the list, such as what the demo is. */
@@ -22,15 +24,16 @@ export interface CatalogueProps {
 }
 
 /** A list of artifacts, newest first, under the boards there are (ui/DESIGN.md, "Catalogue"). */
-export function Catalogue({ namespace, title, intro, empty, after }: CatalogueProps) {
+export function Catalogue({ namespace, origin, title, intro, empty, after }: CatalogueProps) {
     const list = useInfiniteQuery({
-        queryKey: ['artifacts', namespace ?? null],
-        queryFn: ({ pageParam }) => listArtifacts(pageParam, namespace),
+        queryKey: ['artifacts', namespace ?? null, origin ?? null],
+        queryFn: ({ pageParam }) => listArtifacts(pageParam, namespace, origin),
         initialPageParam: null as string | null,
         getNextPageParam: (last) => last.next_cursor,
     })
     const artifacts = list.data?.pages.flatMap((page) => page.artifacts) ?? []
-    const boards = useQuery(boardsQuery(namespace)).data?.boards ?? []
+    // Boards are not filtered by origin: a filtered list is the artifacts alone.
+    const boards = useQuery({ ...boardsQuery(namespace), enabled: origin === undefined }).data?.boards ?? []
     // The artifacts with news for a signed-in reader (their inbox), marked in the list.
     const signedIn = Boolean(useQuery(sessionQuery).data?.account)
     const inbox = useQuery({ ...inboxQuery, enabled: signedIn }).data?.entries ?? []
@@ -44,6 +47,15 @@ export function Catalogue({ namespace, title, intro, empty, after }: CataloguePr
     }
     if (list.isPending) {
         return null
+    }
+    const from = origin === undefined ? null : provenance(origin)
+    if (from !== null && artifacts.length === 0) {
+        return (
+            <Notice title={`Nothing from ${from}`}>
+                <p>No artifact you can read came from {from}.</p>
+                <EveryArtifact />
+            </Notice>
+        )
     }
     if (artifacts.length === 0 && boards.length === 0) {
         return empty
@@ -64,8 +76,16 @@ export function Catalogue({ namespace, title, intro, empty, after }: CataloguePr
                 </section>
             ) : null}
             <h1 id="catalogue-title" className="title">
-                {title}
+                {from === null ? title : `From ${from}`}
             </h1>
+            {origin === undefined ? null : (
+                <p className="mt-2 font-ui text-sm text-muted">
+                    {Object.entries(origin)
+                        .map(([key, value]) => `${key} ${value}`)
+                        .join(', ')}{' '}
+                    &middot; <EveryArtifact />
+                </p>
+            )}
             <ol className="mt-6 border-t border-rule">
                 {artifacts.map((artifact) => (
                     <Entry key={artifact.id} artifact={artifact} news={news.has(artifact.id)} />
@@ -96,6 +116,15 @@ export function NeedsDatabase() {
             </p>
             <p>docs/DEPLOY.md has every step.</p>
         </Notice>
+    )
+}
+
+/** The way back from a filtered list to the whole one, on the same page. */
+function EveryArtifact() {
+    return (
+        <Link to="." search={{}} className="link">
+            Every artifact
+        </Link>
     )
 }
 
