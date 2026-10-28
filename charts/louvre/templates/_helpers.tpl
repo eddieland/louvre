@@ -151,6 +151,28 @@ chart's test both read these.
 - name: LOUVRE_DEV_SIGN_IN
   value: "1"
 {{- end }}
+{{- with $config.site }}
+{{- with .name }}
+- name: LOUVRE_NAME
+  value: {{ . | quote }}
+{{- end }}
+{{- with .banner }}
+- name: LOUVRE_BANNER
+  value: {{ . | quote }}
+{{- end }}
+{{- with .footer }}
+- name: LOUVRE_FOOTER
+  value: {{ . | quote }}
+{{- end }}
+{{- with .signInNote }}
+- name: LOUVRE_SIGN_IN_NOTE
+  value: {{ . | quote }}
+{{- end }}
+{{- with .tokensNote }}
+- name: LOUVRE_TOKENS_NOTE
+  value: {{ . | quote }}
+{{- end }}
+{{- end }}
 {{- with $config.github.clientId }}
 - name: LOUVRE_GITHUB_CLIENT_ID
   value: {{ . | quote }}

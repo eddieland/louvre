@@ -93,7 +93,7 @@ class TokenBody(_Body):
 
 @router.get("/session")
 def session(request: Request, found: Annotated[Database, Depends(database)]) -> dict[str, object]:
-    """Who is signed in, how one can sign in, and whether the deployment has its database.
+    """Who is signed in, how one can sign in, whether the deployment has its database, and what its owner says.
 
     The one route that answers without a database, so the UI can say what is missing.
     """
@@ -110,6 +110,7 @@ def session(request: Request, found: Annotated[Database, Depends(database)]) -> 
         "configured": found.configured,
         "demo": settings.demo,
         "sign_in": {"github": settings.github, "dev": settings.dev_sign_in},
+        "site": settings.site.shown(),
     }
 
 

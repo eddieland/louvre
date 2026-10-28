@@ -26,6 +26,7 @@ from louvre.core.accounts import Account, upsert_account
 from louvre.core.store import Store
 from louvre.web.app import create
 from louvre.web.settings import Settings
+from louvre.web.site import Site
 
 #: The variable that names the Postgres the tests use.
 TEST_DATABASE = "LOUVRE_TEST_DATABASE_URL"
@@ -35,6 +36,23 @@ BASE_URL = "https://louvre.test"
 LIVE_DEADLINE = 15.0
 #: The header every write to the web app carries.
 WRITES = {"X-Louvre": "1"}
+#: What an organization's owner might say on its deployment's pages (louvre.web.site), as the screens show it.
+OWNED = Site(
+    name="Acme Louvre",
+    banner=(
+        "Acme's Louvre, for work inside Acme. Read the [publishing policy](https://wiki.acme.test/louvre) before you"
+        " post customer data."
+    ),
+    footer=(
+        "Run by Platform Engineering. Help: **#louvre** on Slack, or [louvre@acme.test](mailto:louvre@acme.test).\n"
+        "[Acceptable use](https://wiki.acme.test/aup) · [Privacy](https://wiki.acme.test/privacy)"
+    ),
+    sign_in="Sign in with the GitHub account in Acme's organization. Not on the list? Ask in **#louvre**.",
+    tokens=(
+        "Name a token's namespace for your team and its tool, such as `payments/canopy`. See"
+        " [Agents at Acme](https://wiki.acme.test/agents)."
+    ),
+)
 #: Every table the store writes, emptied before each test.
 TABLES = (
     "reads",
@@ -179,7 +197,26 @@ def live_app(database_url: str) -> Iterator[str]:
     """The web app on an emptied test database, with the demo and sign-in by name, served on a free port."""
     with db.connect(database_url) as connection:
         empty(connection)
-    settings = dataclasses.replace(web_settings(database_url), demo=True, base_url="")
+    with served(dataclasses.replace(web_settings(database_url), demo=True, base_url="")) as url:
+        yield url
+
+
+@pytest.fixture(scope="module")
+def owned_app(live_app: str, database_url: str) -> Iterator[str]:
+    """The live app's deployment as an organization's, its owner's words on its pages, on the same database."""
+    del live_app  # Started first, so the database is emptied and the demo seeded before this app opens it.
+    settings = dataclasses.replace(web_settings(database_url), demo=True, base_url="", site=OWNED)
+    with served(settings) as url:
+        yield url
+
+
+@contextmanager
+def served(settings: Settings) -> Iterator[str]:
+    """Serve the web app, configured by `settings`, on a free port, for as long as the block lasts.
+
+    Yields:
+        Its URL.
+    """
     server = uvicorn.Server(uvicorn.Config(create(settings), host="127.0.0.1", port=0, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -188,9 +225,11 @@ def live_app(database_url: str) -> Iterator[str]:
         assert time.monotonic() < deadline, "the web app did not start"
         time.sleep(0.05)
     port = server.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join(LIVE_DEADLINE)
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(LIVE_DEADLINE)
 
 
 @pytest.fixture(scope="module")

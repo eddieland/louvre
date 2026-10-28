@@ -5,9 +5,11 @@ import { useState } from 'react'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
+import { Footer, Words } from '@/components/site'
 import { request, sessionQuery, tokensQuery } from '@/lib/api'
 import type { Token } from '@/lib/api'
 import { ago } from '@/lib/format'
+import { usePageTitle } from '@/lib/title'
 
 /** The scopes a token may have, and what each lets its agent do. */
 const SCOPES = [
@@ -25,6 +27,7 @@ function Tokens() {
     const session = useQuery(sessionQuery)
     const account = session.data?.account ?? null
     const tokens = useQuery({ ...tokensQuery, enabled: account !== null })
+    usePageTitle('Tokens')
     if (session.isPending) {
         return <Header />
     }
@@ -37,6 +40,7 @@ function Tokens() {
                         <SignIn />
                     </Notice>
                 </main>
+                <Footer />
             </>
         )
     }
@@ -49,6 +53,10 @@ function Tokens() {
                     A token lets one agent reach Louvre&rsquo;s MCP server for you, in one namespace, with the scopes
                     you give it. Its comments show as the agent&rsquo;s, for you.
                 </p>
+                <Words
+                    paragraphs={session.data?.site.tokens ?? []}
+                    className="mt-3 grid max-w-prose gap-3 text-muted"
+                />
                 <Mint login={account.login} />
                 <h2 className="mt-12 heading">Yours</h2>
                 {tokens.data?.tokens.length === 0 ? <p className="mt-3 text-muted">None yet.</p> : null}
@@ -58,6 +66,7 @@ function Tokens() {
                     ))}
                 </ul>
             </main>
+            <Footer />
         </>
     )
 }

@@ -107,6 +107,25 @@ Numbers in tables are tabular. A number keeps its unit on its line (`1.2&nbsp;s`
 - Threads on the whole artifact sit at the top of the margin; "Comment on the page" in the toolbar starts one.
 - An older version says so under the toolbar, in `accent`, with a link to the latest: comments go on the latest only.
 - From version II on, "Changes" in the toolbar compares the version shown with the one before it (Changes).
+- A deployment's banner, when its owner sets one, sits above the header (The owner's words).
+
+## The owner's words
+
+What an organization that runs Louvre says on its pages (REQUIREMENTS U13, docs/DEPLOY.md): whose deployment it is,
+where to ask for help, its conventions. They are the owner's, not Louvre's and not an artifact's, so they keep to
+Louvre's quiet voice and never compete with the exhibit. Each shows only when set.
+
+- **The banner** sits above the header on every page, an artifact's and a board's too: one line where it fits, on
+  `paper` under a `rule` hairline, in Instrument Sans at 12, `ink`, centered; on a phone, left-aligned at the page's
+  20 px padding, and wrapped. It is never `accent`: the accent marks what is live, and the banner is always there.
+- **The footer** closes the catalogue's column, on the catalogue, the demo, the inbox, decisions, tokens, and signing
+  in: a `rule` hairline, then the owner's lines in Instrument Sans at 12 and `muted`. An artifact's and a board's pages
+  have none: their foot is the exhibit's.
+- **Notes** sit in the page's own prose, as its own sentences do: the note on signing in above the ways to sign in,
+  wherever a person is asked to; the note on tokens under what a token is, in `muted`.
+- **The name** is the tab's, after the page's (`Inbox · Acme Louvre`); the wordmark stays Louvre's.
+- **Their marks.** Bold, italics, and code as the owner wrote them; links in `accent`, underlined, as Louvre's are. A
+  link to another site opens in a tab of its own. Nothing else of Markdown is kept, and nothing is drawn as HTML.
 
 ## Changes
 

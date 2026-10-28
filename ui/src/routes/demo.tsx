@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect } from 'react'
 
 import { Catalogue, NeedsDatabase } from '@/components/catalogue'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignInLink } from '@/components/sign-in'
+import { Footer } from '@/components/site'
 import { DEMO_NAMESPACE, sessionQuery } from '@/lib/api'
+import { usePageTitle } from '@/lib/title'
 
 /** The demo: its artifacts and its board, which anyone reads without signing in (ui/DESIGN.md, "Catalogue"). */
 export const Route = createFileRoute('/demo')({
@@ -15,13 +16,12 @@ export const Route = createFileRoute('/demo')({
 
 function DemoPage() {
     const session = useQuery(sessionQuery)
-    useEffect(() => {
-        document.title = 'Demo · Louvre'
-    }, [])
+    usePageTitle('Demo')
     return (
         <>
             <Header />
             <main>{body()}</main>
+            <Footer />
         </>
     )
 

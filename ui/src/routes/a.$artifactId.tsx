@@ -33,6 +33,7 @@ import { ago, count, provenance, roman } from '@/lib/format'
 import { clearSelection } from '@/lib/frame'
 import { GAP, place } from '@/lib/layout'
 import { useTheme } from '@/lib/theme'
+import { usePageTitle } from '@/lib/title'
 
 /** At this width and below, the margin is a bottom sheet (ui/DESIGN.md, "Layout"). */
 const NARROW = '(max-width: 960px)'
@@ -396,9 +397,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
         return () => clearTimeout(timer)
     }, [toast])
 
-    useEffect(() => {
-        document.title = `${artifact.title} · Louvre`
-    }, [artifact.title])
+    usePageTitle(artifact.title)
 
     // Opened at a decision, from the list of decisions or an agent's link: scroll to it once it has loaded.
     const scrolledTo = useRef<string | null>(null)

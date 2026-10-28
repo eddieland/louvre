@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 
+import { Words } from '@/components/site'
 import { sessionQuery, useSignIn } from '@/lib/api'
 import { localPath } from '@/lib/paths'
 
@@ -21,7 +22,7 @@ export interface SignInProps {
     next?: string | undefined
 }
 
-/** The ways to sign in this deployment offers: GitHub, and by name where it allows that. */
+/** The ways to sign in this deployment offers, GitHub and by name where it allows that, under its owner's note. */
 export function SignIn({ why, next }: SignInProps) {
     const { data: session } = useQuery(sessionQuery)
     const { byName } = useSignIn()
@@ -41,6 +42,7 @@ export function SignIn({ why, next }: SignInProps) {
                     {said}
                 </p>
             ) : null}
+            <Words paragraphs={session.site.sign_in} className="grid gap-3" />
             {session.sign_in.github ? (
                 <a className="button" href={github}>
                     Sign in with GitHub

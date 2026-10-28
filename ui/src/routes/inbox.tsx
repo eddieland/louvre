@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect } from 'react'
 
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
+import { Footer } from '@/components/site'
 import { ApiError, inboxQuery, sessionQuery, useMarkRead } from '@/lib/api'
 import type { InboxEntry, News } from '@/lib/api'
 import { ago, count, provenance, roman } from '@/lib/format'
+import { usePageTitle } from '@/lib/title'
 
 /** A person's inbox: what is new to them on the artifacts they take part in (ui/DESIGN.md, "Inbox"). */
 export const Route = createFileRoute('/inbox')({
@@ -20,10 +21,7 @@ function Inbox() {
     const inbox = useQuery({ ...inboxQuery, enabled: account !== null })
     const { all } = useMarkRead()
     const entries = inbox.data?.entries ?? []
-
-    useEffect(() => {
-        document.title = entries.length > 0 ? `Inbox (${String(entries.length)}) · Louvre` : 'Inbox · Louvre'
-    }, [entries.length])
+    usePageTitle(entries.length > 0 ? `Inbox (${String(entries.length)})` : 'Inbox')
 
     if (session.isPending) {
         return <Header />
@@ -37,6 +35,7 @@ function Inbox() {
                         <SignIn />
                     </Notice>
                 </main>
+                <Footer />
             </>
         )
     }
@@ -73,6 +72,7 @@ function Inbox() {
                     </ol>
                 ) : null}
             </main>
+            <Footer />
         </>
     )
 }

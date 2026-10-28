@@ -444,6 +444,72 @@ Light:
 | --- | --- |
 | ![Tokens, Phone, 390, light](tokens/phone-light.png) | ![Tokens, Laptop, 1440, light](tokens/laptop-light.png) |
 
+## An organization's Louvre: its banner, sign-in note, and footer
+
+`/`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An organization's Louvre: its banner, sign-in note, and footer, Small phone, 360, dark](owned-front-door/phone-small-dark.png) | ![An organization's Louvre: its banner, sign-in note, and footer, Phone, 390, dark](owned-front-door/phone-dark.png) | ![An organization's Louvre: its banner, sign-in note, and footer, Tablet, 820, dark](owned-front-door/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An organization's Louvre: its banner, sign-in note, and footer, Tablet landscape, 1180, dark](owned-front-door/tablet-landscape-dark.png) | ![An organization's Louvre: its banner, sign-in note, and footer, Laptop, 1440, dark](owned-front-door/laptop-dark.png) | ![An organization's Louvre: its banner, sign-in note, and footer, Wide, 1920, dark](owned-front-door/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An organization's Louvre: its banner, sign-in note, and footer, Phone, 390, light](owned-front-door/phone-light.png) | ![An organization's Louvre: its banner, sign-in note, and footer, Laptop, 1440, light](owned-front-door/laptop-light.png) |
+
+## An organization's Louvre: its note on minting tokens
+
+`/tokens`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An organization's Louvre: its note on minting tokens, Small phone, 360, dark](owned-tokens/phone-small-dark.png) | ![An organization's Louvre: its note on minting tokens, Phone, 390, dark](owned-tokens/phone-dark.png) | ![An organization's Louvre: its note on minting tokens, Tablet, 820, dark](owned-tokens/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An organization's Louvre: its note on minting tokens, Tablet landscape, 1180, dark](owned-tokens/tablet-landscape-dark.png) | ![An organization's Louvre: its note on minting tokens, Laptop, 1440, dark](owned-tokens/laptop-dark.png) | ![An organization's Louvre: its note on minting tokens, Wide, 1920, dark](owned-tokens/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An organization's Louvre: its note on minting tokens, Phone, 390, light](owned-tokens/phone-light.png) | ![An organization's Louvre: its note on minting tokens, Laptop, 1440, light](owned-tokens/laptop-light.png) |
+
+## An organization's Louvre: an artifact under its banner
+
+`/a/{checkout}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An organization's Louvre: an artifact under its banner, Small phone, 360, dark](owned-artifact/phone-small-dark.png) | ![An organization's Louvre: an artifact under its banner, Phone, 390, dark](owned-artifact/phone-dark.png) | ![An organization's Louvre: an artifact under its banner, Tablet, 820, dark](owned-artifact/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An organization's Louvre: an artifact under its banner, Tablet landscape, 1180, dark](owned-artifact/tablet-landscape-dark.png) | ![An organization's Louvre: an artifact under its banner, Laptop, 1440, dark](owned-artifact/laptop-dark.png) | ![An organization's Louvre: an artifact under its banner, Wide, 1920, dark](owned-artifact/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An organization's Louvre: an artifact under its banner, Phone, 390, light](owned-artifact/phone-light.png) | ![An organization's Louvre: an artifact under its banner, Laptop, 1440, light](owned-artifact/laptop-light.png) |
+
 ## Design directions
 
 `/directions`

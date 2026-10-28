@@ -9,6 +9,7 @@ import type { Point, View } from '@/lib/canvas'
 import { count } from '@/lib/format'
 import { useTheme } from '@/lib/theme'
 import type { Theme } from '@/lib/theme'
+import { usePageTitle } from '@/lib/title'
 
 /** Room above each frame for its label, in canvas pixels, so fitting the board keeps the top row's labels in view. */
 const LABEL_ROOM = 80
@@ -185,9 +186,7 @@ export function BoardCanvas({ title, namespace, hint, frames }: BoardCanvasProps
         return () => globalThis.removeEventListener('keydown', listener)
     }, [])
 
-    useEffect(() => {
-        document.title = `${title} · Louvre`
-    }, [title])
+    usePageTitle(title)
 
     const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
         if (event.button !== 0) {

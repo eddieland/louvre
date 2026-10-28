@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect } from 'react'
 
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
 import { SignIn } from '@/components/sign-in'
+import { Footer } from '@/components/site'
 import { ApiError, decisionsQuery, sessionQuery } from '@/lib/api'
 import type { Decision } from '@/lib/api'
 import { waiting } from '@/lib/decisions'
 import { ago } from '@/lib/format'
+import { usePageTitle } from '@/lib/title'
 
 /** Every decision the reader reaches: those awaiting them, those open, those decided (ui/DESIGN.md, "Decisions"). */
 export const Route = createFileRoute('/decisions')({
@@ -20,9 +21,7 @@ function DecisionsPage() {
     const reachable = session.data?.configured === true && (session.data.account !== null || session.data.demo)
     const list = useQuery({ ...decisionsQuery, enabled: reachable })
     const me = session.data?.account?.login
-    useEffect(() => {
-        document.title = 'Decisions · Louvre'
-    }, [])
+    usePageTitle('Decisions')
     if (session.isPending) {
         return <Header />
     }
@@ -35,6 +34,7 @@ function DecisionsPage() {
                         <SignIn />
                     </Notice>
                 </main>
+                <Footer />
             </>
         )
     }
@@ -74,6 +74,7 @@ function DecisionsPage() {
                     ) : null,
                 )}
             </main>
+            <Footer />
         </>
     )
 }

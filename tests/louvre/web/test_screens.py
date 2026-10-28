@@ -60,6 +60,8 @@ class Scene:
     signed_in: bool = True
     #: Who signs in: Ana, unless a scene's act would leave what other scenes show changed for her.
     login: str = "ana"
+    #: Whether the deployment is an organization's, its owner's words on its pages (tests.conftest.OWNED).
+    owned: bool = False
 
 
 def _open_thread(page: Page) -> None:
@@ -197,6 +199,21 @@ SCENES = (
     ),
     Scene("inbox", "The inbox, with a reply and a thread resolved", "/inbox", _inbox_news, login="kim"),
     Scene("tokens", "Tokens", "/tokens"),
+    Scene(
+        "owned-front-door",
+        "An organization's Louvre: its banner, sign-in note, and footer",
+        "/",
+        signed_in=False,
+        owned=True,
+    ),
+    Scene("owned-tokens", "An organization's Louvre: its note on minting tokens", "/tokens", owned=True),
+    Scene(
+        "owned-artifact",
+        "An organization's Louvre: an artifact under its banner",
+        "/a/{checkout}",
+        _report_open,
+        owned=True,
+    ),
     Scene("directions", "Design directions", "/directions"),
     Scene("directions-board", "Design directions, as a board", "/directions/board", _board_shown, signed_in=False),
     Scene("gallery", "Direction: Gallery, a thread open", "/directions/2026-10-23-directions/gallery", _open_thread),
@@ -247,12 +264,14 @@ def demo(live_app: str) -> dict[str, str]:
 @pytest.mark.parametrize("screen", SCREENS, ids=[s.name for s in SCREENS])
 @pytest.mark.parametrize("scene", SCENES, ids=[s.name for s in SCENES])
 def test_a_page_fits_the_screen(
+    request: pytest.FixtureRequest,
     live_app: str,
     demo: Mapping[str, str],
     browser: Browser,
     scene: Scene,
     screen: Screen,
 ) -> None:
+    app = str(request.getfixturevalue("owned_app")) if scene.owned else live_app
     context = browser.new_context(
         viewport={"width": screen.width, "height": screen.height},
         color_scheme="dark" if screen.scheme == "dark" else "light",
@@ -262,14 +281,14 @@ def test_a_page_fits_the_screen(
     )
     if scene.signed_in:
         who = {"login": scene.login, "name": {"ana": "Ana Ruiz", "kim": "Kim Lee"}[scene.login]}
-        signed = context.request.post(f"{live_app}/auth/dev", data=who, headers=WRITES)
+        signed = context.request.post(f"{app}/auth/dev", data=who, headers=WRITES)
         assert signed.status == 204
     errors: list[str] = []
     page = context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
-        page.goto(live_app + scene.path.format_map(demo), wait_until="networkidle")
+        page.goto(app + scene.path.format_map(demo), wait_until="networkidle")
         page.evaluate("document.fonts.ready")
         if scene.act:
             scene.act(page)
