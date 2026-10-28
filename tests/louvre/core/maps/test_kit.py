@@ -1,4 +1,4 @@
-"""The map kit's versions: each one served whole, and none changed once published."""
+"""The map kit's versions: each one served whole, its files' changes seen in review."""
 
 import hashlib
 
@@ -21,12 +21,12 @@ def test_a_file_is_found_in_its_own_version_only() -> None:
     assert maps.served("louvre-map-0", "glyphs/Noto Sans Regular/19968-20223.pbf") is None
 
 
-def test_no_versions_files_ever_change(snapshot: SnapshotAssertion) -> None:
+def test_every_versions_files_are_held_to_their_hashes(snapshot: SnapshotAssertion) -> None:
     """Hold every version's files to their hashes, and every version to being served.
 
-    A published map loads its version's files from Louvre, which tells browsers to keep them for a year: a changed or
-    dropped file redraws every map published with that version, or leaves browsers holding the old one. Put the change
-    in a new version of the kit instead.
+    A published map loads its version's files from Louvre, so a changed or dropped file redraws every map published
+    with that version. Until 1.0 that is how the kit changes, in its one version (D008): the snapshot shows each change
+    in review. From 1.0, put a change in a new version of the kit instead.
     """
     hashes = {
         version: {path: hashlib.sha256(data).hexdigest() for path, (_, data) in sorted(kit.items())}

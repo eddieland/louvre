@@ -54,14 +54,14 @@ it whole, and comments on a frame's passages as on any artifact's. A board's fra
 Built (`louvre-1`). The operator wants agents to reuse Louvre's styles and practices in what they publish, when they
 choose to (2026-10-23). Louvre is the source of it: a versioned stylesheet, dark and light from the same tokens, with
 its components (a report's header, figures, callouts, tables) and the rules for using them. Agents get it over the MCP
-server they already reach Louvre by, so nothing is installed and it never lags Louvre; a skill only says when to use
-it (`skills/louvre-artifacts`). An artifact that opts in names a version, so a later style never restyles a published
-page. The `style_get` tool hands over the stylesheet, its guide (the page's shape, its components, color, charts,
-tables, phones, and writing for comments), and a starter page for the kind of artifact asked for, a report, a
-decision, or a plan, which the artifact inlines; the same files are MCP resources a person attaches, and the `style`
-prompt asks for a page of a kind in it. The `style_chart` tool draws a line, bar, or dot chart in it from data, and the
-`style_check` tool checks a page against the guide before it is published: errors for what would not work in Louvre,
-warnings for the rest. A Markdown artifact is shown in it already.
+server they already reach Louvre by, so nothing is installed and it never lags Louvre; a skill only says when to use it
+(`skills/louvre-artifacts`). An artifact that opts in names a version, `louvre-1` until Louvre's 1.0 (D008), and from
+1.0 a later style never restyles a published page. The `style_get` tool hands over the stylesheet, its guide (the page's
+shape, its components, color, charts, tables, phones, and writing for comments), and a starter page for the kind of
+artifact asked for, a report, a decision, or a plan, which the artifact inlines; the same files are MCP resources a
+person attaches, and the `style` prompt asks for a page of a kind in it. The `style_chart` tool draws a line, bar, or
+dot chart in it from data, and the `style_check` tool checks a page against the guide before it is published: errors for
+what would not work in Louvre, warnings for the rest. A Markdown artifact is shown in it already.
 
 ### U7. Decisions: people answer what agents ask, and agents read the answers back
 

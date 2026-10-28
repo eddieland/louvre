@@ -228,9 +228,10 @@ starts reading; the margin stays the conversation's.
 
 `louvre-1` (`louvre.core.style`, REQUIREMENTS U6) is this file's tokens and type for a page inside the frame: dark
 first, light when the reader's system is, every color a custom property. It is set in Louvre's own faces, which Louvre
-serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. A later style
-is a new version, beside this one: a page that inlined `louvre-1` keeps it, and its fonts stay served. A page Louvre
-draws itself, Markdown or GeoJSON, is drawn in the current style each time it is shown.
+serves to its artifacts (D008); where a page is shown elsewhere, the reader's own serif and sans stand in. Until 1.0 it
+is the one version, changed in place (D008); from 1.0 a later style is a new version beside it, a page that inlined
+`louvre-1` keeps it, and its fonts stay served. A page Louvre draws itself, Markdown or GeoJSON, is drawn in the current
+style each time it is shown.
 
 Its files sit in `src/louvre/core/style/louvre-1/`: the stylesheet, its guide for agents (`rules.md`), and a starter
 page for each kind of artifact, which together use every component it styles. A page needs more than Louvre's chrome
@@ -246,7 +247,7 @@ gridline a `rule` hairline. Each series is labeled where it is, in Source Serif 
 moments that matter are numbered on the chart in `accent`, as threads are, and said under it in sentences a reader can
 quote in a comment. Its source closes it. The SVG is 440 units wide, its text set larger on a phone.
 
-**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-3`) in the same look, in a figure like a chart's.
+**Maps** are drawn by the map kit (`louvre.core.maps`, `louvre-map-1`) in the same look, in a figure like a chart's.
 The basemap is quiet: water is `bg`, land a mix of `card` and `rule`, borders a hairline, and cities in Noto Sans
 italic, a step lighter than `muted`, the larger ones zoomed out and more zoomed in. The page's places are over it: what
 the map is about in `accent`, filled; the rest hollow in `muted`. Each is labeled in Noto Sans, toward the map's middle

@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_no_versions_files_ever_change
+# name: test_every_versions_files_are_held_to_their_hashes
   dict({
     'louvre-map-1': dict({
       'basemap/borders.json': 'c6c3b35178433e75eebb88af14253e00246614cc3d174627d022416b20f21477',
@@ -13,37 +13,7 @@
       'glyphs/Noto Sans Regular/256-511.pbf': '2eca7561f9f566bcacfda5dd04fb5880baec1328ec0f5484678289a13994de8a',
       'glyphs/Noto Sans Regular/8192-8447.pbf': '8ea977a587352fe31b4159ffdbc9a40be79056f2472017c742ea1e4a931864b9',
       'glyphs/Noto-OFL.txt': 'cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a',
-      'map.js': '2144e1c308c1995d1de5b3b1011fc17dbd5a6f26d13c20048a941d73989dea0b',
-      'maplibre-gl-LICENSE.txt': 'ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2',
-    }),
-    'louvre-map-2': dict({
-      'basemap/borders.json': 'c6c3b35178433e75eebb88af14253e00246614cc3d174627d022416b20f21477',
-      'basemap/lakes.json': 'a78e70821b5fe9afb8f2de5b402e826ec95d9022701e6ca927decac5e0685007',
-      'basemap/land.json': '578fb110a838289ea52b154fa4a67903aad643eedebdb6a8e2325399b026999d',
-      'basemap/places.json': 'f6587902ef8c7093c71b4c1c83c3e46c7922fb38eaa9845f19843126bb97e25d',
-      'glyphs/Noto Sans Italic/0-255.pbf': '43edfca91c285ba1226f09d5e74d68e1473a088c517f02a5212ff6ccb10037dc',
-      'glyphs/Noto Sans Italic/256-511.pbf': 'a6f9f6574c86a4a28aba630ca1017857ceadd2370ed32a1293c35f819ab9bd60',
-      'glyphs/Noto Sans Italic/8192-8447.pbf': '5dc4e6680116fef01be024e272859d130262613c7e634409a590e5d50ad124ae',
-      'glyphs/Noto Sans Regular/0-255.pbf': '62c6d49b15fa836eb6aa45e259c7ca6762f44b011b09e47776efbe4a6db1b397',
-      'glyphs/Noto Sans Regular/256-511.pbf': '2eca7561f9f566bcacfda5dd04fb5880baec1328ec0f5484678289a13994de8a',
-      'glyphs/Noto Sans Regular/8192-8447.pbf': '8ea977a587352fe31b4159ffdbc9a40be79056f2472017c742ea1e4a931864b9',
-      'glyphs/Noto-OFL.txt': 'cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a',
-      'map.js': 'e4fe8c71691f3c5cae64ceaca2f9a3f008951805e5cb71190201cc57372e3ba4',
-      'maplibre-gl-LICENSE.txt': 'ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2',
-    }),
-    'louvre-map-3': dict({
-      'basemap/borders.json': 'c6c3b35178433e75eebb88af14253e00246614cc3d174627d022416b20f21477',
-      'basemap/lakes.json': 'a78e70821b5fe9afb8f2de5b402e826ec95d9022701e6ca927decac5e0685007',
-      'basemap/land.json': '578fb110a838289ea52b154fa4a67903aad643eedebdb6a8e2325399b026999d',
-      'basemap/places.json': 'f6587902ef8c7093c71b4c1c83c3e46c7922fb38eaa9845f19843126bb97e25d',
-      'glyphs/Noto Sans Italic/0-255.pbf': '43edfca91c285ba1226f09d5e74d68e1473a088c517f02a5212ff6ccb10037dc',
-      'glyphs/Noto Sans Italic/256-511.pbf': 'a6f9f6574c86a4a28aba630ca1017857ceadd2370ed32a1293c35f819ab9bd60',
-      'glyphs/Noto Sans Italic/8192-8447.pbf': '5dc4e6680116fef01be024e272859d130262613c7e634409a590e5d50ad124ae',
-      'glyphs/Noto Sans Regular/0-255.pbf': '62c6d49b15fa836eb6aa45e259c7ca6762f44b011b09e47776efbe4a6db1b397',
-      'glyphs/Noto Sans Regular/256-511.pbf': '2eca7561f9f566bcacfda5dd04fb5880baec1328ec0f5484678289a13994de8a',
-      'glyphs/Noto Sans Regular/8192-8447.pbf': '8ea977a587352fe31b4159ffdbc9a40be79056f2472017c742ea1e4a931864b9',
-      'glyphs/Noto-OFL.txt': 'cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a',
-      'map.js': '83bb57e214c0914edc4381dc1e29d9756916e533cde22cf3ce4eac49e181c460',
+      'map.js': '59413e5fcfcaaf273e6efb64d99164b87a1668f5b0d9adb410f6dc932e66c612',
       'maplibre-gl-LICENSE.txt': 'ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2',
     }),
   })

@@ -77,11 +77,12 @@ def test_the_current_version_is_one_louvre_serves() -> None:
     assert f"/style/{style.VERSION}/fonts/" == style.FONTS_PATH
 
 
-def test_no_versions_fonts_ever_change(snapshot: SnapshotAssertion) -> None:
+def test_every_versions_fonts_are_held_to_their_hashes(snapshot: SnapshotAssertion) -> None:
     """Hold every version's fonts to their hashes, and every version to being served.
 
-    A page loads its version's faces from Louvre, which tells browsers to keep them for a year: a changed or dropped
-    font changes every page published with that version. Put a new font in a new version of the style instead.
+    A page loads its version's faces from Louvre, so a changed or dropped font changes every page published with that
+    version. Until 1.0 that is how the style changes, in its one version (D008): the snapshot shows each change in
+    review. From 1.0, put a new font in a new version of the style instead.
     """
     hashes = {
         version: {name: hashlib.sha256(data).hexdigest() for name, data in fonts.items()}

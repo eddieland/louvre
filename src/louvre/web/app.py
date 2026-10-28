@@ -11,8 +11,9 @@ and a script from another site cannot send it without a preflight that Louvre ne
 token in `Authorization`, never a cookie.
 """
 
+import hashlib
 import html
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from importlib.metadata import version
 from importlib.resources import files
@@ -91,7 +92,7 @@ def create(settings: Settings | None = None) -> FastAPI:
     _content(app)
 
     @app.get("/style/{version}/fonts/{name}", include_in_schema=False)
-    def font(version: str, name: str) -> Response:
+    def font(request: Request, version: str, name: str) -> Response:
         """A font of a version of the house style, which a page loads from its opaque origin, so with CORS.
 
         Every version is served, not only the current one: a page keeps the stylesheet it inlined, which names its own.
@@ -99,15 +100,7 @@ def create(settings: Settings | None = None) -> FastAPI:
         found = style.FONTS_BY_VERSION.get(version, {}).get(name)
         if found is None:
             raise HTTPException(status_code=404, detail="Not found.")
-        return Response(
-            found,
-            media_type="font/woff2",
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=31536000, immutable",
-                **_NO_SNIFF,
-            },
-        )
+        return _checked_again(request, found, "font/woff2", {"Access-Control-Allow-Origin": "*", **_NO_SNIFF})
 
     _kit(app)
 
@@ -256,7 +249,7 @@ def _kit(app: FastAPI) -> None:
         )
 
     @app.get("/kit/{version}/{path:path}", include_in_schema=False)
-    def kit(version: str, path: str) -> Response:
+    def kit(request: Request, version: str, path: str) -> Response:
         """A file of a version of the map kit, which a page loads from its opaque origin, so with CORS.
 
         Every version is served, not only the current one: a published map loads the kit it was drawn with.
@@ -265,16 +258,24 @@ def _kit(app: FastAPI) -> None:
         if found is None:
             raise HTTPException(status_code=404, detail="Not found.")
         media_type, data = found
-        return Response(
-            data,
-            media_type=media_type,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=31536000, immutable",
-                "Content-Security-Policy": FILE_POLICY,
-                **_NO_SNIFF,
-            },
-        )
+        shared = {"Access-Control-Allow-Origin": "*", "Content-Security-Policy": FILE_POLICY, **_NO_SNIFF}
+        return _checked_again(request, data, media_type, shared)
+
+
+def _checked_again(request: Request, data: bytes, media_type: str, headers: Mapping[str, str]) -> Response:
+    """Answer with a file Louvre serves every page alike, the style's or the kit's, which a browser checks again first.
+
+    Until 1.0 each has one version, changed in place (D008), so a browser may keep a file but asks before using it:
+    its ETag is its hash, and a file it has already is answered 304, with no body.
+
+    Returns:
+        The file, or 304 when the browser's copy is current.
+    """
+    tag = f'"{hashlib.sha256(data).hexdigest()}"'
+    headers = {"ETag": tag, "Cache-Control": "public, no-cache", **headers}
+    if tag in request.headers.get("if-none-match", ""):
+        return Response(status_code=304, headers=headers)
+    return Response(data, media_type=media_type, headers=headers)
 
 
 def _design_study(app: FastAPI) -> None:

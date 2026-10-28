@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_no_versions_fonts_ever_change
+# name: test_every_versions_fonts_are_held_to_their_hashes
   dict({
     'louvre-1': dict({
       'fraunces.woff2': '7f9d191d999336d3b9790afa72e1358e50a13b06d4f289341e92a311967a80f9',
