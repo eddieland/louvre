@@ -5,8 +5,12 @@ a token's would. Each part of it is published once: a part whose artifact the de
 it is, so a database seeded before a part was added gets that part alone. Two processes seeding at once take a lock,
 so one publishes and the other finds it there.
 
-Its agent asks two decisions: which of the report's fixes ships first, open and waiting on Ana, and whether the release
-notes ship, decided. They are seeded once too, after the artifacts they are asked on.
+Its agent asks three decisions: which of the report's fixes ships first, open and waiting on Ana; whether the release
+notes ship, decided; and which street pole a crew fixes first, each option a pole on the map, waiting on Ana. Each is
+asked once too, after the artifact it is asked on, so a database seeded before one was added gets that one alone.
+
+The street poles' map has a second version, as an agent's survey revised after a walk: a pole moved to where it
+stands, one taken down, and one found. It is published wherever the map has only its first (roadmap M13).
 
 The design study the operator picked Louvre's look from (docs/ui-explorations/2026-10-23-directions) is its first
 board: each direction at a laptop's size and a phone's, side by side, a row a direction (roadmap M3).
@@ -16,6 +20,7 @@ work too, each a board of its own: the style study's nine looks a row a round, a
 a direction, after a row of the app as it was, its screenshots beside their pages.
 """
 
+import json
 import re
 from collections.abc import Mapping, Sequence
 from importlib.resources import files
@@ -26,6 +31,7 @@ from louvre.core.boards import Board, Frame
 from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
+from louvre.core.geodata import Pick, PlaceKind
 from louvre.core.store import Author, Permission, Scope, Store, Via
 from louvre.core.text import Anchor
 
@@ -37,6 +43,10 @@ PEOPLE = {
     "sam": Account("demo:sam", "sam", "Sam Okafor"),
     "raj": Account("demo:raj", "raj", "Raj Patel"),
 }
+#: The agent's questions, as each is asked once.
+_FIXES = "Which fix ships first?"
+_SHIP = "Ship these notes with Thursday's release?"
+_CREW = "Which pole does tonight's crew fix first?"
 #: The lock seeding takes: neither the migrations' nor the store's writes', which seeding itself takes.
 SEED_LOCK = MIGRATE_LOCK + 2
 #: The design study the board shows, and its directions, by file name, with the title each is published under.
@@ -185,10 +195,9 @@ def seed(conn: Connection, *, base_url: str = "") -> bool:
         ]
         for part in missing:
             part(agent, people)
-        unasked = not Decisions(agent).listed()["decisions"]
-        if unasked:
-            _decisions(agent, people)
-    return bool(missing) or unasked
+        revised = _revise_poles(agent)
+        asked = _decisions(agent, people)
+    return bool(missing) or revised or asked
 
 
 def _agent_scope() -> Scope:
@@ -335,17 +344,32 @@ def _checkout(agent: Store, people: dict[str, Store]) -> None:
     agent.resolve(str(cache["thread_id"]), resolved=True)
 
 
-def _decisions(agent: Store, people: dict[str, Store]) -> None:
-    """The agent's two questions: which of the report's fixes ships first, and whether the notes ship.
+def _decisions(agent: Store, people: dict[str, Store]) -> bool:
+    """Ask the agent's questions that it has not asked yet.
 
-    Each option of the first is on its step of the report. The second it closed once both people asked had answered.
+    Which of the report's fixes ships first, whether the notes ship, and which street pole a crew fixes first. Each
+    option of the first is on its step of the report, and each of the last on its pole on the map. The second it
+    closed once both people asked had answered.
+
+    Returns:
+        Whether it asked any.
     """
     asker = Decisions(agent)
+    listed = asker.listed()["decisions"]
+    had = (
+        {(d["artifact_id"], d["question"]) for d in listed if isinstance(d, dict)}
+        if isinstance(listed, list)
+        else set()
+    )
     report = _newest(agent, {"canopy.ticket": "PAY-142"})
-    if report is not None:
+    notes = _newest(agent, {"canopy.ticket": "REL-2026.11"})
+    poles = _newest(agent, {"canopy.ticket": "OPS-88"})
+    asking = [(report, _FIXES), (notes, _SHIP), (poles, _CREW)]
+    wanted = [(artifact, q) for artifact, q in asking if artifact is not None and (artifact, q) not in had]
+    if (report, _FIXES) in wanted and report is not None:
         fixes = asker.ask(
             report,
-            "Which fix ships first?",
+            _FIXES,
             (
                 Option(
                     "Batch the tax quote",
@@ -368,11 +392,10 @@ def _decisions(agent: Store, people: dict[str, Store]) -> None:
         decision = str(fixes["decision_id"])
         Decisions(people["raj"]).answer(decision, ["o1"], "It is most of the regression on its own.")
         Decisions(people["sam"]).answer(decision, ["o1"])
-    notes = _newest(agent, {"canopy.ticket": "REL-2026.11"})
-    if notes is not None:
+    if (notes, _SHIP) in wanted and notes is not None:
         ship = asker.ask(
             notes,
-            "Ship these notes with Thursday's release?",
+            _SHIP,
             (Option("Ship them as they are"), Option("Hold them for the search fix")),
             asked=["ana", "raj"],
         )
@@ -380,6 +403,28 @@ def _decisions(agent: Store, people: dict[str, Store]) -> None:
         Decisions(people["ana"]).answer(decision, ["o1"], "The known issue says what to do meanwhile.")
         Decisions(people["raj"]).answer(decision, ["o1"])
         asker.close(decision, "o1", "Shipping Thursday; the search fix goes in the next notes.")
+    if (poles, _CREW) in wanted and poles is not None:
+        crew = asker.ask(
+            poles,
+            _CREW,
+            (
+                Option("P-113, the leaning pole", "Over the bus lane on Rua do Ouro.", place=_pole("P-113")),
+                Option("P-104, Rua Augusta", "Dark since 19 October, at a crossing.", place=_pole("P-104")),
+                Option("P-117, Rua da Prata", "Dark, on a quiet stretch.", place=_pole("P-117")),
+            ),
+            asked=["ana", "raj"],
+        )
+        Decisions(people["raj"]).answer(str(crew["decision_id"]), ["o1"], "The bus lane first: it could fall on a bus.")
+    return bool(wanted)
+
+
+def _pole(name: str) -> Pick:
+    """Name a street pole on the demo's map, by its label, as a place.
+
+    Returns:
+        The place.
+    """
+    return Pick(PlaceKind.FEATURE, name)
 
 
 def _newest(agent: Store, origin: dict[str, str]) -> str | None:
@@ -489,6 +534,46 @@ def _poles(agent: Store, people: dict[str, Store]) -> None:
         Anchor.of("Leaning about 8 degrees toward the road after a delivery truck hit it."),
         "This one first: it is over the bus lane. Can the crew go tonight?",
     )
+
+
+def _revise_poles(agent: Store) -> bool:
+    """Publish the street poles' second version, unless it has one: the survey revised after a walk down the streets.
+
+    P-104 was mapped at the wrong corner and moves to where it stands; P-120 was taken down in September; and P-122, on
+    Rua da Prata, was missing.
+
+    Returns:
+        Whether it published it.
+    """
+    found = agent.overview(origin={"canopy.ticket": "OPS-88"}, namespace=NAMESPACE)["artifacts"]
+    if not isinstance(found, list) or not found or not isinstance(found[0], dict) or found[0]["latest_version"] != 1:
+        return False
+    data = json.loads((_FILES / "baixa-poles.geojson").read_text(encoding="utf-8"))
+    features = [f for f in data["features"] if f["properties"]["name"] != "P-120"]
+    for feature in features:
+        if feature["properties"]["name"] == "P-104":
+            feature["geometry"]["coordinates"] = [-9.13796, 38.71087]
+            feature["properties"]["note"] += " Mapped at the wrong corner at first; it stands at the crossing."
+    features.append(
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "P-122",
+                "street": "Rua da Prata",
+                "status": "working",
+                "lamp": "LED 60 W",
+                "inspected": "2026-10-26",
+            },
+            "geometry": {"type": "Point", "coordinates": [-9.1381, 38.71408]},
+        },
+    )
+    agent.publish(
+        title=str(found[0]["title"]),
+        content_type="application/geo+json",
+        content=json.dumps({**data, "features": features}, ensure_ascii=False, indent=2),
+        artifact_id=str(found[0]["id"]),
+    )
+    return True
 
 
 def _styled(name: str) -> str:

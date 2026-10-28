@@ -11,7 +11,7 @@ tapping a feature on the map shows them too.
 import html
 import json
 import math
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Annotated, assert_never
@@ -42,6 +42,13 @@ _LONGITUDE = 180.0
 _LATITUDE = 90.0
 #: How many numbers a box has: its west, south, east, and north.
 _BOX = 4
+#: The least and the most a point's accuracy may be, in metres: a reading less sure than this says nothing of a place.
+_LEAST_ACCURACY = 1
+MAX_ACCURACY = 50_000
+#: The earth's mean radius, in metres, as a feature's move is measured on it.
+_EARTH = 6_371_008.8
+#: The eight ways a feature moves, clockwise from north, as a change says it.
+_TOWARD = ("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")
 #: How many features' labels the map's description for a screen reader names, before "and more".
 _NAMED = 10
 #: The basemap's credit, under the map, as the house style's guide has it.
@@ -188,18 +195,22 @@ class Place:
     #: The feature's geometry, when the thread was opened, or the point's or the box's, as GeoJSON: a box's is a
     #: Polygon with its `bbox`, west, south, east, and north.
     geometry: Mapping[str, object] | None = None
+    #: How near a point read from where a reader stood is sure to be, in whole metres; None for any other place.
+    accuracy: int | None = None
 
     def quote(self) -> str:
         """Say where the thread is in words, for a reader that knows only words, as its anchor's `exact`.
 
         Returns:
-            The feature's label, the point's latitude and longitude, or the box's south-west and north-east corners'.
+            The feature's label, the point's latitude and longitude, and how sure a reading of it is, or the box's
+            south-west and north-east corners'.
         """
         match self.kind:
             case PlaceKind.FEATURE:
                 return self.label
             case PlaceKind.POINT:
-                return _said(*_point(self.geometry))
+                within = "" if self.accuracy is None else f", within {self.accuracy:,} m"
+                return _said(*_point(self.geometry)) + within
             case PlaceKind.BOX:
                 west, south, east, north = _box(self.geometry)
                 return f"{_said(west, south)} to {_said(east, north)}"
@@ -212,6 +223,8 @@ class Place:
         Returns:
             Its kind, and its layer, id, label, and geometry for a feature, or its geometry for a point or a box.
         """
+        if self.kind == PlaceKind.POINT and self.accuracy is not None:
+            return {"kind": self.kind, "geometry": dict(self.geometry or {}), "accuracy": self.accuracy}
         if self.kind in {PlaceKind.POINT, PlaceKind.BOX}:
             return {"kind": self.kind, "geometry": dict(self.geometry or {})}
         return {"kind": self.kind, "layer": self.layer, "id": self.id, "label": self.label, "geometry": self.geometry}
@@ -232,27 +245,33 @@ class Pick:
     id: str = ""
     #: The point's longitude and latitude, or the box's west, south, east, and north.
     coordinates: Sequence[float] = ()
+    #: For a point read from where the reader stands, how near the reading is sure to be, in metres; None otherwise.
+    accuracy: float | None = None
 
 
 def place_on(content: str, pick: Pick) -> Place:
     """Make the place a reader picked on a GeoJSON version's map, from what the version itself says of it.
 
-    Only the feature's id, or the point's or the box's coordinates, are taken from the reader (D008): the label and
-    geometry are the version's own.
+    Only the feature's id, or the point's or the box's coordinates and a point's accuracy, are taken from the reader
+    (D008): the label and geometry are the version's own.
 
     Returns:
         The place.
 
     Raises:
         GeodataError: The content is not GeoJSON Louvre draws, the point or the box is off the earth, the box has no
-            area or its west is east of its east, or no feature has the id.
+            area or its west is east of its east, no feature has the id, or an accuracy is given for what is not a
+            point or is not a number of metres from 0 to `MAX_ACCURACY`.
     """
     features, look = check(content)
+    if pick.accuracy is not None and pick.kind != PlaceKind.POINT:
+        raise GeodataError("only a point, read from where a reader stands, has an accuracy")
     match pick.kind:
         case PlaceKind.POINT:
             _position(list(pick.coordinates), "the point")
             point = [float(c) for c in pick.coordinates[:2]]
-            return Place(pick.kind, geometry={"type": "Point", "coordinates": point})
+            accuracy = None if pick.accuracy is None else _accuracy(pick.accuracy)
+            return Place(pick.kind, geometry={"type": "Point", "coordinates": point}, accuracy=accuracy)
         case PlaceKind.BOX:
             return Place(pick.kind, geometry=_box_geometry(pick.coordinates))
         case PlaceKind.FEATURE:
@@ -290,13 +309,212 @@ def place_from(stored: Mapping[str, object]) -> Place:
         The place.
     """
     geometry = stored.get("geometry")
+    accuracy = stored.get("accuracy")
     return Place(
         PlaceKind(str(stored["kind"])),
         str(stored.get("layer", "")),
         str(stored.get("id", "")),
         str(stored.get("label", "")),
         geometry if isinstance(geometry, dict) else None,
+        accuracy if isinstance(accuracy, int) and not isinstance(accuracy, bool) else None,
     )
+
+
+class Difference(StrEnum):
+    """What a later version of a map did to one of the earlier version's features, found by its id as a place is."""
+
+    #: A feature the earlier version did not have.
+    ADDED = "added"
+    #: A feature the later version does not have.
+    REMOVED = "removed"
+    #: A feature both have, its geometry not the same: moved, or reshaped where it was.
+    MOVED = "moved"
+
+
+@dataclass(frozen=True)
+class FeatureChange:
+    """One feature a later version of a map added, removed, or moved (REQUIREMENTS U8, U10)."""
+
+    kind: Difference
+    #: The feature's id, as a place on the map names it.
+    id: str
+    #: Its label: in the later version, or for one removed, in the earlier.
+    label: str
+    #: Its geometry in the later version, or for one removed, in the earlier.
+    geometry: Mapping[str, object] | None
+    #: For one moved, its geometry in the earlier version; None otherwise.
+    was: Mapping[str, object] | None = None
+    #: For one moved, how far its middle moved, in whole metres: 0 for one reshaped where it was.
+    metres: int = 0
+    #: Which way its middle moved, such as "north-east"; empty when it did not.
+    toward: str = ""
+
+    def json(self) -> dict[str, object]:
+        """Give the change as the API shows it.
+
+        Returns:
+            Its kind, the feature's id and label, its geometry, and for one moved its earlier geometry and how far
+            and which way it moved.
+        """
+        return {
+            "kind": self.kind,
+            "id": self.id,
+            "label": self.label,
+            "geometry": self.geometry,
+            "was": self.was,
+            "metres": self.metres,
+            "toward": self.toward,
+        }
+
+
+def differences(old: str, new: str) -> list[FeatureChange]:
+    """Find the features a later version of a map, `new`, added, removed, or moved from an earlier one's, `old`.
+
+    A feature is found in each by its id, as a place is: its GeoJSON `id`, or without one its label. One with neither,
+    which no place names either, is left out, and so is a second feature with an id the first already has. Changes to
+    a feature's properties alone are its words', which the versions' texts compare (louvre.core.compare).
+
+    Returns:
+        Each feature added or moved, in the later version's order, then each removed, in the earlier version's.
+    """
+    try:
+        earlier, later = _by_id(old), _by_id(new)
+    except GeodataError:
+        return []
+    found: list[FeatureChange] = []
+    for key, (label, geometry) in later.items():
+        if key not in earlier:
+            found.append(FeatureChange(Difference.ADDED, key, label, geometry))
+            continue
+        was = earlier[key][1]
+        if was != geometry:
+            metres, toward = _moved(was, geometry)
+            found.append(FeatureChange(Difference.MOVED, key, label, geometry, was, metres, toward))
+    found += [
+        FeatureChange(Difference.REMOVED, key, label, geometry)
+        for key, (label, geometry) in earlier.items()
+        if key not in later
+    ]
+    return found
+
+
+def near(place: Place, changes: Iterable[FeatureChange]) -> bool:
+    """Say whether a place is in or beside what a later version of its map changed.
+
+    A feature is when it moved; a point or a box when a feature added, removed, or moved is in it, or over it, as
+    their boxes say.
+
+    Returns:
+        Whether it is.
+    """
+    match place.kind:
+        case PlaceKind.FEATURE:
+            return any(c.kind == Difference.MOVED and c.id == place.id for c in changes)
+        case PlaceKind.POINT:
+            lon, lat = _point(place.geometry)
+            area = (lon, lat, lon, lat)
+        case PlaceKind.BOX:
+            area = _box(place.geometry)
+        case _:
+            assert_never(place.kind)
+    return any(_overlap(area, _bounds(shape)) for c in changes for shape in (c.geometry, c.was))
+
+
+def _accuracy(given: float) -> int:
+    """Read a point's accuracy, in metres, as a reader's device gave it.
+
+    Returns:
+        It, in whole metres, rounded up: a reading is never surer than it says.
+
+    Raises:
+        GeodataError: It is not a number of metres from 0 to `MAX_ACCURACY`.
+    """
+    if not (_is_number(given) and math.isfinite(given) and 0 < given <= MAX_ACCURACY):
+        raise GeodataError(f"a point's accuracy is a number of metres, over 0 and at most {MAX_ACCURACY:,}")
+    return max(_LEAST_ACCURACY, math.ceil(given))
+
+
+def _by_id(content: str) -> dict[str, tuple[str, Mapping[str, object] | None]]:
+    """Read a version's features by their ids, as places name them, each with its label and geometry.
+
+    Returns:
+        Each feature that has an id, the first of any that share one, in the version's order.
+
+    Raises:
+        GeodataError: The content is not GeoJSON Louvre draws.
+    """
+    features, look = check(content)
+    found: dict[str, tuple[str, Mapping[str, object] | None]] = {}
+    for i, feature in enumerate(features):
+        key = _id_of(feature, look)
+        geometry = feature.get("geometry")
+        if key and key not in found:
+            found[key] = (_label(feature, look, i), geometry if isinstance(geometry, dict) else None)
+    return found
+
+
+def _moved(was: Mapping[str, object] | None, now: Mapping[str, object] | None) -> tuple[int, str]:
+    """Measure how far, and which way, a geometry's middle moved: its box's middle, as near as a change says it.
+
+    Returns:
+        The metres, along the earth, and the way, one of `_TOWARD`; 0 and empty when it moved under a metre, or
+        either has no geometry.
+    """
+    before, after = _bounds(was), _bounds(now)
+    if before is None or after is None:
+        return 0, ""
+    lon1, lat1 = (before[0] + before[2]) / 2, (before[1] + before[3]) / 2
+    lon2, lat2 = (after[0] + after[2]) / 2, (after[1] + after[3]) / 2
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi, dlambda = phi2 - phi1, math.radians(lon2 - lon1)
+    # The haversine: the great circle's length between the two middles.
+    h = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    metres = round(2 * _EARTH * math.asin(min(1.0, math.sqrt(h))))
+    if metres < 1:
+        return 0, ""
+    bearing = math.atan2(
+        math.sin(dlambda) * math.cos(phi2),
+        math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda),
+    )
+    return metres, _TOWARD[round(math.degrees(bearing) % 360 / 45) % len(_TOWARD)]
+
+
+def _bounds(geometry: Mapping[str, object] | None) -> tuple[float, float, float, float] | None:
+    """Find the box around a checked geometry's positions.
+
+    Returns:
+        Its west, south, east, and north, or None for no geometry, or one with no positions.
+    """
+    positions = list(_every_position(geometry))
+    if not positions:
+        return None
+    lons, lats = [p[0] for p in positions], [p[1] for p in positions]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def _every_position(geometry: object) -> Iterator[tuple[float, float]]:
+    """Read every position of a checked geometry, a collection's parts' too.
+
+    Yields:
+        Each position's longitude and latitude.
+    """
+    if not isinstance(geometry, dict):
+        return
+    if geometry.get("type") == "GeometryCollection":
+        for part in geometry.get("geometries") or []:
+            yield from _every_position(part)
+        return
+    stack: list[object] = [geometry.get("coordinates")]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, list) and value and all(map(_is_number, value)):
+            yield float(value[0]), float(value[1])
+        elif isinstance(value, list):
+            stack.extend(value)
+
+
+def _overlap(a: tuple[float, float, float, float], b: tuple[float, float, float, float] | None) -> bool:
+    return b is not None and a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
 
 
 def _feature(feature: object, where: str) -> Mapping[str, object]:

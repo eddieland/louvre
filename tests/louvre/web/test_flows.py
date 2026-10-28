@@ -961,3 +961,151 @@ def test_on_a_phone_a_reader_draws_a_box_with_one_finger_and_comments_on_it(brow
         assert thread["anchor_status"] == "found"
     finally:
         context.close()
+
+
+def mint(context: BrowserContext) -> str:
+    """Mint a token for Ana's agent that reads, publishes, and comments, and return its secret."""
+    return str(
+        context.request.post(
+            "/api/tokens",
+            data={"name": "canopy worker", "namespace": "canopy/ana", "scopes": ["read", "publish", "comment"]},
+            headers=WRITES,
+        ).json()["secret"],
+    )
+
+
+def points(*poles: tuple[str, float, float]) -> dict[str, object]:
+    """Poles as GeoJSON, each a point named by its label."""
+    features = [
+        {"type": "Feature", "properties": {"name": n}, "geometry": {"type": "Point", "coordinates": [lon, lat]}}
+        for n, lon, lat in poles
+    ]
+    return {"type": "FeatureCollection", "features": features}
+
+
+def until_shown(page: Page, frame: FrameLocator, lon: float, lat: float) -> None:
+    """Wait until the map has panned and zoomed to show a point well inside it."""
+    inside = f"""(e) => {{
+        const p = e.louvreMap.project([{lon}, {lat}]);
+        return !e.louvreMap.isMoving() && p.x > 8 && p.y > 8 && p.x < e.clientWidth - 8 && p.y < e.clientHeight - 8;
+    }}"""
+    deadline = time.monotonic() + DEADLINE
+    while not frame.locator("#map").evaluate(inside):
+        assert time.monotonic() < deadline, "the map did not show the place"
+        page.wait_for_timeout(50)
+
+
+def rendered(page: Page, frame: FrameLocator, layers: Sequence[str], count: int) -> None:
+    """Wait until the map draws `count` features in `layers`, as the kit lights them."""
+    query = f"(e) => e.louvreMap.queryRenderedFeatures({{ layers: {json.dumps(list(layers))} }}).length"
+    deadline = time.monotonic() + DEADLINE
+    while frame.locator("#map").evaluate(query) != count:
+        assert time.monotonic() < deadline, frame.locator("#map").evaluate(query)
+        page.wait_for_timeout(50)
+
+
+def test_a_reader_compares_two_versions_of_a_map_and_finds_the_feature_that_moved(context: BrowserContext) -> None:
+    secret = mint(context)
+    first = points(("P-101", -9.14, 38.71), ("P-102", -9.139, 38.71), ("P-103", -9.138, 38.71))
+    made = json.loads(call(context, secret, "map_publish", title="Poles", data=first))
+    later = points(("P-101", -9.14, 38.71), ("P-102", -9.1385, 38.7105), ("P-104", -9.137, 38.71))
+    call(context, secret, "map_publish", title="Poles", data=later, artifact_id=made["artifact_id"])
+    page = context.new_page()
+    page.goto(f"/a/{made['artifact_id']}?changes=1")
+    frame = page.frame_locator("iframe.exhibit")
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+
+    moved = page.locator(".thread.change[data-kind=moved]")
+    expect(moved).to_contain_text("P-102")
+    expect(moved).to_contain_text("m north-east")
+    expect(page.locator(".changes-tally")).to_contain_text("1 feature moved, 1 added, 1 removed")
+    # Where they are now, the one moved and the one added; where they were, the one moved and the one removed.
+    rendered(page, frame, ["change-now-points"], 2)
+    rendered(page, frame, ["change-was-points"], 2)
+
+    # Wherever the map was, opening the note shows the pole where it is now.
+    frame.locator("#map").evaluate("(e) => e.louvreMap.jumpTo({ center: [0, 0], zoom: 3 })")
+    moved.locator(".thread-open").click()
+    until_shown(page, frame, -9.1385, 38.7105)
+    expect(moved).to_have_class(re.compile(r"\bis-active\b"))
+
+
+def test_a_decisions_options_light_their_places_and_show_them_on_the_map(context: BrowserContext) -> None:
+    secret = mint(context)
+    made = json.loads(
+        call(
+            context,
+            secret,
+            "map_publish",
+            title="Poles",
+            data=points(("P-101", -9.14, 38.71), ("P-102", -9.1, 38.7)),
+        ),
+    )
+    asked = json.loads(
+        call(
+            context,
+            secret,
+            "decision_create",
+            artifact_id=made["artifact_id"],
+            question="Which pole first?",
+            options=[
+                {"label": "The first", "place": {"kind": "feature", "id": "P-101"}},
+                {"label": "The second", "place": {"kind": "feature", "id": "P-102"}},
+            ],
+            asked=["ana"],
+        ),
+    )
+    page = context.new_page()
+    page.goto(f"/a/{made['artifact_id']}")
+    frame = page.frame_locator("iframe.exhibit")
+    expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+    card = page.locator(f"#decision-{asked['decision_id']}")
+
+    # An option's place is marked only while its option is hovered.
+    rendered(page, frame, ["thread-marks"], 0)
+    card.locator(".option", has_text="The first").hover()
+    rendered(page, frame, ["thread-marks"], 1)
+
+    frame.locator("#map").evaluate("(e) => e.louvreMap.jumpTo({ center: [0, 0], zoom: 3 })")
+    card.get_by_role("button", name="Show the place for The second").click()
+    until_shown(page, frame, -9.1, 38.7)
+
+
+def test_on_a_phone_a_reader_comments_where_they_stand(browser: Browser, live_app: str) -> None:
+    """Louvre's page reads where the reader is, never the artifact's frame, and opens a point's thread there."""
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        color_scheme="dark",
+        is_mobile=True,
+        has_touch=True,
+        geolocation={"latitude": 38.7105, "longitude": -9.1388, "accuracy": 14.2},
+        permissions=["geolocation"],
+        base_url=live_app,
+    )
+    try:
+        signed = context.request.post("/auth/dev", data={"login": "ana", "name": "Ana Ruiz"}, headers=WRITES)
+        assert signed.status == 204
+        secret = mint(context)
+        data = points(("P-101", -9.14, 38.71), ("P-102", -9.139, 38.711))
+        artifact = json.loads(call(context, secret, "map_publish", title="Poles", data=data))["artifact_id"]
+        page = context.new_page()
+        page.goto(f"/a/{artifact}")
+        frame = page.frame_locator("iframe.exhibit")
+        expect(frame.locator("#map[data-drawn]")).to_be_attached(timeout=DEADLINE * 1000)
+
+        page.locator(".toolbar button", has_text="Here").click()
+        page.locator(".thread[data-id=draft] textarea").fill("This lamp is out too.")
+        page.keyboard.press("Control+Enter")
+        expect(page.locator(".thread.is-active .comments")).to_contain_text("This lamp is out too.")
+
+        [thread] = json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"]
+        assert thread["anchor"]["exact"] == "38.71050° N, 9.13880° W, within 15 m"
+        assert thread["place"] == {
+            "kind": "point",
+            "geometry": {"type": "Point", "coordinates": [-9.1388, 38.7105]},
+            "accuracy": 15,
+        }
+        # The reading's reach is ringed on the map, around the thread's disc.
+        rendered(page, frame, ["reach-area"], 1)
+    finally:
+        context.close()

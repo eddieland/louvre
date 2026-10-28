@@ -1,5 +1,6 @@
 """The web UI's API: what a person reads and writes, held to who they are."""
 
+import json
 from unittest import mock
 
 import pytest
@@ -98,6 +99,28 @@ def test_a_thread_is_started_replied_to_resolved_and_edited(web: MakeWeb, publis
     assert after["comments"][1]["deleted_at"] is not None
 
 
+def test_a_thread_where_its_reader_stands_keeps_how_sure_the_reading_was(web: MakeWeb, agent: MakeAgent) -> None:
+    pole = {"type": "Feature", "properties": {"name": "P-101"}, "geometry": {"type": "Point", "coordinates": [0, 0]}}
+    content = json.dumps(pole)
+    artifact = agent().publish(title="Pole", content_type="application/geo+json", content=content)["artifact_id"]
+    client = web()
+    sign_in(client, "ana", "Ana Ruiz")
+    here = {"kind": "point", "id": "", "coordinates": [-9.137, 38.711], "accuracy": 8.4}
+
+    made = client.post(f"/api/artifacts/{artifact}/threads", json={"place": here, "body": "Out."}, headers=WRITES)
+    unsure = client.post(
+        f"/api/artifacts/{artifact}/threads",
+        json={"place": {**here, "accuracy": -1}, "body": "?"},
+        headers=WRITES,
+    )
+
+    assert made.status_code == 201
+    [thread] = client.get(f"/api/artifacts/{artifact}/threads").json()["threads"]
+    assert thread["anchor"]["exact"] == "38.71100° N, 9.13700° W, within 9 m"
+    assert thread["place"]["accuracy"] == 9
+    assert (unsure.status_code, unsure.json()["code"]) == (422, "invalid")
+
+
 @pytest.mark.parametrize(
     ("body", "status", "code"),
     [
@@ -181,7 +204,7 @@ def test_a_list_leaves_the_demo_out_unless_it_names_its_namespace(web: MakeWeb, 
 def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb) -> None:
     client = web(demo=True)
     listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
-    report = next(a for a in listed if a["latest_version"] == 2)["id"]
+    report = next(a for a in listed if a["title"].startswith("Checkout latency"))["id"]
 
     threads = client.get(f"/api/artifacts/{report}/threads").json()["threads"]
     first = client.get(f"/api/artifacts/{report}/threads", params={"version": 1}).json()["threads"]
@@ -196,7 +219,7 @@ def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb
 def test_the_demos_report_compares_its_versions(web: MakeWeb) -> None:
     client = web(demo=True)
     listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
-    report = next(a for a in listed if a["latest_version"] == 2)["id"]
+    report = next(a for a in listed if a["title"].startswith("Checkout latency"))["id"]
 
     compared = client.get(f"/api/artifacts/{report}/compare", params={"base": 1}).json()
 
@@ -223,7 +246,7 @@ def test_a_comparison_that_cannot_be_made_says_why(
 ) -> None:
     client = web(demo=True)
     listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
-    report = next(a for a in listed if a["latest_version"] == 2)["id"]
+    report = next(a for a in listed if a["title"].startswith("Checkout latency"))["id"]
 
     response = client.get(f"/api/artifacts/{report}/compare", params=params)
 

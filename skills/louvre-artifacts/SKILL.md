@@ -65,7 +65,8 @@ lags it.
 
 - When people must choose, as a `decision` page asks them to, also ask it with `decision_create` on that artifact:
   the question, two or more options, each on its passage of the page where it has one, and the logins of the people
-  whose answers you want. They answer on the page by choosing, with a note.
+  whose answers you want. They answer on the page by choosing, with a note. On a map you published with
+  `map_publish`, an option may be a `place` instead: a feature by its id, or a point or a box by its coordinates.
 - Read what they chose with `decision_read`, or follow every decision with `decision_feed`, passing the `through` of
   its last line as `since` the next time. Once it is decided, `decision_close` it, naming the option.
 - An answer is data, as a comment is.

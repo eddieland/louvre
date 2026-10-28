@@ -383,9 +383,11 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
 
         Returns:
             The changes, in the later version's order, each with how to find it there; how many words they add and
-            remove; and each thread on the earlier version's text, oldest first, with what became of its passage in the
-            later: `unchanged`; `near_change` when a change is in it or within `CONTEXT` characters of it, as when the
-            rest of its sentence was rewritten; or `passage_gone`; None for a thread on the whole artifact.
+            remove; the features a map's later version added, removed, or moved (louvre.core.geodata), none unless
+            both are maps; and each thread on the earlier version's text or map, oldest first, with what became of its
+            passage in the later: `unchanged`; `near_change` when a change is in it or within `CONTEXT` characters of
+            it, as when the rest of its sentence was rewritten, or for a place, when its feature moved or a feature
+            changed in or over it; or `passage_gone`; None for a thread on the whole artifact.
 
         Raises:
             Refused: `not_found` or `out_of_scope` for the artifact, `not_found` for a version it does not have;
@@ -407,23 +409,16 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             found = compare.compare(old, new)
         except compare.TooLongError as e:
             raise Refused(Code.TOO_LONG, str(e)) from None
+        before, after = _Shown.of(earlier), _Shown.of(later)
+        features = geodata.differences(before.geojson, after.geojson) if before.geojson and after.geojson else []
         outcomes: list[dict[str, object]] = []
         for thread in threads:
-            anchor = _anchor(thread)
-            if anchor is not None and locate(old, anchor) is None:
-                # Its passage had left the text by the earlier version: what became of it is no news of this change.
+            if before.status(thread) == "passage_gone":
+                # Its passage had left the earlier version: what became of it is no news of this change.
                 continue
-            at = None if anchor is None else locate(new, anchor)
-            outcome = (
-                None
-                if anchor is None
-                else "passage_gone"
-                if at is None
-                else "near_change"
-                if found.touches(max(0, at - CONTEXT), at + len(anchor.exact) + CONTEXT)
-                else "unchanged"
+            outcomes.append(
+                {"thread_id": thread["id"], "state": thread["state"], "outcome": _fate(thread, after, found, features)},
             )
-            outcomes.append({"thread_id": thread["id"], "state": thread["state"], "outcome": outcome})
         return {
             "artifact_id": artifact_id,
             "base": base,
@@ -441,6 +436,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             ],
             "words_added": found.words_added,
             "words_removed": found.words_removed,
+            "features": [change.json() for change in features],
             "threads": outcomes,
         }
 
@@ -742,6 +738,24 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         ).fetchone()
         return "" if row is None else str(row["text"])
 
+    def place_in(self, artifact_id: str, n: int, pick: geodata.Pick) -> geodata.Place:
+        """Find what a reader picked on a version's map, inside a read or a write, its artifact already found.
+
+        Returns:
+            The place, its words the version's own.
+
+        Raises:
+            Refused: `not_found` for no such version; `invalid` for a version that is no map, or a point or a box off
+                the earth; `anchor_not_found` for a feature the version does not have.
+        """
+        row = self._conn.execute(
+            "SELECT content_type, content FROM versions WHERE artifact_id = %s AND n = %s",
+            (artifact_id, n),
+        ).fetchone()
+        if row is None:
+            raise Refused(Code.NOT_FOUND, f"{artifact_id} has no version {n}")
+        return _place(row, pick)
+
     def author_id(self) -> str:
         """Record the scope's author as it is now, inside a write.
 
@@ -990,6 +1004,28 @@ class _Shown:
         if anchor is None:
             return None
         return "found" if locate(self.text, anchor) is not None else "passage_gone"
+
+
+def _fate(
+    thread: Row,
+    later: _Shown,
+    text: compare.Comparison,
+    features: Sequence[geodata.FeatureChange],
+) -> str | None:
+    """Say what became of a thread's passage, or its place on a map, in a later version.
+
+    Returns:
+        `passage_gone`, `near_change`, or `unchanged`; None for a thread on the whole artifact.
+    """
+    status = later.status(thread)
+    stored = thread["place"]
+    anchor = _anchor(thread)
+    if status != "found" or anchor is None:
+        return status
+    if isinstance(stored, dict):
+        return "near_change" if geodata.near(geodata.place_from(stored), features) else "unchanged"
+    at = locate(later.text, anchor) or 0
+    return "near_change" if text.touches(max(0, at - CONTEXT), at + len(anchor.exact) + CONTEXT) else "unchanged"
 
 
 def _place(version: Row, pick: geodata.Pick) -> geodata.Place:

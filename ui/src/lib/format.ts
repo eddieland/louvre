@@ -63,3 +63,13 @@ export function provenance(origin: Record<string, string>): string | null {
 export function count(n: number, one: string, many = `${one}s`): string {
     return `${n} ${n === 1 ? one : many}`
 }
+
+/**
+ * Say a point as Louvre quotes one, its latitude then its longitude to five places, and how sure a reading of it is,
+ * such as "38.71238° N, 9.13987° W, within 12 m": the words the server gives a thread there.
+ */
+export function whereSaid([lon, lat]: readonly [number, number], accuracy: number | null): string {
+    const north = `${Math.abs(lat).toFixed(5)}° ${lat >= 0 ? 'N' : 'S'}`
+    const point = `${north}, ${Math.abs(lon).toFixed(5)}° ${lon >= 0 ? 'E' : 'W'}`
+    return accuracy === null ? point : `${point}, within ${Math.ceil(accuracy).toLocaleString('en')} m`
+}

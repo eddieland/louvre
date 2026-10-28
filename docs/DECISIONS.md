@@ -120,7 +120,7 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 - So does a content type of Louvre's own: `artifact_publish` takes the contract's two, and only `map_publish` writes
   `application/geo+json`, which `artifact_read` returns as it is for the versions it wrote.
 - A thread on a place on a map carries `place` beside its `anchor`, whose `exact` holds the place's words, so a reader
-  of `thread_list` or `comment_feed` that knows only words reads it unchanged.
+  of `thread_list` or `comment_feed` that knows only words reads it unchanged; so does a decision's option.
 - Rejected: decisions' events in `comment_feed` (a reader written against the contract meets kinds it does not know).
 - Revisit: when canopy's contract takes a tool of Louvre's, which then follows the contract's word.
 

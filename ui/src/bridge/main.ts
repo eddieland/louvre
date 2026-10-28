@@ -7,13 +7,15 @@
 // working as its author wrote it; the bridge's only elements, a stylesheet and the threads' numbers, are marked
 // data-louvre, and the text skips them.
 //
-// On a map drawn by Louvre's map kit, a thread may be on a place rather than words. The kit and the bridge speak by
-// events on the document: the kit says what the reader tapped (louvre:pick), where each place's thread sits
-// (louvre:spots), and which one was tapped (louvre:click); the bridge says which places to mark (louvre:marks). The
-// bridge passes on what the kit says as it does a selection, and trusts it no further (D008).
+// On a map drawn by Louvre's map kit, a thread may be on a place rather than words, and so may a decision's option;
+// while versions are compared, the features the later one changed are lit there. The kit and the bridge speak by
+// events on the document: the kit says what the reader tapped (louvre:pick), where each place's mark sits
+// (louvre:spots), and which one was tapped (louvre:click); the bridge says which places and changes to mark
+// (louvre:marks), and which to show, panning and zooming the map to it (louvre:show). The bridge passes on what the
+// kit says as it does a selection, and trusts it no further (D008).
 
 import { CHANNEL, KEYS, mapPlaceOf } from './protocol'
-import type { Colors, FromBridge, MapPlace, Mark, Place, Selected, ToBridge } from './protocol'
+import type { Colors, FromBridge, MapChange, MapPlace, Mark, Place, Selected, ToBridge } from './protocol'
 import { locate, quote, readText } from './text'
 import type { PageText } from './text'
 
@@ -32,12 +34,32 @@ interface PlaceMark {
     id: string
     /** Its number in the margin, or null. */
     n: number | null
-    /** Open, resolved, or a draft. */
+    /** Open, resolved, a draft, or a decision's option, which the kit draws only while it is lit. */
     state: Mark['state']
     /** Whether it is active or hovered. */
     lit: boolean
     /** Where it is. */
     place: MapPlace
+}
+
+/** A feature a later version changed, as the bridge asks the map kit to light it. */
+interface ChangeMark extends MapChange {
+    /** The change's id, as the margin's note has it. */
+    mark: string
+    /** Whether it is active or hovered. */
+    lit: boolean
+}
+
+/**
+ * A color the bridge was given, the change token, at its full strength as `#rrggbb`, for the lines of a map: its red,
+ * green, and blue, its alpha left off.
+ */
+function opaque(color: string): string {
+    if (color.startsWith('#')) {
+        return color.slice(0, 7)
+    }
+    const parts = (color.match(/[\d.]+/gu) ?? []).slice(0, 3).map(Number)
+    return parts.length === 3 ? `#${parts.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}` : color
 }
 
 function finite(value: unknown): value is number {
@@ -121,7 +143,7 @@ function start(): void {
     const locateAll = () => {
         ranges = new Map()
         for (const mark of marks) {
-            if (mark.place) {
+            if (mark.place || mark.change) {
                 continue
             }
             const at = locate(read.text, mark.anchor)
@@ -195,13 +217,17 @@ function start(): void {
         }
         numbers.replaceChildren(...placed)
         const onMaps: PlaceMark[] = []
+        const changes: ChangeMark[] = []
         for (const mark of marks) {
-            if (mark.place && mark.state !== 'passage') {
-                const lit = mark.id === active || mark.id === hover
+            const lit = mark.id === active || mark.id === hover
+            if (mark.place) {
                 onMaps.push({ id: mark.id, n: mark.n, state: mark.state, lit, place: mark.place })
+            } else if (mark.change) {
+                changes.push({ ...mark.change, mark: mark.id, lit })
             }
         }
-        doc.dispatchEvent(new CustomEvent('louvre:marks', { detail: { marks: onMaps } }))
+        const hue = colors ? opaque(colors.change) : ''
+        doc.dispatchEvent(new CustomEvent('louvre:marks', { detail: { marks: onMaps, changes, hue } }))
     }
 
     const measure = (): number => {
@@ -293,6 +319,10 @@ function start(): void {
         const message = data as ToBridge
         if (message.type === 'clear-selection') {
             getSelection()?.removeAllRanges()
+            return
+        }
+        if (message.type === 'show') {
+            doc.dispatchEvent(new CustomEvent('louvre:show', { detail: { id: message.id } }))
             return
         }
         marks = message.marks

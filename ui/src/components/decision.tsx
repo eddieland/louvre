@@ -283,15 +283,17 @@ function Result(props: {
     )
 }
 
+/** The link to an option's passage, or its place on the artifact's map, which the map pans and zooms to. */
 function PassageLink({ option, onShow }: { option: DecisionOption; onShow: (option: DecisionOption) => void }) {
+    const what = option.place ? 'place' : 'passage'
     return (
         <button
             type="button"
             className="action option-passage"
             onClick={() => onShow(option)}
-            aria-label={`Show the passage for ${option.label}`}
+            aria-label={`Show the ${what} for ${option.label}`}
         >
-            Passage &darr;
+            {option.place ? 'Place' : 'Passage'} &darr;
         </button>
     )
 }

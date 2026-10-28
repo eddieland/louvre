@@ -4,7 +4,7 @@
 
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import type { MapPlace } from '@/bridge/protocol'
+import type { Geometry, MapPlace } from '@/bridge/protocol'
 import type { Anchor } from '@/bridge/text'
 
 /** Who wrote a comment: a person, or an agent writing for one. */
@@ -74,6 +74,8 @@ export interface ThreadPlace {
      * north.
      */
     geometry: { type: string; coordinates?: unknown; bbox?: unknown } | null
+    /** For a point read where its reader stood, how near the reading is sure to be, in metres; absent otherwise. */
+    accuracy?: number
 }
 
 /** An artifact, as a list or its page shows it. */
@@ -136,6 +138,24 @@ export interface Change {
     removed: string
 }
 
+/** A feature a later version of a map added, removed, or moved, found in each by its id. */
+export interface FeatureChange {
+    /** What the later version did to it. */
+    kind: 'added' | 'removed' | 'moved'
+    /** Its id, as a place on the map names it. */
+    id: string
+    /** Its label: in the later version, or for one removed, in the earlier. */
+    label: string
+    /** Its geometry in the later version, or for one removed, in the earlier. */
+    geometry: Geometry | null
+    /** For one moved, its geometry in the earlier version; null otherwise. */
+    was: Geometry | null
+    /** For one moved, how far its middle moved, in whole metres: 0 for one reshaped where it was. */
+    metres: number
+    /** Which way it moved, such as "north-east"; empty when it did not. */
+    toward: string
+}
+
 /** What became of a thread on the earlier version's text, in the later version. */
 export interface ThreadFate {
     /** The thread's id. */
@@ -158,6 +178,8 @@ export interface Comparison {
     words_added: number
     /** How many words the changes remove. */
     words_removed: number
+    /** The features the later version of a map added, removed, or moved; none unless both versions are maps. */
+    features: FeatureChange[]
     /** The threads on the earlier version's text, oldest first. */
     threads: ThreadFate[]
 }
@@ -170,8 +192,10 @@ export interface DecisionOption {
     label: string
     /** A line more about it, or empty. */
     detail: string
-    /** The passage of the artifact it is about, or null. */
+    /** The passage of the artifact it is about, or null; for a place on its map, the place's words. */
     anchor: Anchor | null
+    /** The place on the artifact's map it is about, or null. */
+    place: ThreadPlace | null
     /** How many people chose it. */
     count: number
 }

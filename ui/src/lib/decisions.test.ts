@@ -12,8 +12,8 @@ function decision(changes: Partial<Decision> = {}): Decision {
         multiple: false,
         version: 1,
         options: [
-            { id: 'o1', label: 'Batch', detail: '', anchor: null, count: 1 },
-            { id: 'o2', label: 'Warm', detail: '', anchor: null, count: 0 },
+            { id: 'o1', label: 'Batch', detail: '', anchor: null, place: null, count: 1 },
+            { id: 'o2', label: 'Warm', detail: '', anchor: null, place: null, count: 0 },
         ],
         asked: [
             { login: 'ana', name: 'Ana Ruiz', answered: true },

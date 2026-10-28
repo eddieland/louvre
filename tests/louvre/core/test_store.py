@@ -129,6 +129,7 @@ def test_a_comparison_says_what_changed_and_what_became_of_each_threads_passage(
         ],
         "words_added": 1,
         "words_removed": 3,
+        "features": [],
         # The thread opened on version 2 is no news of what changed since version 1.
         "threads": [
             {"thread_id": reworded["thread_id"], "state": "open", "outcome": "passage_gone"},
@@ -493,3 +494,44 @@ def test_a_thread_on_a_box_stays_where_it_is_on_the_earth_when_its_features_go(a
     assert thread["place"]["geometry"]["bbox"] == [-9.15, 38.7, -9.13, 38.72]  # type: ignore[index]
     assert thread["anchor_status"] == "found"
     refused(Code.INVALID, lambda: ana.comment(artifact, None, "?", pick=Pick(PlaceKind.BOX, coordinates=(1, 1, 0, 2))))
+
+
+def test_comparing_two_maps_says_which_features_changed_and_what_became_of_each_place(
+    agent: MakeAgent,
+    ana: Store,
+) -> None:
+    def poles(*poles: tuple[str, list[float]]) -> str:
+        features = [
+            {"type": "Feature", "properties": {"name": n}, "geometry": {"type": "Point", "coordinates": c}}
+            for n, c in poles
+        ]
+        return json.dumps({"type": "FeatureCollection", "features": features})
+
+    sam = agent()
+    first = poles(("P-1", [-9.14, 38.71]), ("P-2", [-9.13, 38.72]), ("P-3", [-9.12, 38.73]))
+    artifact = str(sam.publish(title="Poles", content_type="application/geo+json", content=first)["artifact_id"])
+    moved = ana.comment(artifact, None, "Leaning.", pick=Pick(PlaceKind.FEATURE, "P-1"))
+    removed = ana.comment(artifact, None, "Lamp out.", pick=Pick(PlaceKind.FEATURE, "P-2"))
+    kept = ana.comment(artifact, None, "Fine.", pick=Pick(PlaceKind.FEATURE, "P-3"))
+    beside = ana.comment(artifact, None, "Here?", pick=Pick(PlaceKind.POINT, coordinates=(-9.13, 38.72)))
+    later = poles(("P-1", [-9.1401, 38.71]), ("P-3", [-9.12, 38.73]), ("P-4", [-9.11, 38.74]))
+    sam.publish(title="Poles", content_type="application/geo+json", content=later, artifact_id=artifact)
+
+    compared = sam.compare(artifact, 1)
+
+    assert [(f["kind"], f["id"]) for f in compared["features"]] == [  # type: ignore[union-attr]
+        ("moved", "P-1"),
+        ("added", "P-4"),
+        ("removed", "P-2"),
+    ]
+    assert compared["features"][0]["metres"] == 9  # type: ignore[index]
+    fates = {t["thread_id"]: t["outcome"] for t in compared["threads"]}  # type: ignore[union-attr]
+    assert fates == {
+        moved["thread_id"]: "near_change",
+        removed["thread_id"]: "passage_gone",
+        kept["thread_id"]: "unchanged",
+        beside["thread_id"]: "near_change",
+    }
+    page = str(sam.publish(title="Page", content_type="text/html", content=V1)["artifact_id"])
+    sam.publish(title="Page", content_type="text/html", content=V2, artifact_id=page)
+    assert sam.compare(page, 1)["features"] == []

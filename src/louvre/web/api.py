@@ -40,6 +40,8 @@ class PlaceBody(_Body):
     id: Annotated[str, Field(max_length=MAX_EXACT)] = ""
     #: The point's longitude and latitude, or the box's west, south, east, and north.
     coordinates: tuple[float, float] | tuple[float, float, float, float] | None = None
+    #: For a point read from where the reader stands, how near the reading is sure to be, in metres.
+    accuracy: float | None = None
 
 
 class ThreadBody(_Body):
@@ -177,7 +179,7 @@ def create_thread(store: Reader, artifact_id: str, given: ThreadBody) -> dict[st
     """Start a thread on an artifact's latest version: on a passage, a place on its map, or the whole of it."""
     anchor = None if given.anchor is None else Anchor.of(given.anchor.exact, given.anchor.prefix, given.anchor.suffix)
     place = given.place
-    pick = None if place is None else geodata.Pick(place.kind, place.id, place.coordinates or ())
+    pick = None if place is None else geodata.Pick(place.kind, place.id, place.coordinates or (), place.accuracy)
     return store.comment(artifact_id, anchor, given.body, pick=pick)
 
 

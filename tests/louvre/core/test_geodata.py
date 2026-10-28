@@ -11,7 +11,7 @@ from hypothesis import strategies as st
 from syrupy.assertion import SnapshotAssertion
 
 from louvre.core import geodata, render
-from louvre.core.geodata import GeodataError, check, page
+from louvre.core.geodata import GeodataError, PlaceKind, check, page
 
 #: A point, a line, and an area, the second in focus by its status, and a ramp of one number.
 POLES = {
@@ -147,3 +147,105 @@ def test_a_box_drawn_on_the_map_is_kept_by_its_sides_said_by_its_corners_and_nev
 def test_a_box_with_no_area_or_off_the_earth_is_refused_saying_why(coordinates: tuple[float, ...], why: str) -> None:
     with pytest.raises(GeodataError, match=re.escape(why)):
         geodata.place_on(json.dumps(POLES), geodata.Pick(geodata.PlaceKind.BOX, coordinates=coordinates))
+
+
+def _poles(*poles: tuple[str, list[float]], status: str = "working") -> str:
+    """Write poles as GeoJSON, each a point named by its label, as the demo's are.
+
+    Returns:
+        The GeoJSON.
+    """
+    features = [
+        {
+            "type": "Feature",
+            "properties": {"name": n, "status": status},
+            "geometry": {"type": "Point", "coordinates": c},
+        }
+        for n, c in poles
+    ]
+    return json.dumps({"type": "FeatureCollection", "features": features})
+
+
+def test_a_later_version_reads_as_the_features_it_added_removed_and_moved() -> None:
+    old = _poles(("P-1", [-9.14, 38.71]), ("P-2", [-9.14, 38.72]), ("P-3", [0, 0]))
+    new = _poles(("P-1", [-9.14, 38.7101]), ("P-3", [0, 0]), ("P-4", [1, 1]), status="lamp out")
+
+    moved, added, removed = geodata.differences(old, new)
+
+    assert (moved.kind, moved.id, moved.metres, moved.toward) == (geodata.Difference.MOVED, "P-1", 11, "north")
+    assert moved.was == {"type": "Point", "coordinates": [-9.14, 38.71]}
+    assert moved.geometry == {"type": "Point", "coordinates": [-9.14, 38.7101]}
+    assert (added.kind, added.id, added.was) == (geodata.Difference.ADDED, "P-4", None)
+    assert (removed.kind, removed.label, removed.geometry) == (
+        geodata.Difference.REMOVED,
+        "P-2",
+        {"type": "Point", "coordinates": [-9.14, 38.72]},
+    )
+    # Its status changed on every pole: words, which the texts compare, and no feature's change.
+    assert [c.id for c in geodata.differences(old, old.replace("working", "lamp out"))] == []
+
+
+def test_a_feature_reshaped_where_it_was_moved_no_metres_and_one_with_no_id_is_left_out() -> None:
+    square = [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]
+    larger = [[-1, -1], [2, -1], [2, 2], [-1, 2], [-1, -1]]
+    area = {
+        "type": "Feature",
+        "properties": {"name": "Block"},
+        "geometry": {"type": "Polygon", "coordinates": [square]},
+    }
+    nameless: dict[str, object] = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "Point", "coordinates": [5, 5]},
+    }
+    old = json.dumps({"type": "FeatureCollection", "features": [area, nameless]})
+    new = old.replace(json.dumps(square), json.dumps(larger)).replace("[5, 5]", "[6, 6]")
+
+    [reshaped] = geodata.differences(old, new)
+
+    assert (reshaped.id, reshaped.metres, reshaped.toward) == ("Block", 0, "")
+    assert reshaped.json()["kind"] == "moved"
+    assert geodata.differences("not json", new) == []
+
+
+def test_a_place_is_near_a_change_when_its_feature_moved_or_a_change_is_over_it() -> None:
+    old = _poles(("P-1", [-9.14, 38.71]), ("P-2", [-9.14, 38.72]))
+    changes = geodata.differences(old, _poles(("P-1", [-9.15, 38.71])))
+    feature = geodata.place_on(old, geodata.Pick(PlaceKind.FEATURE, "P-1"))
+    still = geodata.place_on(old, geodata.Pick(PlaceKind.FEATURE, "P-2"))
+    on_removed = geodata.place_on(old, geodata.Pick(PlaceKind.POINT, coordinates=(-9.14, 38.72)))
+    far = geodata.place_on(old, geodata.Pick(PlaceKind.POINT, coordinates=(0, 0)))
+    over = geodata.place_on(old, geodata.Pick(PlaceKind.BOX, coordinates=(-9.16, 38.70, -9.145, 38.715)))
+
+    assert geodata.near(feature, changes)
+    assert not geodata.near(still, changes)
+    assert geodata.near(on_removed, changes)
+    assert not geodata.near(far, changes)
+    assert geodata.near(over, changes)
+
+
+def test_a_point_read_where_its_reader_stood_keeps_how_sure_the_reading_is() -> None:
+    content = _poles(("P-1", [-9.14, 38.71]))
+
+    here = geodata.place_on(content, geodata.Pick(PlaceKind.POINT, coordinates=(-9.14, 38.71), accuracy=11.2))
+
+    assert here.accuracy == 12
+    assert here.quote() == "38.71000° N, 9.14000° W, within 12 m"
+    assert here.json()["accuracy"] == 12
+    assert geodata.place_from(here.json()) == here
+    near_enough = geodata.Pick(PlaceKind.POINT, coordinates=(-9.14, 38.71), accuracy=1_500)
+    assert geodata.place_on(content, near_enough).quote().endswith("within 1,500 m")
+
+
+@pytest.mark.parametrize(
+    "pick",
+    [
+        geodata.Pick(PlaceKind.POINT, coordinates=(0, 0), accuracy=0),
+        geodata.Pick(PlaceKind.POINT, coordinates=(0, 0), accuracy=geodata.MAX_ACCURACY + 1),
+        geodata.Pick(PlaceKind.POINT, coordinates=(0, 0), accuracy=float("nan")),
+        geodata.Pick(PlaceKind.FEATURE, "P-1", accuracy=5),
+    ],
+)
+def test_an_accuracy_is_metres_of_a_point_or_it_is_refused(pick: geodata.Pick) -> None:
+    with pytest.raises(GeodataError, match="accuracy"):
+        geodata.place_on(_poles(("P-1", [0, 0])), pick)

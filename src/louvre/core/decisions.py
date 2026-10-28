@@ -1,10 +1,10 @@
 """Decisions: a question asked on an artifact, for people to answer by choosing, and read back by who asked (U7).
 
-An agent, or a person, asks a question on an artifact with two or more options, each a label, a line of detail, and
-the passage of the artifact it is about, if any; it may name the people it asks. A signed-in person answers on the
-web by choosing one option, or several where the question allows, with a note, and may change their answer while the
-decision is open. An agent never answers: a decision is how people tell agents what they chose. Whoever asked, or the
-person they asked for, closes it, naming the option decided on if there is one.
+An agent, or a person, asks a question on an artifact with two or more options, each a label, a line of detail, and the
+passage of the artifact it is about, or the place on its map, if any; it may name the people it asks. A signed-in person
+answers on the web by choosing one option, or several where the question allows, with a note, and may change their
+answer while the decision is open. An agent never answers: a decision is how people tell agents what they chose. Whoever
+asked, or the person they asked for, closes it, naming the option decided on if there is one.
 
 Its asker reads it back: whole, by id; listed, by artifact or origin; or as a feed. The feed is the comment feed's
 shape (louvre.core.store): one `seq` across every decision, in commit order, each page ending with an `end` line. It
@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
+from louvre.core import geodata
 from louvre.core.store import (
     MAX_BODY,
     MAX_FEED,
@@ -69,6 +70,8 @@ class Option:
     detail: str = ""
     #: The passage of the artifact it is about, in its latest version; None for none.
     anchor: Anchor | None = None
+    #: The place on the map of a GeoJSON artifact's latest version it is about, as a reader picks one; None for none.
+    place: geodata.Pick | None = None
 
 
 class Decisions:
@@ -97,7 +100,8 @@ class Decisions:
             Refused: `read_only` without comment; `invalid` for a blank question or label, fewer options than
                 `MIN_OPTIONS`, two options alike, or a login that is no login; `too_long` for a question, label,
                 detail, anchor, or list of options or people over its bound; `not_found` or `out_of_scope` for the
-                artifact; `anchor_not_found` for an option's passage not in its latest version.
+                artifact; `anchor_not_found` for an option's passage, or its place's feature, not in its latest
+                version; `invalid` for an option with both a passage and a place, or a place on what is not a map.
         """
         store = self._store
         store.require(Permission.COMMENT)
@@ -107,12 +111,14 @@ class Decisions:
             artifact = store.artifact_row(artifact_id)
             latest = int(str(artifact["latest_version"]))
             text = store.version_text(artifact_id, latest)
+            places: list[geodata.Place | None] = []
             for option in options:
                 if option.anchor is not None and locate(text, option.anchor) is None:
                     raise Refused(
                         Code.ANCHOR_NOT_FOUND,
                         f"the passage of option {option.label!r} is not in version {latest} of {artifact_id}",
                     )
+                places.append(None if option.place is None else store.place_in(artifact_id, latest, option.place))
             decision_id = f"d_{secrets.token_hex(8)}"
             self._conn.execute(
                 "INSERT INTO decisions (id, artifact_id, question, options, multiple, asked, author_id, account_id,"
@@ -121,7 +127,12 @@ class Decisions:
                     decision_id,
                     artifact_id,
                     question,
-                    json.dumps([_option_json(f"o{i}", o) for i, o in enumerate(options, 1)]),
+                    json.dumps(
+                        [
+                            _option_json(f"o{i}", o, at)
+                            for i, (o, at) in enumerate(zip(options, places, strict=True), 1)
+                        ],
+                    ),
                     multiple,
                     logins,
                     store.author_id(),
@@ -474,6 +485,8 @@ def _check_question(question: str, options: Sequence[Option]) -> None:
         labels.add(label)
         bounded("option's label", option.label, MAX_LABEL)
         bounded("option's detail", option.detail, MAX_DETAIL)
+        if option.anchor is not None and option.place is not None:
+            raise Refused(Code.INVALID, f"option {option.label!r} is about a passage or a place, not both")
         if option.anchor is not None:
             check_anchor(option.anchor)
 
@@ -521,13 +534,19 @@ def _choices(row: Mapping[str, object], choices: Sequence[str]) -> list[str]:
     return chosen
 
 
-def _option_json(option_id: str, option: Option) -> dict[str, object]:
-    anchor = option.anchor
+def _option_json(option_id: str, option: Option, place: geodata.Place | None) -> dict[str, object]:
+    """Shape an option as it is stored and shown: a place's anchor is its words, as a thread's is (D011).
+
+    Returns:
+        Its id, label, detail, anchor, and place.
+    """
+    anchor = option.anchor if place is None else Anchor.of(place.quote())
     return {
         "id": option_id,
         "label": " ".join(option.label.split()),
         "detail": option.detail.strip(),
         "anchor": None if anchor is None else {"exact": anchor.exact, "prefix": anchor.prefix, "suffix": anchor.suffix},
+        "place": None if place is None else place.json(),
     }
 
 

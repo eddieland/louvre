@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Comment, Comparison, Thread } from './api'
-import { changeMarks, fateOf, kindOf, notesOf, tally } from './changes'
+import type { Comment, Comparison, FeatureChange, Thread } from './api'
+import { changeMarks, fateOf, featureMarks, featureNotes, kindOf, movedBy, notesOf, tally } from './changes'
 
 const COMPARISON: Comparison = {
     base: 1,
@@ -18,8 +18,40 @@ const COMPARISON: Comparison = {
     ],
     words_added: 4,
     words_removed: 4,
+    features: [],
     threads: [],
 }
+
+/** A pole moved, one put up, and one taken down. */
+const FEATURES: FeatureChange[] = [
+    {
+        kind: 'moved',
+        id: 'P-113',
+        label: 'P-113',
+        geometry: { type: 'Point', coordinates: [-9.1399, 38.7125] },
+        was: { type: 'Point', coordinates: [-9.13987, 38.71238] },
+        metres: 14,
+        toward: 'north-west',
+    },
+    {
+        kind: 'added',
+        id: 'P-122',
+        label: 'P-122',
+        geometry: { type: 'Point', coordinates: [-9.138, 38.713] },
+        was: null,
+        metres: 0,
+        toward: '',
+    },
+    {
+        kind: 'removed',
+        id: 'P-120',
+        label: 'P-120',
+        geometry: { type: 'Point', coordinates: [-9.1373, 38.71252] },
+        was: null,
+        metres: 0,
+        toward: '',
+    },
+]
 
 function comment(created_at: string, deleted = false): Comment {
     return {
@@ -65,6 +97,38 @@ describe('changes', () => {
             tally({ ...COMPARISON, changes: COMPARISON.changes.slice(0, 1), words_added: 0, words_removed: 1 }),
         ).toBe('1 change: 1 word removed')
         expect(tally({ ...COMPARISON, changes: [], words_added: 0, words_removed: 0 })).toBe('The text did not change.')
+    })
+
+    it('notes each feature a later version of a map changed, and asks the map kit to light it', () => {
+        const notes = featureNotes({ ...COMPARISON, features: FEATURES })
+        const [moved] = FEATURES
+
+        expect(notes.map((n) => n.id)).toEqual(['feature-1', 'feature-2', 'feature-3'])
+        expect(notes.map((n) => kindOf(n.feature))).toEqual(['Moved', 'Added', 'Removed'])
+        expect(featureMarks(notes)[0]).toEqual({
+            id: 'feature-1',
+            anchor: { exact: 'P-113', prefix: '', suffix: '' },
+            place: null,
+            change: { kind: 'moved', id: 'P-113', geometry: moved?.geometry, was: moved?.was },
+            state: 'change',
+            n: null,
+        })
+    })
+
+    it('says how far and which way a feature moved, its number on its unit', () => {
+        const [moved, added] = FEATURES as [FeatureChange, FeatureChange]
+
+        expect(movedBy(moved)).toBe('14\u00A0m north-west')
+        expect(movedBy({ ...moved, metres: 1240, toward: 'west' })).toBe('1.2\u00A0km west')
+        expect(movedBy({ ...moved, metres: 0, toward: '' })).toBe('Reshaped where it was')
+        expect(movedBy(added)).toBe('')
+    })
+
+    it("tallies a map's features beside its words, what moved first", () => {
+        expect(tally({ ...COMPARISON, features: FEATURES })).toBe(
+            '3 changes: 4 words added, 4 removed; 1 feature moved, 1 added, 1 removed',
+        )
+        expect(tally({ ...COMPARISON, changes: [], features: FEATURES.slice(0, 1) })).toBe('1 feature moved')
     })
 
     it("says what became of a thread's passage, whether it is resolved, and its replies since", () => {

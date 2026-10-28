@@ -67,11 +67,11 @@ warnings for the rest. A Markdown artifact is shown in it already.
 
 Built (M7), awaiting the operator's word. The operator's call (2026-10-24): a comment is the wrong shape for a choice,
 so an agent that needs one (which direction, which fix first, whether to ship) asks it as a decision on an artifact,
-with two or more options, each of which may point at a passage, and names the people whose answers it wants. A
-signed-in person answers on the artifact's page by choosing, with a note, and may change their answer while it is
-open; how others chose shows only once they have answered, so it does not sway them. An agent never answers. Whoever
-asked reads the answers back over MCP, whole or as a feed in the comment feed's shape, and closes the decision,
-naming the option decided on. Each person sees what waits on them: in the header, the catalogue, and a page of
+with two or more options, each of which may point at a passage, or a place on a map (U10), and names the people whose
+answers it wants. A signed-in person answers on the artifact's page by choosing, with a note, and may change their
+answer while it is open; how others chose shows only once they have answered, so it does not sway them. An agent never
+answers. Whoever asked reads the answers back over MCP, whole or as a feed in the comment feed's shape, and closes the
+decision, naming the option decided on. Each person sees what waits on them: in the header, the catalogue, and a page of
 decisions.
 
 ### U8. Comparing versions
@@ -97,12 +97,13 @@ feature shows them too. The demo publishes one, street poles in Lisbon.
 
 ### U10. Comments and decisions on places
 
-Built for features, points, and boxes drawn on GeoJSON (M12); the rest planned (M13). A thread is anchored on a map's
-feature, a point, or an area, as on a passage's words. L2 holds
-on a map: a feature's id and a place's coordinates are its words, and a pixel is a position. A feature found nowhere
-in a new version reads `passage_gone` and never moves to its neighbour; a point stays where it is on the earth. Two
-versions of a map compare as any artifact's do (U8), a decision's option may point at a place (U7), and on a phone a
-person may comment where they stand.
+Built (M12, M13), awaiting the operator's word. A thread is anchored on a map's feature, a point, or an area, as on a
+passage's words. L2 holds on a map: a feature's id and a place's coordinates are its words, and a pixel is a position.
+A feature found nowhere in a new version reads `passage_gone` and never moves to its neighbour; a point stays where it
+is on the earth. Two versions of a map compare as any artifact's do (U8), and the features the later one added,
+removed, or moved are lit on the map and noted in the margin; a decision's option may point at a place (U7), lit on
+the map while it is hovered; and on a phone a person may comment where they stand, the reading's accuracy kept with
+the point.
 
 ### U11. A person hears what waits on them
 

@@ -34,6 +34,8 @@ interface PointPlace {
     id: ''
     /** Its longitude and latitude. */
     coordinates: [number, number]
+    /** For a point read from where the reader stood, how near the reading is sure to be, in metres; null otherwise. */
+    accuracy: number | null
 }
 
 /** A box on the earth, its sides along meridians and parallels. */
@@ -46,6 +48,28 @@ interface BoxPlace {
     coordinates: [number, number, number, number]
 }
 
+/** A GeoJSON geometry, as the server gave it: the page passes it on to the map kit, which draws it and nothing more. */
+export interface Geometry {
+    /** Its GeoJSON type, such as Point or Polygon. */
+    type: string
+    /** Its positions. */
+    coordinates?: unknown
+    /** A collection's parts. */
+    geometries?: unknown
+}
+
+/** A feature a later version of a map added, removed, or moved, lit by the map kit while versions are compared. */
+export interface MapChange {
+    /** What the later version did to it. */
+    kind: 'added' | 'removed' | 'moved'
+    /** The feature's id, as the page's map names it. */
+    id: string
+    /** Its geometry in the later version, or for one removed, in the earlier. */
+    geometry: Geometry | null
+    /** For one moved, its geometry in the earlier version; null otherwise. */
+    was: Geometry | null
+}
+
 /** A thread's passage, or a change's, as the page asks the bridge to mark it. */
 export interface Mark {
     /** The thread's id, a draft's, or a change's. */
@@ -54,6 +78,8 @@ export interface Mark {
     anchor: Anchor
     /** The place on a map it is on, which the map kit marks in place of the words; null for words. */
     place: MapPlace | null
+    /** A feature a later version of a map changed, which the map kit lights in place of the words; absent for words. */
+    change?: MapChange
     /**
      * Whether it is open, resolved, or a draft not yet sent; the passage a decision's option is about, marked only
      * while its option is hovered or shown, and never a thread the reader can click; or words a later version added or
@@ -97,8 +123,11 @@ export interface MarksMessage {
     colors: Colors
 }
 
-/** What the page tells the bridge. */
-export type ToBridge = MarksMessage | { channel: typeof CHANNEL; type: 'clear-selection' }
+/** What the page tells the bridge: the marks, to clear the reader's selection, or to show a mark's place on its map. */
+export type ToBridge =
+    | MarksMessage
+    | { channel: typeof CHANNEL; type: 'clear-selection' }
+    | { channel: typeof CHANNEL; type: 'show'; id: string }
 
 /** Where a passage is in the frame's document, in CSS pixels from its top. */
 export interface Place {
@@ -209,14 +238,15 @@ export function mapPlaceOf(value: unknown): MapPlace | null {
     if (typeof value !== 'object' || value === null) {
         return null
     }
-    const { kind, id, coordinates } = value as Record<string, unknown>
+    const { kind, id, coordinates, accuracy } = value as Record<string, unknown>
     if (kind === 'feature' && typeof id === 'string' && id) {
         return { kind, id, coordinates: null }
     }
     if (kind === 'point' && Array.isArray(coordinates) && coordinates.length === 2) {
         const [lon, lat] = coordinates as unknown[]
         if (finite(lon) && finite(lat) && onEarth(lon, lat)) {
-            return { kind, id: '', coordinates: [lon, lat] }
+            const sure = finite(accuracy) && accuracy > 0 ? accuracy : null
+            return { kind, id: '', coordinates: [lon, lat], accuracy: sure }
         }
     }
     if (kind === 'box' && Array.isArray(coordinates) && coordinates.length === 4) {

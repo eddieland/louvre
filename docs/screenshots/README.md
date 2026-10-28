@@ -334,7 +334,7 @@ Light:
 | --- | --- |
 | ![A map in the house style, drawn by the map kit, Phone, 390, light](house-style-map/phone-light.png) | ![A map in the house style, drawn by the map kit, Laptop, 1440, light](house-style-map/laptop-light.png) |
 
-## GeoJSON, drawn by Louvre as a map
+## GeoJSON, drawn by Louvre as a map, a decision on its places
 
 `/a/{poles}`
 
@@ -342,19 +342,41 @@ Narrow, dark:
 
 | Small phone, 360 | Phone, 390 | Tablet, 820 |
 | --- | --- | --- |
-| ![GeoJSON, drawn by Louvre as a map, Small phone, 360, dark](geodata/phone-small-dark.png) | ![GeoJSON, drawn by Louvre as a map, Phone, 390, dark](geodata/phone-dark.png) | ![GeoJSON, drawn by Louvre as a map, Tablet, 820, dark](geodata/tablet-dark.png) |
+| ![GeoJSON, drawn by Louvre as a map, a decision on its places, Small phone, 360, dark](geodata/phone-small-dark.png) | ![GeoJSON, drawn by Louvre as a map, a decision on its places, Phone, 390, dark](geodata/phone-dark.png) | ![GeoJSON, drawn by Louvre as a map, a decision on its places, Tablet, 820, dark](geodata/tablet-dark.png) |
 
 Wide, dark:
 
 | Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
 | --- | --- | --- |
-| ![GeoJSON, drawn by Louvre as a map, Tablet landscape, 1180, dark](geodata/tablet-landscape-dark.png) | ![GeoJSON, drawn by Louvre as a map, Laptop, 1440, dark](geodata/laptop-dark.png) | ![GeoJSON, drawn by Louvre as a map, Wide, 1920, dark](geodata/wide-dark.png) |
+| ![GeoJSON, drawn by Louvre as a map, a decision on its places, Tablet landscape, 1180, dark](geodata/tablet-landscape-dark.png) | ![GeoJSON, drawn by Louvre as a map, a decision on its places, Laptop, 1440, dark](geodata/laptop-dark.png) | ![GeoJSON, drawn by Louvre as a map, a decision on its places, Wide, 1920, dark](geodata/wide-dark.png) |
 
 Light:
 
 | Phone, 390 | Laptop, 1440 |
 | --- | --- |
-| ![GeoJSON, drawn by Louvre as a map, Phone, 390, light](geodata/phone-light.png) | ![GeoJSON, drawn by Louvre as a map, Laptop, 1440, light](geodata/laptop-light.png) |
+| ![GeoJSON, drawn by Louvre as a map, a decision on its places, Phone, 390, light](geodata/phone-light.png) | ![GeoJSON, drawn by Louvre as a map, a decision on its places, Laptop, 1440, light](geodata/laptop-light.png) |
+
+## GeoJSON's changes since its first version, a moved feature's note open
+
+`/a/{poles}?changes=1`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![GeoJSON's changes since its first version, a moved feature's note open, Small phone, 360, dark](geodata-changes/phone-small-dark.png) | ![GeoJSON's changes since its first version, a moved feature's note open, Phone, 390, dark](geodata-changes/phone-dark.png) | ![GeoJSON's changes since its first version, a moved feature's note open, Tablet, 820, dark](geodata-changes/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![GeoJSON's changes since its first version, a moved feature's note open, Tablet landscape, 1180, dark](geodata-changes/tablet-landscape-dark.png) | ![GeoJSON's changes since its first version, a moved feature's note open, Laptop, 1440, dark](geodata-changes/laptop-dark.png) | ![GeoJSON's changes since its first version, a moved feature's note open, Wide, 1920, dark](geodata-changes/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![GeoJSON's changes since its first version, a moved feature's note open, Phone, 390, light](geodata-changes/phone-light.png) | ![GeoJSON's changes since its first version, a moved feature's note open, Laptop, 1440, light](geodata-changes/laptop-light.png) |
 
 ## A board, fitted to the screen
 

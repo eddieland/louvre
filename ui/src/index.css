@@ -344,6 +344,9 @@
         font: inherit;
         white-space: nowrap;
         cursor: pointer;
+        &:disabled {
+            cursor: progress;
+        }
         &[data-current],
         &[aria-pressed='true'] {
             border-color: var(--rule);
@@ -868,6 +871,14 @@
     }
     .change .gone-quote {
         overflow-wrap: anywhere;
+    }
+    /* How far, and which way, a feature on a map moved. */
+    .change-moved {
+        display: block;
+        margin-top: 0.25rem;
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        color: var(--muted);
     }
     /* A long passage shows its first four lines. */
     .clamp {

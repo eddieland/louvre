@@ -1,14 +1,26 @@
 // What changed from one version to a later one, as the artifact page shows it (ui/DESIGN.md, "Changes"): each change
-// marked in the frame and noted in the margin level with it, and above them what became of the earlier threads.
+// marked in the frame and noted in the margin level with it, and above them what became of the earlier threads. On a
+// map, each feature the later version added, removed, or moved is lit on the map and noted too.
 
 import type { Mark } from '@/bridge/protocol'
-import type { Change, Comparison, Thread, ThreadFate } from '@/lib/api'
+import type { Anchor } from '@/bridge/text'
+import type { Change, Comparison, FeatureChange, Thread, ThreadFate } from '@/lib/api'
 import { count } from '@/lib/format'
 
 /** A change as the margin notes it: the server's, with an id of its own for its mark and its note. */
 export interface MarkedChange extends Change {
     /** Unique on the page, never a thread's: `change-` and its place in the later version's order. */
     id: string
+}
+
+/** A feature a later version of a map changed, as the margin notes it, level with where the map lights it. */
+export interface MarkedFeature {
+    /** Unique on the page, never a thread's or a change of words': `feature-` and its place in the comparison. */
+    id: string
+    /** Its label as words, as a thread on it quotes them; the map kit places it, so it is never looked for. */
+    anchor: Anchor
+    /** The change, as the server said it. */
+    feature: FeatureChange
 }
 
 /** The margin's summary of a comparison, which sits above its changes. */
@@ -23,6 +35,13 @@ const PASSAGES: Record<NonNullable<ThreadFate['outcome']> | 'page', string> = {
 }
 /** What the margin calls each kind of change. */
 const KINDS: Record<Change['kind'], string> = { added: 'Added', removed: 'Removed', changed: 'Rewritten' }
+/** What the margin calls each kind of change to a feature on a map. */
+const FEATURE_KINDS: Record<FeatureChange['kind'], string> = { added: 'Added', removed: 'Removed', moved: 'Moved' }
+/** The order a tally counts changes to features in: what moved first, as what a reader most likely looks for. */
+const TALLIED: FeatureChange['kind'][] = ['moved', 'added', 'removed']
+/** A metre, a kilometre, and the space that keeps a number on its unit's line (ui/DESIGN.md, "Type"). */
+const KILOMETRE = 1000
+const NBSP = '\u00A0'
 
 /** Give each change an id for its mark and its note. */
 export function notesOf(comparison: Comparison): MarkedChange[] {
@@ -42,15 +61,54 @@ export function changeMarks(notes: readonly MarkedChange[]): Mark[] {
     return marks
 }
 
-/** What the margin calls a change, such as "Rewritten". */
-export function kindOf(change: Change): string {
-    return KINDS[change.kind]
+/** Give each feature a later version of a map changed an id for its mark and its note. */
+export function featureNotes(comparison: Comparison): MarkedFeature[] {
+    return comparison.features.map((feature, i) => ({
+        id: `feature-${String(i + 1)}`,
+        anchor: { exact: feature.label, prefix: '', suffix: '' },
+        feature,
+    }))
+}
+
+/** The marks the bridge is asked for, for features changed: the map kit lights each where it was and where it is. */
+export function featureMarks(notes: readonly MarkedFeature[]): Mark[] {
+    return notes.map(({ id, anchor, feature }) => ({
+        id,
+        anchor,
+        place: null,
+        change: { kind: feature.kind, id: feature.id, geometry: feature.geometry, was: feature.was },
+        state: 'change',
+        n: null,
+    }))
+}
+
+/** What the margin calls a change, such as "Rewritten", or a feature's, such as "Moved". */
+export function kindOf(change: Change | FeatureChange): string {
+    return 'label' in change ? FEATURE_KINDS[change.kind] : KINDS[change.kind]
+}
+
+/**
+ * Say how far and which way a feature moved, such as "40 m north-east" or "1.2 km west", or that it was reshaped where
+ * it was; empty for one added or removed.
+ */
+export function movedBy(feature: FeatureChange): string {
+    if (feature.kind !== 'moved') {
+        return ''
+    }
+    if (feature.metres === 0) {
+        return 'Reshaped where it was'
+    }
+    const far =
+        feature.metres < KILOMETRE
+            ? `${String(feature.metres)}${NBSP}m`
+            : `${(feature.metres / KILOMETRE).toFixed(1)}${NBSP}km`
+    return `${far} ${feature.toward}`.trim()
 }
 
 /** Say how much changed, such as "3 changes: 9 words added, 7 removed", or that the text did not change. */
 export function tally(comparison: Comparison): string {
-    const { changes, words_added: added, words_removed: removed } = comparison
-    if (changes.length === 0) {
+    const { changes, features, words_added: added, words_removed: removed } = comparison
+    if (changes.length === 0 && features.length === 0) {
         return 'The text did not change.'
     }
     // "9 words added, 7 removed": the unit once, on the first count.
@@ -58,7 +116,14 @@ export function tally(comparison: Comparison): string {
         added > 0 ? `${count(added, 'word')} added` : '',
         removed > 0 ? `${added > 0 ? String(removed) : count(removed, 'word')} removed` : '',
     ]
-    return `${count(changes.length, 'change')}: ${words.filter(Boolean).join(', ')}`
+    const text = changes.length > 0 ? `${count(changes.length, 'change')}: ${words.filter(Boolean).join(', ')}` : ''
+    // "2 features moved, 1 added": the unit once too.
+    const counted = TALLIED.map((kind) => [kind, features.filter((f) => f.kind === kind).length] as const)
+    const onMap = counted
+        .filter(([, n]) => n > 0)
+        .map(([kind, n], i) => `${i === 0 ? count(n, 'feature') : String(n)} ${kind}`)
+        .join(', ')
+    return [text, onMap].filter(Boolean).join('; ')
 }
 
 /**
