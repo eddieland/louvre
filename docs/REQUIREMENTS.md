@@ -120,7 +120,11 @@ they are. C1 binds Louvre's readers of the feed, not people.
 
 ### U12. Search across artifacts
 
-Gap. A reader finds an artifact, a passage, or a comment by its words, across every namespace they read.
+Built (2026-10-28), outside the milestones, awaiting the operator's word. A reader finds an artifact, a passage, or a
+comment by its words, across every namespace they read. The catalogue searches (`?q=`): an artifact is found when each
+word is in its title, its latest version's words, or a comment on it, each at the start of a word in any case, and its
+entry quotes the passages and comments the words are in, marked. Not over MCP: the contract's `artifact_list` is
+canopy's (L1), and no agent has asked for one of Louvre's.
 
 ### U13. A deployment says what is its own
 

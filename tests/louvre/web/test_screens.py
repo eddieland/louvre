@@ -210,6 +210,7 @@ SCENES = (
         "The demo, filtered by a ticket",
         "/demo?origin=%7B%22canopy.ticket%22%3A%22LOUVRE-M1%22%7D",
     ),
+    Scene("catalogue-search", "The demo, searched for a word", "/demo?q=cache"),
     Scene("reader", "The demo, read without signing in", "/demo", signed_in=False),
     Scene("sign-in", "Signing in", "/sign-in", signed_in=False),
     Scene("artifact", "An artifact, a thread open", "/a/{checkout}", _report_open),

@@ -17,7 +17,7 @@ export const Route = createFileRoute('/demo')({
 })
 
 function DemoPage() {
-    const { origin } = Route.useSearch()
+    const { origin, q } = Route.useSearch()
     const session = useQuery(sessionQuery)
     usePageTitle('Demo')
     return (
@@ -49,6 +49,7 @@ function DemoPage() {
         return (
             <Catalogue
                 origin={origin}
+                query={q}
                 namespace={DEMO_NAMESPACE}
                 title="The demo"
                 intro={

@@ -70,6 +70,28 @@ Light:
 | --- | --- |
 | ![The demo, filtered by a ticket, Phone, 390, light](catalogue-origin/phone-light.png) | ![The demo, filtered by a ticket, Laptop, 1440, light](catalogue-origin/laptop-light.png) |
 
+## The demo, searched for a word
+
+`/demo?q=cache`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![The demo, searched for a word, Small phone, 360, dark](catalogue-search/phone-small-dark.png) | ![The demo, searched for a word, Phone, 390, dark](catalogue-search/phone-dark.png) | ![The demo, searched for a word, Tablet, 820, dark](catalogue-search/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![The demo, searched for a word, Tablet landscape, 1180, dark](catalogue-search/tablet-landscape-dark.png) | ![The demo, searched for a word, Laptop, 1440, dark](catalogue-search/laptop-dark.png) | ![The demo, searched for a word, Wide, 1920, dark](catalogue-search/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![The demo, searched for a word, Phone, 390, light](catalogue-search/phone-light.png) | ![The demo, searched for a word, Laptop, 1440, light](catalogue-search/laptop-light.png) |
+
 ## The demo, read without signing in
 
 `/demo`
