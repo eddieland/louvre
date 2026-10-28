@@ -55,8 +55,14 @@ const ORIGIN_KEYS = ['canopy.ticket', 'ticket', 'canopy.report', 'canopy.repo']
 
 /** Name where an artifact came from by its origin: its ticket, say, or null when its origin is empty. */
 export function provenance(origin: Record<string, string>): string | null {
+    return provenancePair(origin)?.[1] ?? null
+}
+
+/** The origin pair that names where an artifact came from, as `provenance` names it, or null for an empty origin. */
+export function provenancePair(origin: Record<string, string>): [string, string] | null {
     const key = ORIGIN_KEYS.find((k) => origin[k]) ?? Object.keys(origin).toSorted()[0]
-    return key === undefined ? null : (origin[key] ?? null)
+    const value = key === undefined ? undefined : origin[key]
+    return key === undefined || value === undefined ? null : [key, value]
 }
 
 /** Say how many of a thing there are, as "1 thread" or "3 threads". */

@@ -9,15 +9,19 @@ from collections.abc import Sequence
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from louvre.core import accounts, boards, demo, explorations, geodata, inbox, style
 from louvre.core.decisions import MAX_OPTIONS, Decisions
-from louvre.core.store import MAX_BODY, MAX_EXACT, iso
+from louvre.core.store import MAX_BODY, MAX_EXACT, Code, Refused, iso
 from louvre.core.text import CONTEXT, Anchor
 from louvre.web.caller import SESSION_COOKIE, Conn, Database, Person, Reader, Viewer, database
 
 router = APIRouter(prefix="/api")
+#: The most characters of the origin a list is filtered by: room for every pair an artifact may carry.
+MAX_ORIGIN_QUERY = 8192
+#: An origin to filter by, as a list's query gives it.
+_ORIGIN = TypeAdapter(dict[str, str])
 
 
 class _Body(BaseModel):
@@ -122,9 +126,23 @@ def artifacts(
     found: Annotated[Database, Depends(database)],
     cursor: str | None = None,
     namespace: Annotated[str | None, Query(max_length=64)] = None,
+    # A JSON object, as a key may hold any character: `{"canopy.ticket": "PAY-142"}`.
+    origin: Annotated[str | None, Query(max_length=MAX_ORIGIN_QUERY)] = None,
 ) -> dict[str, object]:
-    """The artifacts the request reaches, newest first, by page: the demo's only when its namespace is named."""
-    return store.overview(cursor=cursor, namespace=namespace, leave_out=_set_apart(found, namespace))
+    """The artifacts the request reaches whose origin holds every pair of `origin`, newest first, by page.
+
+    The demo's are listed only when its namespace is named.
+
+    Raises:
+        Refused: `invalid` for an origin that is not a JSON object of strings.
+    """
+    pairs = None
+    if origin is not None:
+        try:
+            pairs = _ORIGIN.validate_json(origin)
+        except ValidationError:
+            raise Refused(Code.INVALID, "an origin is a JSON object of strings") from None
+    return store.overview(origin=pairs, cursor=cursor, namespace=namespace, leave_out=_set_apart(found, namespace))
 
 
 @router.get("/artifacts/{artifact_id}")

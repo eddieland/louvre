@@ -221,6 +221,34 @@ def test_a_list_leaves_the_demo_out_unless_it_names_its_namespace(web: MakeWeb, 
     ]
 
 
+def test_a_list_is_filtered_by_origin(web: MakeWeb, agent: MakeAgent) -> None:
+    """A list holds the artifacts whose origin holds every pair asked for, and a pair's key may hold any character."""
+    sam = agent()
+    for title, origin in [
+        ("Plan", {"canopy.ticket": "PAY-142", "canopy.repo": "payments"}),
+        ("Review", {"canopy.ticket": "PAY-142", "canopy.repo": "payments"}),
+        ("Other", {"canopy.ticket": "PAY-151", "canopy.repo": "payments"}),
+        ("Odd", {"a=b": "c"}),
+    ]:
+        sam.publish(title=title, content_type="text/markdown", content="# Hi", origin=origin)
+    client = web()
+    sign_in(client, "ana")
+
+    def titles(origin: dict[str, str]) -> list[str]:
+        listed = client.get("/api/artifacts", params={"origin": json.dumps(origin)}).json()["artifacts"]
+        return [a["title"] for a in listed]
+
+    assert titles({"canopy.ticket": "PAY-142"}) == ["Review", "Plan"]
+    assert titles({"canopy.repo": "payments", "canopy.ticket": "PAY-151"}) == ["Other"]
+    assert titles({"a=b": "c"}) == ["Odd"]
+    assert titles({"canopy.ticket": "PAY-999"}) == []
+    assert titles({}) == ["Odd", "Other", "Review", "Plan"]
+    for bad in ["PAY-142", '["PAY-142"]', '{"canopy.ticket": 142}']:
+        response = client.get("/api/artifacts", params={"origin": bad})
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid"
+
+
 def test_the_demos_report_has_a_thread_gone_from_its_second_version(web: MakeWeb) -> None:
     client = web(demo=True)
     listed = client.get("/api/artifacts", params=DEMO).json()["artifacts"]
