@@ -37,7 +37,9 @@ export function Catalogue({ namespace, origin, query, title, intro, empty, after
     const artifacts = list.data?.pages.flatMap((page) => page.artifacts) ?? []
     // Boards are neither filtered by origin nor searched: a filtered or searched list is the artifacts alone.
     const whole = origin === undefined && query === undefined
-    const boards = useQuery({ ...boardsQuery(namespace), enabled: whole }).data?.boards ?? []
+    const listedBoards = useQuery({ ...boardsQuery(namespace), enabled: whole }).data?.boards ?? []
+    // A query turned off still answers with what it fetched before, as the whole list did before a search.
+    const boards = whole ? listedBoards : []
     // The artifacts with news for a signed-in reader (their inbox), marked in the list.
     const signedIn = Boolean(useQuery(sessionQuery).data?.account)
     const inbox = useQuery({ ...inboxQuery, enabled: signedIn }).data?.entries ?? []

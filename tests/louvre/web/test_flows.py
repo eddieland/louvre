@@ -779,7 +779,25 @@ def test_a_reader_follows_an_artifacts_ticket_to_the_others_from_it_and_back(con
 def test_a_reader_searches_finds_a_comment_and_opens_its_thread_then_goes_back(context: BrowserContext) -> None:
     """The catalogue's field finds what holds the words, marks them, and opens a found comment's thread."""
     secret = mint(context)
-    artifact = publish(context)
+    # Words no other flow publishes: the flows of one worker share a database, so another's would be found too.
+    artifact = json.loads(
+        call(
+            context,
+            secret,
+            "artifact_publish",
+            title="Queue report",
+            content_type="text/html",
+            content="<h1>Queue report</h1><p>The queue backs up at noon.</p><p>We should batch it.</p>",
+        ),
+    )["artifact_id"]
+    call(
+        context,
+        secret,
+        "comment_create",
+        artifact_id=artifact,
+        anchor={"exact": "We should batch it."},
+        body="Batching is the remedy I would try first.",
+    )
     call(context, secret, "artifact_publish", title="Unrelated", content_type="text/markdown", content="# Nothing")
     thread = json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"][0]["id"]
     page = context.new_page()
@@ -788,18 +806,18 @@ def test_a_reader_searches_finds_a_comment_and_opens_its_thread_then_goes_back(c
 
     page.keyboard.press("/")
     expect(page.get_by_role("searchbox")).to_be_focused()
-    page.keyboard.type("shard fix")
+    page.keyboard.type("batch remedy")
     page.keyboard.press("Enter")
 
-    expect(page).to_have_url(re.compile(r"/\?q=shard(\+|%20)fix$"))
-    entry = page.locator(".entry", has_text="Cache report")
+    expect(page).to_have_url(re.compile(r"/\?q=batch(\+|%20)remedy$"))
+    entry = page.locator(".entry", has_text="Queue report")
     expect(page.locator(".entry")).to_have_count(1)
-    expect(entry.locator("mark.hit")).to_have_text(["shard", "Shard", "fix"])
-    expect(entry).to_contain_text("Sharding is the fix I would try first.")
+    expect(entry.locator("mark.hit")).to_have_text(["batch", "Batch", "remedy"])
+    expect(entry).to_contain_text("Batching is the remedy I would try first.")
     entry.locator("a").click()
     expect(page).to_have_url(re.compile(rf"/a/{artifact}\?t={thread}$"))
     page.go_back()
-    expect(page.get_by_role("searchbox")).to_have_value("shard fix")
+    expect(page.get_by_role("searchbox")).to_have_value("batch remedy")
     page.click("text=Every artifact")
     expect(page.get_by_role("searchbox")).to_have_value("")
     expect(page.locator(".entry-title", has_text="Unrelated").first).to_be_visible()
