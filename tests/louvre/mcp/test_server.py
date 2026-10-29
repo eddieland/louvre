@@ -51,6 +51,7 @@ TOOLS = [
     "decision_feed",
     "files_publish",
     "map_publish",
+    "board_publish",
 ]
 
 
@@ -331,6 +332,21 @@ def test_files_publish_publishes_a_page_with_its_files_beside_it(client: Client)
     assert client.call("artifact_read", artifact_id=made["artifact_id"])["content"] == page
     assert bad == "invalid"
     assert wrong == "invalid"
+
+
+def test_board_publish_puts_artifacts_side_by_side_and_publishes_the_board_again(client: Client) -> None:
+    page = client.publish()["artifact_id"]
+    phone = {"artifact_id": page, "label": "Phone, 390", "width": 390, "height": 844}
+    laptop = {"artifact_id": page, "label": "Laptop, 1440", "width": 1440, "height": 900}
+
+    made = client.call("board_publish", title="Cache report, two screens", rows=[[laptop, phone]])
+    again = client.call("board_publish", title="Cache report, a phone", rows=[[phone]], board_id=made["board_id"])
+
+    assert made == {"board_id": made["board_id"], "frames": 2, "url": f"https://louvre.test/b/{made['board_id']}"}
+    assert again["board_id"] == made["board_id"]
+    assert client.refused("board_publish", title="Nothing", rows=[]) == "invalid"
+    assert client.refused("board_publish", title="Tiny", rows=[[{**phone, "width": 10}]]) == "invalid"
+    assert client.refused("board_publish", title="Gone", rows=[[{**phone, "artifact_id": "a_nowhere"}]]) == "not_found"
 
 
 def test_map_publish_publishes_geojson_that_louvre_draws_and_refuses_what_is_not(client: Client) -> None:

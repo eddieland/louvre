@@ -57,6 +57,7 @@ OWNED = Site(
 TABLES = (
     "reads",
     "files",
+    "boards",
     "blobs",
     "decision_events",
     "answers",

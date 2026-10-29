@@ -679,6 +679,37 @@ def test_the_design_study_is_a_board_to_read_without_a_database_or_signing_in(br
         context.close()
 
 
+def test_an_agent_puts_its_pages_on_a_board_and_a_reader_opens_a_frame_from_the_catalogue(
+    context: BrowserContext,
+) -> None:
+    secret = mint(context)
+    pages = [
+        json.loads(call(context, secret, "artifact_publish", title=title, content_type="text/html", content=PAGE))
+        for title in ("Checkout: cards", "Checkout: wallet")
+    ]
+    rows = [
+        [
+            {"artifact_id": made["artifact_id"], "label": "Laptop, 1440", "width": 1440, "height": 900},
+            {"artifact_id": made["artifact_id"], "label": "Phone, 390", "width": 390, "height": 844},
+        ]
+        for made in pages
+    ]
+    board_id = json.loads(call(context, secret, "board_publish", title="Checkout, two ways", rows=rows))["board_id"]
+    page = context.new_page()
+
+    page.goto("/")
+    page.get_by_role("link", name=re.compile(r"^Checkout, two ways")).click()
+    page.wait_for_url(re.compile(rf"/b/{board_id}$"))
+    page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
+    expect(page.locator(".board-frame")).to_have_count(4)
+    page.get_by_role("link", name="Open Checkout: wallet, Phone, 390").click()
+    page.wait_for_url(re.compile(rf"/a/{pages[1]['artifact_id']}\?board={board_id}&frame=f4$"))
+    expect(page.frame_locator("iframe.exhibit").get_by_role("heading", name="Cache report")).to_be_visible()
+
+    page.get_by_role("link", name="Back to Checkout, two ways").click()
+    page.wait_for_url(re.compile(rf"/b/{board_id}$"))
+
+
 def draw_box(page: Page, frame: FrameLocator, west: tuple[float, float], east: tuple[float, float]) -> None:
     """Draw a box on a map with the mouse, from 30 pixels south-west of `west` to 30 pixels north-east of `east`."""
     on_page = frame.locator("#map").bounding_box()
@@ -748,7 +779,25 @@ def test_a_reader_follows_an_artifacts_ticket_to_the_others_from_it_and_back(con
 def test_a_reader_searches_finds_a_comment_and_opens_its_thread_then_goes_back(context: BrowserContext) -> None:
     """The catalogue's field finds what holds the words, marks them, and opens a found comment's thread."""
     secret = mint(context)
-    artifact = publish(context)
+    # Words no other flow publishes: the flows of one worker share a database, so another's would be found too.
+    artifact = json.loads(
+        call(
+            context,
+            secret,
+            "artifact_publish",
+            title="Queue report",
+            content_type="text/html",
+            content="<h1>Queue report</h1><p>The queue backs up at noon.</p><p>We should batch it.</p>",
+        ),
+    )["artifact_id"]
+    call(
+        context,
+        secret,
+        "comment_create",
+        artifact_id=artifact,
+        anchor={"exact": "We should batch it."},
+        body="Batching is the remedy I would try first.",
+    )
     call(context, secret, "artifact_publish", title="Unrelated", content_type="text/markdown", content="# Nothing")
     thread = json.loads(call(context, secret, "thread_list", artifact_id=artifact))["threads"][0]["id"]
     page = context.new_page()
@@ -757,18 +806,18 @@ def test_a_reader_searches_finds_a_comment_and_opens_its_thread_then_goes_back(c
 
     page.keyboard.press("/")
     expect(page.get_by_role("searchbox")).to_be_focused()
-    page.keyboard.type("shard fix")
+    page.keyboard.type("batch remedy")
     page.keyboard.press("Enter")
 
-    expect(page).to_have_url(re.compile(r"/\?q=shard(\+|%20)fix$"))
-    entry = page.locator(".entry", has_text="Cache report")
+    expect(page).to_have_url(re.compile(r"/\?q=batch(\+|%20)remedy$"))
+    entry = page.locator(".entry", has_text="Queue report")
     expect(page.locator(".entry")).to_have_count(1)
-    expect(entry.locator("mark.hit")).to_have_text(["shard", "Shard", "fix"])
-    expect(entry).to_contain_text("Sharding is the fix I would try first.")
+    expect(entry.locator("mark.hit")).to_have_text(["batch", "Batch", "remedy"])
+    expect(entry).to_contain_text("Batching is the remedy I would try first.")
     entry.locator("a").click()
     expect(page).to_have_url(re.compile(rf"/a/{artifact}\?t={thread}$"))
     page.go_back()
-    expect(page.get_by_role("searchbox")).to_have_value("shard fix")
+    expect(page.get_by_role("searchbox")).to_have_value("batch remedy")
     page.click("text=Every artifact")
     expect(page.get_by_role("searchbox")).to_have_value("")
     expect(page.locator(".entry-title", has_text="Unrelated").first).to_be_visible()

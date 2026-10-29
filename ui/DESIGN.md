@@ -226,11 +226,14 @@ but the canvas, to the screen's edges, under one hairline.
   frame's page is inert there. A tap or a click opens it on the artifact's page, at the frame's width when that is
   narrower than the page's, with its threads in the margin as on any artifact's page, and the way back to the board
   first in the toolbar. A drag that ends on a frame does not open it.
+- **A board an agent publishes** (`board_publish`) is laid out by Louvre, so every one reads alike: its rows top to
+  bottom, each row's frames left to right in the order given, 160 px apart, and each row 160 px under the tallest frame
+  of the one before, room for a label. Its frames are numbered in that order, `f1`, `f2`, for the link that opens one.
 - **The design study's board**, `/directions/board`, is the same canvas over the repository's pages alone, so every
   deployment shows it, with no database and no demo: a frame opens its direction's own page, and nothing takes a
   comment.
 - **The catalogue** lists boards above artifacts, in the same entries: the title, the namespace, how many frames, and
-  the open threads at the right.
+  the open threads at the right; the demo's first, then those agents published, newest first.
 
 ## Decisions
 

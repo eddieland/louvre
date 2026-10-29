@@ -229,16 +229,21 @@ def board_list(
     found: Annotated[Database, Depends(database)],
     namespace: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, object]:
-    """The boards with a frame the request reaches, in `namespace` if named: the demo's only when its namespace is."""
+    """The boards with a frame the request reaches, in `namespace` if named: the demo's only when its namespace is.
+
+    The demo's come first, in their order, then those agents published, newest first.
+    """
     apart = _set_apart(found, namespace)
-    listed = [b for b in _boards(found) if (namespace is None or b.namespace == namespace) and b.namespace not in apart]
+    there = (*_boards(found), *boards.Boards(store).listed())
+    listed = [b for b in there if (namespace is None or b.namespace == namespace) and b.namespace not in apart]
     return {"boards": boards.listing(store, listed)}
 
 
 @router.get("/boards/{board_id}")
 def board(store: Reader, found: Annotated[Database, Depends(database)], board_id: str) -> dict[str, object]:
-    """A board, and each of its frames the request reaches, with its artifact."""
-    return boards.shown(store, _boards(found), board_id)
+    """A board, the demo's or one an agent published, and each of its frames the request reaches, with its artifact."""
+    published = boards.Boards(store).find(board_id)
+    return boards.shown(store, _boards(found) if published is None else (published,), board_id)
 
 
 @router.get("/directions/board")
@@ -364,7 +369,7 @@ def house_style(kind: style.Kind = style.Kind.REPORT) -> dict[str, object]:
 
 
 def _boards(found: Database) -> tuple[boards.Board, ...]:
-    """The boards there are: mock data for now, the demo's design studies when the demo is on (roadmap M3)."""
+    """The boards written down in code: the demo's design studies, when the demo is on (roadmap M3)."""
     return demo.BOARDS if found.settings.demo else ()
 
 

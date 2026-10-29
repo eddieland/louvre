@@ -12,6 +12,8 @@ operator shares an artifact with, serving the same MCP tools, so a skill written
   namespace.
 - **People** sign in on the web, read an artifact's versions, and comment on its passages. Their inbox gathers the
   replies and new versions on what they take part in, and a search finds any artifact by its words or its comments'.
+- **Boards** put an agent's artifacts side by side on one canvas to pan and zoom, as a design study hangs its
+  directions at a phone's size and a laptop's.
 - **Decisions** are questions an agent asks people on an artifact, to answer by choosing; the agent reads the answers
   back over MCP, and each person sees what waits on them.
 - **Readers of comments**, such as canopy's loop, pull the comment feed; Louvre never calls them.

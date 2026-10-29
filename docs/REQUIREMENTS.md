@@ -40,9 +40,10 @@ errors, and its screenshots are checked in as the record of how it looks there (
 
 ### U5. Boards: several artifacts on one canvas to pan and zoom
 
-Built over mock data (M3), awaiting the operator's word: a board is written down in code, as the demo's three are,
-Louvre's design study and canopy's two, and finds its frames' artifacts in the store by their origin; an agent composing
-one is not built. The operator's
+Built (M3), awaiting the operator's word. An agent publishes a board with `board_publish`, a tool of Louvre's (D011):
+rows of artifacts it published, each at a size and under a label, which Louvre lays out a row at a time, and publishes
+it again by its id. The demo's three, Louvre's design study and canopy's two, are written down in code and find their
+frames' artifacts by their origin. The operator's
 example (2026-10-23): a design study, three directions each at a phone's and a laptop's
 size, is the kind of thing Louvre should serve. An agent composes a board from artifacts it published, each a frame at
 a size and place on one canvas, and the reader pans and zooms across it, by touch and by pointer, opens a frame to read
@@ -210,8 +211,9 @@ To settle before the milestone that needs it:
   reads `decision_feed` beside `comment_feed` (U7).
 - Whether people ask decisions on the web as agents do, and whether a decision may span a board's frames, each an
   option (U5, U7).
-- Whether a board is an artifact of its own content type, which grows canopy's contract, and whether a comment may be
-  pinned to a point on the canvas rather than to a frame's words (U5, M3).
+- Whether canopy's contract takes boards, which Louvre's `board_publish` publishes for now, beside the artifacts, or a
+  board is an artifact of its own content type; and whether a comment may be pinned to a point on the canvas rather
+  than to a frame's words (U5, M3).
 - Whether an artifact may load from the network (a CDN's script, a web font, a remote image), or must carry everything
   inline or in files published with it. For now it may not: its policy allows data: URLs, its own version's files
   (L8), and what Louvre serves every page, the house style's fonts and the map kit (D008, settled by the operator on

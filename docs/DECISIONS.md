@@ -116,9 +116,9 @@ the log reads as what is true now; the old text is in git history. Numbers are n
 ## D011. Louvre's own tools are added beside the contract's, and change none of them
 
 - The contract's eight tools, their results, and `comment_feed`'s kinds are canopy's (REQUIREMENTS L1). A tool of
-  Louvre's own (the `style_` and `decision_` tools, `files_publish`, and `map_publish`) is a new name; what it records
-  that a reader follows gets a feed of its own (`decision_feed`), never a new kind in `comment_feed`, which canopy's
-  loop reads.
+  Louvre's own (the `style_` and `decision_` tools, `files_publish`, `map_publish`, and `board_publish`) is a new
+  name; what it records that a reader follows gets a feed of its own (`decision_feed`), never a new kind in
+  `comment_feed`, which canopy's loop reads.
 - So does a content type of Louvre's own: `artifact_publish` takes the contract's two, and only `map_publish` writes
   `application/geo+json`, which `artifact_read` returns as it is for the versions it wrote.
 - A thread on a place on a map carries `place` beside its `anchor`, whose `exact` holds the place's words, so a reader

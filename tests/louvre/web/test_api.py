@@ -6,6 +6,7 @@ from unittest import mock
 import pytest
 
 from louvre.core import accounts, db, store
+from louvre.core.boards import Boards, Framed
 from louvre.core.db import Connection
 from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
@@ -341,6 +342,7 @@ def test_the_demos_boards_are_listed_and_shown_with_their_frames(web: MakeWeb) -
             "id": "design-study",
             "title": "Design study, 2026-10-23",
             "namespace": "demo",
+            "origin": {},
             "frames": 6,
             "open_threads": 2,
         },
@@ -348,6 +350,7 @@ def test_the_demos_boards_are_listed_and_shown_with_their_frames(web: MakeWeb) -
             "id": "canopy-style",
             "title": "canopy's style study, 2026-10-08",
             "namespace": "demo",
+            "origin": {},
             "frames": 9,
             "open_threads": 2,
         },
@@ -355,6 +358,7 @@ def test_the_demos_boards_are_listed_and_shown_with_their_frames(web: MakeWeb) -
             "id": "canopy-structure",
             "title": "canopy's structure study, 2026-10-19",
             "namespace": "demo",
+            "origin": {},
             "frames": 40,
             "open_threads": 2,
         },
@@ -362,6 +366,44 @@ def test_the_demos_boards_are_listed_and_shown_with_their_frames(web: MakeWeb) -
     assert shown["board"]["title"] == "Design study, 2026-10-23"
     assert [f["id"] for f in shown["frames"]][:2] == ["gallery-laptop", "gallery-phone"]
     assert shown["frames"][0]["artifact"]["title"] == "Direction: Gallery"
+
+
+def test_a_board_an_agent_published_is_listed_and_shown_to_its_namespace_s_readers(
+    web: MakeWeb,
+    agent: MakeAgent,
+) -> None:
+    sam = agent()
+    page = sam.publish(title="Direction a", content_type="text/html", content="<h1>A</h1>")["artifact_id"]
+    made = Boards(sam).publish(
+        title="Study",
+        rows=[[Framed(str(page), "Laptop, 1440", 1440, 900), Framed(str(page), "Phone, 390", 390, 844)]],
+        origin={"canopy.ticket": "PAY-142"},
+    )
+    board = str(made["board_id"])
+    ana, outsider = web(demo=True), web(demo=True)
+    sign_in(ana, "ana")
+
+    listed = ana.get("/api/boards").json()["boards"]
+    shown = ana.get(f"/api/boards/{board}").json()
+    refused = outsider.get(f"/api/boards/{board}")
+
+    assert made["url"] == f"{BASE_URL}/b/{board}"
+    assert listed == [
+        {
+            "id": board,
+            "title": "Study",
+            "namespace": "canopy/sam",
+            "origin": {"canopy.ticket": "PAY-142"},
+            "frames": 2,
+            "open_threads": 0,
+        },
+    ]
+    assert [(f["id"], f["x"], f["width"], f["artifact"]["id"]) for f in shown["frames"]] == [
+        ("f1", 0, 1440, page),
+        ("f2", 1600, 390, page),
+    ]
+    assert outsider.get("/api/boards").json() == {"boards": []}
+    assert (refused.status_code, refused.json()["code"]) == (403, "out_of_scope")
 
 
 def test_there_are_no_boards_without_the_demo(web: MakeWeb) -> None:

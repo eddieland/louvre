@@ -189,7 +189,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             check_files(files)
         except FilesError as e:
             raise Refused(Code.TOO_LONG if e.too_long else Code.INVALID, str(e)) from None
-        pairs = _origin({**(origin or {}), **self.scope.origin}) if artifact_id is None else {}
+        pairs = check_origin({**(origin or {}), **self.scope.origin}) if artifact_id is None else {}
         text = render.text_of(content_type, content)
         digest = hashlib.sha256(content.encode()).hexdigest()
         now = _now()
@@ -253,6 +253,8 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         namespace: str | None = None,
         leave_out: AbstractSet[str] = frozenset(),
         query: str = "",
+        *,
+        ids: AbstractSet[str] | None = None,
     ) -> dict[str, object]:
         """List the artifacts the scope reaches for the web's list: as `artifacts`, with what the list shows.
 
@@ -262,6 +264,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
             namespace: The one namespace to list, or None for every one the scope reaches.
             leave_out: Namespaces not to list, such as the demo's in a catalogue of people's work.
             query: Words each artifact holds, in its title, its latest version, or its comments (louvre.core.search).
+            ids: The artifacts to list, by id, such as a board's frames'; None for any.
 
         Returns:
             A page of artifacts, each with when its latest version came, how many open threads and open decisions
@@ -277,7 +280,14 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         if len(words.words) > search.MAX_WORDS:
             raise Refused(Code.INVALID, f"a search is at most {search.MAX_WORDS} words")
         with self.reading():
-            rows, more = self._listed(origin, cursor, namespace=namespace, leave_out=leave_out, query=words)
+            rows, more = self._listed(
+                origin,
+                cursor,
+                namespace=namespace,
+                leave_out=leave_out,
+                query=words,
+                ids=ids,
+            )
             where = search.found(self._conn, [str(row["id"]) for row in rows], words) if words.words else {}
         listed: list[dict[str, object]] = []
         for row in rows:
@@ -790,6 +800,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         namespace: str | None,
         leave_out: AbstractSet[str] = frozenset(),
         query: search.Query = search.EVERYTHING,
+        ids: AbstractSet[str] | None = None,
     ) -> tuple[list[Row], bool]:
         before = None
         if cursor is not None:
@@ -809,6 +820,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 " AND (%(all)s OR a.namespace = ANY(%(namespaces)s))"
                 " AND (%(namespace)s::text IS NULL OR a.namespace = %(namespace)s)"
                 " AND NOT a.namespace = ANY(%(leave_out)s)"
+                " AND (%(ids)s::text[] IS NULL OR a.id = ANY(%(ids)s))"
                 " AND (%(before)s::bigint IS NULL OR a.n < %(before)s) AND a.origin @> %(filter)s::jsonb"
                 # Each of the query's words in the title, the latest version's text, or a comment not deleted.
                 " AND NOT EXISTS (SELECT 1 FROM unnest(%(patterns)s::text[]) p WHERE NOT (a.title ~* p"
@@ -820,6 +832,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 {
                     "namespace": namespace,
                     "leave_out": sorted(leave_out),
+                    "ids": None if ids is None else sorted(ids),
                     "account": self.scope.account_id,
                     "before": before,
                     "filter": json.dumps(dict(origin or {})),
@@ -966,7 +979,7 @@ def check_anchor(anchor: Anchor) -> None:
     bounded("anchor's suffix", anchor.suffix, CONTEXT)
 
 
-def _origin(pairs: Mapping[str, str]) -> dict[str, str]:
+def check_origin(pairs: Mapping[str, str]) -> dict[str, str]:
     """Check an artifact's origin against its bounds.
 
     Returns:
