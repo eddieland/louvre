@@ -23,8 +23,8 @@ interaction first, over mock data, then the store under them, at the operator's 
 - [M1. Directions](M01-directions.md): done 2026-10-23.
 - [M2. Reading and commenting, over mock data](M02-experience.md): in progress: built over the store; waiting on the
   operator's word on the running page.
-- [M3. Boards, over mock data](M03-boards.md): in progress: built; waiting on the operator's pass on a phone and a
-  laptop.
+- [M3. Boards, over mock data](M03-boards.md): in progress: built, and published by agents with `board_publish`;
+  waiting on the operator's pass on a phone and a laptop.
 - [M4. The contract on Postgres, under the UI](M04-contract.md): done 2026-10-23.
 - [M5. Sign-in, and MCP behind tokens](M05-signin-mcp.md): done 2026-10-28.
 - [M6. Deployed for the organization](M06-deploy.md): not started. The preview runs the whole app.

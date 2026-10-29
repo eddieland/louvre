@@ -27,7 +27,7 @@ from importlib.resources import files
 
 from louvre.core import explorations, style
 from louvre.core.accounts import Account, person_scope, upsert_account
-from louvre.core.boards import Board, Frame
+from louvre.core.boards import GAP, Board, Frame
 from louvre.core.db import MIGRATE_LOCK, Connection, limited
 from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
@@ -57,8 +57,6 @@ STUDY_ORIGIN = {"canopy.ticket": "LOUVRE-M1"}
 #: The screens each direction is shown at on the board, left to right: a name, a label, a width and a height in CSS
 #: pixels.
 SCREENS = (("laptop", "Laptop, 1440", 1440, 900), ("phone", "Phone, 390", 390, 844))
-#: The space between the board's frames, in CSS pixels: wide enough for a frame's label above it.
-BOARD_GAP = 160
 #: The demo's one board: the design study, a row a direction, its laptop beside its phone: a shape a phone's screen
 #: and a laptop's both fit at a readable size.
 BOARD = Board(
@@ -70,8 +68,8 @@ BOARD = Board(
             id=f"{name}-{screen}",
             label=label,
             origin={**STUDY_ORIGIN, "direction": name},
-            x=column * (SCREENS[0][2] + BOARD_GAP),
-            y=row * (SCREENS[0][3] + BOARD_GAP),
+            x=column * (SCREENS[0][2] + GAP),
+            y=row * (SCREENS[0][3] + GAP),
             width=width,
             height=height,
         )
@@ -127,8 +125,8 @@ def _canopy_board(board_id: str, title: str, origin: Mapping[str, str], rows: Se
                 id=frame_id,
                 label=label,
                 origin={**origin, "page": page},
-                x=column * (width + BOARD_GAP),
-                y=row * (height + BOARD_GAP),
+                x=column * (width + GAP),
+                y=row * (height + GAP),
                 width=width,
                 height=height,
             )

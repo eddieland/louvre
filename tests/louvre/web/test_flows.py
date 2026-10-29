@@ -679,6 +679,37 @@ def test_the_design_study_is_a_board_to_read_without_a_database_or_signing_in(br
         context.close()
 
 
+def test_an_agent_puts_its_pages_on_a_board_and_a_reader_opens_a_frame_from_the_catalogue(
+    context: BrowserContext,
+) -> None:
+    secret = mint(context)
+    pages = [
+        json.loads(call(context, secret, "artifact_publish", title=title, content_type="text/html", content=PAGE))
+        for title in ("Checkout: cards", "Checkout: wallet")
+    ]
+    rows = [
+        [
+            {"artifact_id": made["artifact_id"], "label": "Laptop, 1440", "width": 1440, "height": 900},
+            {"artifact_id": made["artifact_id"], "label": "Phone, 390", "width": 390, "height": 844},
+        ]
+        for made in pages
+    ]
+    board_id = json.loads(call(context, secret, "board_publish", title="Checkout, two ways", rows=rows))["board_id"]
+    page = context.new_page()
+
+    page.goto("/")
+    page.get_by_role("link", name=re.compile(r"^Checkout, two ways")).click()
+    page.wait_for_url(re.compile(rf"/b/{board_id}$"))
+    page.wait_for_selector(".world[data-ready]:not([data-zooming])", state="attached")
+    expect(page.locator(".board-frame")).to_have_count(4)
+    page.get_by_role("link", name="Open Checkout: wallet, Phone, 390").click()
+    page.wait_for_url(re.compile(rf"/a/{pages[1]['artifact_id']}\?board={board_id}&frame=f4$"))
+    expect(page.frame_locator("iframe.exhibit").get_by_role("heading", name="Cache report")).to_be_visible()
+
+    page.get_by_role("link", name="Back to Checkout, two ways").click()
+    page.wait_for_url(re.compile(rf"/b/{board_id}$"))
+
+
 def draw_box(page: Page, frame: FrameLocator, west: tuple[float, float], east: tuple[float, float]) -> None:
     """Draw a box on a map with the mouse, from 30 pixels south-west of `west` to 30 pixels north-east of `east`."""
     on_page = frame.locator("#map").bounding_box()

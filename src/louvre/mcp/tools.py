@@ -1,6 +1,6 @@
 """The tools agents call: the contract's eight, and Louvre's own beside them.
 
-Louvre's own are the style's, the decisions' five, `files_publish`, and `map_publish`.
+Louvre's own are the style's, the decisions' five, `files_publish`, `map_publish`, and `board_publish`.
 
 Each is a request and what the store does with it. A tool's arguments are validated against its request, whose JSON
 schema is its input schema; the store then does the call, held to its scope. What a tool returns is JSON: one object,
@@ -18,8 +18,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
+from louvre.core import boards, geodata, style
 from louvre.core import files as version_files
-from louvre.core import geodata, style
 from louvre.core.decisions import MAX_ASKED, MAX_DETAIL, MAX_LABEL, MAX_OPTIONS, MAX_QUESTION, MIN_OPTIONS, Decisions
 from louvre.core.decisions import Option as DecisionOption
 from louvre.core.store import MAX_BODY, MAX_CONTENT, MAX_FEED, MAX_ORIGIN, Code, Refused, Store
@@ -139,6 +139,62 @@ class MapPublish(_Request):
     artifact_id: Annotated[
         StrictStr | None,
         Field(description="To add a version to this artifact, which keeps its origin and its threads."),
+    ] = None
+
+
+class FrameRequest(_Request):
+    """An artifact on a board, at a screen's size."""
+
+    artifact_id: Annotated[
+        StrictStr,
+        Field(description="An artifact you published; the frame shows its latest version."),
+    ]
+    label: Annotated[
+        StrictStr,
+        Field(
+            description="What the frame is, beside the artifact's title, such as Phone, 390; at most "
+            f"{boards.MAX_LABEL} characters.",
+        ),
+    ]
+    width: Annotated[
+        StrictInt,
+        Field(
+            ge=boards.MIN_WIDTH,
+            le=boards.MAX_WIDTH,
+            description="The width it is shown at, in CSS pixels, as a screen that wide shows the page: 390 for a "
+            "phone, 1440 for a laptop.",
+        ),
+    ]
+    height: Annotated[
+        StrictInt,
+        Field(
+            ge=boards.MIN_HEIGHT,
+            le=boards.MAX_HEIGHT,
+            description="The height it is shown at, in CSS pixels: 844 for a phone, 900 for a laptop.",
+        ),
+    ]
+
+
+class BoardPublish(_Request):
+    """Make a board of artifacts, or publish one again."""
+
+    title: Annotated[
+        StrictStr,
+        Field(description="What the board shows, in a few words, such as Checkout, three ways."),
+    ]
+    rows: Annotated[
+        list[list[FrameRequest]],
+        Field(
+            min_length=1,
+            description=f"The frames, a row at a time, left to right, at most {boards.MAX_FRAMES} in all; Louvre lays "
+            "each row under the one before. A row a direction, each at a phone's and a laptop's size, shows a design "
+            "study.",
+        ),
+    ]
+    origin: Origin = None
+    board_id: Annotated[
+        StrictStr | None,
+        Field(description="To publish this board again, with this title and these frames; it keeps its origin."),
     ] = None
 
 
@@ -550,6 +606,21 @@ TOOLS = (
             content=json.dumps(r.data, ensure_ascii=False, separators=(",", ":")),
             origin=r.origin,
             artifact_id=r.artifact_id,
+        ),
+    ),
+    tool(
+        "board_publish",
+        "Put artifacts you published side by side on a board, a canvas people pan and zoom across, such as a design "
+        "study's directions each at a phone's and a laptop's size: rows of frames, each an artifact's latest version "
+        "shown at a size, under a label. People open a frame to read its artifact and comment on it, so its threads "
+        "are the artifact's. It returns the board's url. Publishing it again with its board_id replaces its title and "
+        "frames.",
+        BoardPublish,
+        lambda store, r: boards.Boards(store).publish(
+            title=r.title,
+            rows=[[boards.Framed(f.artifact_id, f.label, f.width, f.height) for f in row] for row in r.rows],
+            origin=r.origin,
+            board_id=r.board_id,
         ),
     ),
 )

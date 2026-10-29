@@ -13,8 +13,10 @@ comments on it; the screen matrix holds the board at every size.
 
 Status: in progress: built, over mock data as planned for the board and over the store for its frames' artifacts,
 at the operator's word to build it before M2 is accepted (2026-10-24); waiting on the operator's pass on a phone and a
-laptop. The board is `louvre.core.demo.BOARD`, served at `/b/design-study`; Playwright holds panning, zooming, and
-opening a frame to comment, by pointer and by touch (`tests/louvre/web/test_flows.py`), and the screen matrix holds the
-board and a frame opened from it. The same study is a board at `/directions/board` from the repository's pages
-alone, to try on a deployment with no database or demo. Not built: an agent composing a board, which grows canopy's
-contract (REQUIREMENTS, Open).
+laptop. An agent publishes a board of its own artifacts with `board_publish` (D011), stored beside them
+(`louvre.core.boards`), built 2026-10-29. The demo's board is `louvre.core.demo.BOARD`, served at `/b/design-study`;
+Playwright holds panning, zooming, and opening a frame to comment, by pointer and by touch, and an agent's board
+opened from the catalogue (`tests/louvre/web/test_flows.py`), and the screen matrix holds the board and a frame opened
+from it. The same study is a board at `/directions/board` from the repository's pages
+alone, to try on a deployment with no database or demo. Not built: deleting a board, or canopy's contract taking boards
+(REQUIREMENTS, Open).
