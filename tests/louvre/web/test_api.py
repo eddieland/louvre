@@ -10,6 +10,7 @@ from louvre.core.boards import Boards, Framed
 from louvre.core.db import Connection
 from louvre.core.decisions import Decisions, Option
 from louvre.core.files import File, Type
+from louvre.core.presence import Activity, Presence
 from louvre.core.text import Anchor
 from louvre.web import ui
 from louvre.web.app import FILE_POLICY, artifact_policy
@@ -509,6 +510,23 @@ def test_an_unknown_api_route_is_json_not_the_ui(web: MakeWeb) -> None:
 
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
+
+
+def test_an_artifacts_page_reads_which_agents_are_at_work_on_it(web: MakeWeb, agent: MakeAgent, published: str) -> None:
+    Presence(agent()).say(published, Activity.REVISING, note="Retrying once")
+    client = web()
+    sign_in(client, "ana", "Ana Ruiz")
+
+    [present] = client.get(f"/api/artifacts/{published}/presence").json()["present"]
+    missing = client.get("/api/artifacts/a_missing/presence")
+
+    assert (present["author"]["display_name"], present["author"]["on_behalf_of_name"]) == (
+        "canopy worker",
+        "Sam Okafor",
+    )
+    assert (present["activity"], present["note"]) == ("revising", "Retrying once")
+    assert missing.status_code == 404
+    assert web().get(f"/api/artifacts/{published}/presence").status_code == 401
 
 
 def test_a_person_answers_an_agents_decision_on_the_web(web: MakeWeb, agent: MakeAgent, published: str) -> None:

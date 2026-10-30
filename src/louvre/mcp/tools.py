@@ -1,6 +1,7 @@
 """The tools agents call: the contract's eight, and Louvre's own beside them.
 
-Louvre's own are the style's, the decisions' five, `files_publish`, `map_publish`, and `board_publish`.
+Louvre's own are the style's, the decisions' five, `files_publish`, `map_publish`, `board_publish`, and
+`presence_set`.
 
 Each is a request and what the store does with it. A tool's arguments are validated against its request, whose JSON
 schema is its input schema; the store then does the call, held to its scope. What a tool returns is JSON: one object,
@@ -14,11 +15,12 @@ import binascii
 import json
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, StrictBool, StrictInt, StrictStr
 
-from louvre.core import boards, geodata, style
+from louvre.core import boards, geodata, presence, style
 from louvre.core import files as version_files
 from louvre.core.decisions import MAX_ASKED, MAX_DETAIL, MAX_LABEL, MAX_OPTIONS, MAX_QUESTION, MIN_OPTIONS, Decisions
 from louvre.core.decisions import Option as DecisionOption
@@ -50,10 +52,22 @@ class Tool:
     request: type[BaseModel]
     #: Validate the arguments, and do the call in the store: what the tool returns, as text.
     call: Callable[[Mapping[str, object], Store], str]
+    #: Whether a call keeps its agent present on the artifacts it names (louvre.core.presence).
+    noted: bool = True
+    #: The activity an agent said that a call does, and so ends: a publish ends revising.
+    completes: presence.Activity | None = None
 
 
-def tool[R: BaseModel](name: str, description: str, request: type[R], do: Callable[[Store, R], object]) -> Tool:
-    """Make `do` a tool, taking `request` as its arguments.
+def tool[R: BaseModel](
+    name: str,
+    description: str,
+    request: type[R],
+    do: Callable[[Store, R], object],
+    *,
+    noted: bool = True,
+    completes: presence.Activity | None = None,
+) -> Tool:
+    """Make `do` a tool, taking `request` as its arguments; `noted` and `completes` are the tool's, as `Tool` says.
 
     Returns:
         The tool, which returns what `do` does as JSON: a list as one item to a line, anything else as one object.
@@ -65,7 +79,7 @@ def tool[R: BaseModel](name: str, description: str, request: type[R], do: Callab
             return "\n".join(json.dumps(item, ensure_ascii=False) for item in done)
         return json.dumps(done, ensure_ascii=False)
 
-    return Tool(name, description, request, call)
+    return Tool(name, description, request, call, noted=noted, completes=completes)
 
 
 #: Each kind of artifact the house style has a starter page for, and what it is for.
@@ -431,6 +445,29 @@ class DecisionFeed(_Request):
     limit: Annotated[StrictInt, Field(description=f"The most events to return, at most {MAX_FEED}.")] = MAX_FEED
 
 
+class PresenceSet(_Request):
+    """Say what the agent is doing on an artifact, for the people reading it."""
+
+    artifact_id: StrictStr
+    activity: Annotated[
+        Literal["reading", "revising", "replying", "done"],
+        Field(description="reading it or its threads; revising, a new version coming; replying in thread_id; done."),
+    ]
+    note: Annotated[
+        StrictStr,
+        Field(max_length=presence.MAX_NOTE, description="What, in a line people read: Tightening the summary."),
+    ] = ""
+    thread_id: Annotated[StrictStr | None, Field(description="The thread replying is in; only with replying.")] = None
+    seconds: Annotated[
+        StrictInt,
+        Field(
+            ge=int(presence.LEAST_FOR.total_seconds()),
+            le=int(presence.MOST_FOR.total_seconds()),
+            description="How long it lasts unless said again, done, or done by the call that does it.",
+        ),
+    ] = int(presence.SAID_FOR.total_seconds())
+
+
 TOOLS = (
     tool(
         "artifact_publish",
@@ -444,6 +481,7 @@ TOOLS = (
             origin=r.origin,
             artifact_id=r.artifact_id,
         ),
+        completes=presence.Activity.REVISING,
     ),
     tool(
         "artifact_read",
@@ -477,6 +515,7 @@ TOOLS = (
         "Reply in a thread.",
         Reply,
         lambda store, r: store.reply(r.thread_id, r.body),
+        completes=presence.Activity.REPLYING,
     ),
     tool(
         "comment_create",
@@ -488,6 +527,7 @@ TOOLS = (
             None if r.anchor is None else Anchor.of(r.anchor.exact, r.anchor.prefix, r.anchor.suffix),
             r.body,
         ),
+        completes=presence.Activity.REPLYING,
     ),
     tool(
         "thread_resolve",
@@ -591,6 +631,7 @@ TOOLS = (
             artifact_id=r.artifact_id,
             files=[version_files.File(f.path, f.content_type, _decoded(f.data, f.path)) for f in r.files],
         ),
+        completes=presence.Activity.REVISING,
     ),
     tool(
         "map_publish",
@@ -607,6 +648,7 @@ TOOLS = (
             origin=r.origin,
             artifact_id=r.artifact_id,
         ),
+        completes=presence.Activity.REVISING,
     ),
     tool(
         "board_publish",
@@ -622,6 +664,25 @@ TOOLS = (
             origin=r.origin,
             board_id=r.board_id,
         ),
+        # A board names the artifacts it frames, but its agent is not at work on them.
+        noted=False,
+    ),
+    tool(
+        "presence_set",
+        "Say what you are doing on an artifact, so the people reading it see it live: reading it or its threads, "
+        "revising it (a new version coming), or replying in thread_id, with a line of note, for seconds. Every call "
+        "that names an artifact already shows you there for two minutes without this; your calls keep what you said "
+        "while it lasts, and publishing a version ends revising, as commenting ends replying. Say done when you leave.",
+        PresenceSet,
+        lambda store, r: presence.Presence(store).say(
+            r.artifact_id,
+            None if r.activity == "done" else presence.Activity(r.activity),
+            note=r.note,
+            thread_id=r.thread_id,
+            lasting=timedelta(seconds=r.seconds),
+        ),
+        # What it says is the presence; noting the call as well would bring back an agent that said it was done.
+        noted=False,
     ),
 )
 

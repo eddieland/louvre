@@ -11,6 +11,7 @@ import { DecisionCard } from '@/components/decision'
 import { Frame } from '@/components/frame'
 import { Header } from '@/components/header'
 import { Notice } from '@/components/notice'
+import { PresenceLine } from '@/components/presence'
 import { ThreadNote } from '@/components/thread-note'
 import type { Draft } from '@/components/thread-note'
 import { SignInLink } from '@/components/sign-in'
@@ -21,6 +22,7 @@ import {
     boardQuery,
     compareQuery,
     DEMO_NAMESPACE,
+    presenceQuery,
     request,
     sessionQuery,
     threadsQuery,
@@ -33,6 +35,7 @@ import { passageId, rank } from '@/lib/decisions'
 import { ago, count, provenancePair, roman, whereSaid } from '@/lib/format'
 import { clearSelection, showPlace } from '@/lib/frame'
 import { GAP, place } from '@/lib/layout'
+import { replyingIn } from '@/lib/presence'
 import { useTheme } from '@/lib/theme'
 import { usePageTitle } from '@/lib/title'
 
@@ -169,6 +172,8 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
     // The page as it is, without the comparison: where leaving it, or a link to another version's, goes.
     const here = { ...(latest ? {} : { v: version }), ...framed }
     const threads = threadsResult.data?.threads ?? []
+    // The agents at work on it now, read again every few seconds while the page is shown.
+    const present = useQuery(presenceQuery(artifact.id)).data?.present ?? []
     const writes = useThreadWrites(artifact.id)
     const { artifact: markRead } = useMarkRead()
     // Open decisions first, those awaiting the reader before the rest, each group newest first.
@@ -591,6 +596,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                 active={active === id}
                 hovered={hover === id}
                 fresh={fresh.has(id)}
+                replying={thread.state === 'draft' ? [] : replyingIn(present, id)}
                 gone={thread.state !== 'draft' && isGone(thread)}
                 version={version}
                 account={account}
@@ -765,6 +771,7 @@ function Exhibit({ detail, account }: { detail: Detail; account: Account | null 
                     ) : null}
                 </div>
             </nav>
+            <PresenceLine present={present} numberOf={(id) => numbers.get(id) ?? null} />
             {latest ? null : (
                 <p className="older">
                     This is version {roman(version)}. Comments go on the latest,{' '}

@@ -159,6 +159,24 @@ margin are the page's own, and the artifact keeps its author's look.
   the sheet, and the summary opens with the comparison. The toolbar's Open and All, and commenting on the page, wait
   until the comparison is left; selecting words and commenting leaves it, the comment on the page as it is.
 
+## Presence
+
+Which agents are at work on the artifact now, and at what (REQUIREMENTS U14). It is what is live on the page, so it is
+in `accent`, and only as a disc: the words stay Louvre's quiet voice. It never says an agent is working once it has
+stopped, so it shows nothing it cannot vouch for: no "last seen", and no agent whose presence has expired.
+
+- **The line** sits under the toolbar, at the page's width, in Instrument Sans at 13 and `muted`: a line for each agent,
+  the longest at its activity first. A disc in `accent`, then the agent's name in small caps and `ink`, then "(Agent,
+  for *person*)" in `muted` italics, as its comments are marked ("(Agent)" on a phone), then what it is doing: "is
+  here", "is reading", "is revising this page", or "is replying in thread 2", and its note after a colon, in `ink`.
+  Three agents at most are named; the rest are counted, "And 2 more agents at work". With nobody, it takes no room.
+- **The disc** pulses twice as an agent arrives, then holds still; under reduced motion, never.
+- **In the margin**, a thread an agent is replying in says so at its foot, in Instrument Sans italics and `muted`:
+  "reviewer is replying…".
+- **Heard.** The line is a polite live region (`output`), so a screen reader hears an agent arrive, leave, or change
+  what it does, and nothing on each poll that changes nothing.
+- **Live.** The page reads presence again every ten seconds while it is shown, and not while its tab is hidden.
+
 ## Catalogue
 
 The list of artifacts is a reading column, at most 760 px: a title in Fraunces, newest first, each entry parted from

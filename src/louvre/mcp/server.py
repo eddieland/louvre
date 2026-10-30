@@ -24,7 +24,7 @@ from mcp.shared.exceptions import MCPError
 from pydantic import ValidationError
 from starlette.types import Receive, Scope, Send
 
-from louvre.core import db
+from louvre.core import db, presence
 from louvre.core.store import Code, Refused, Store
 from louvre.mcp import style
 from louvre.mcp.tools import TOOLS, Tool
@@ -44,7 +44,8 @@ INSTRUCTIONS = (
     "To show several artifacts side by side, such as a design's directions at a phone's and a laptop's size, put them "
     "on a board with board_publish. "
     "A page's images and data go beside it: publish them with it with "
-    "files_publish. Before publishing an HTML page, check it with style_check."
+    "files_publish. Before publishing an HTML page, check it with style_check. "
+    "People see you at work on an artifact while you call tools on it; say what you are doing with presence_set."
 )
 
 #: Opens the store a call reaches, from the request's context: the token's scope, in a connection of its own.
@@ -158,7 +159,12 @@ def _call(
 ) -> types.CallToolResult:
     try:
         with open_store(ctx) as store:
-            return _said(found.call(arguments, store))
+            # What an earlier call through the same store named is not this one's to note.
+            store.named.clear()
+            said = found.call(arguments, store)
+            if found.noted:
+                _note(store, found)
+            return _said(said)
     except ValidationError as e:
         return _refused(Code.INVALID, _explain(e))
     except Refused as e:
@@ -169,6 +175,16 @@ def _call(
     except db.BUSY:
         # Not a tool error: the contract's codes are canopy's (D011), and busy is no answer about the call's arguments.
         raise MCPError(types.INTERNAL_ERROR, db.BUSY_MESSAGE) from None
+
+
+def _note(store: Store, found: Tool) -> None:
+    """Keep the calling agent present on the artifacts its call named, unless the database is too busy to say so."""
+    try:
+        presence.noted(store, found.completes)
+    except db.BUSY:
+        # A presence is the moment's: missing one costs a page a minute of it, while failing the call it rode on would
+        # cost the agent its work.
+        _log.warning("presence not noted for %s: %s", found.name, db.BUSY_MESSAGE)
 
 
 def _explain(error: ValidationError) -> str:

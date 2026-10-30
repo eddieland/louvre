@@ -14,7 +14,7 @@ ARTIFACTS = ROOT / "skills" / "louvre-artifacts" / "SKILL.md"
 
 def test_the_artifacts_skill_names_only_tools_louvre_serves() -> None:
     text = ARTIFACTS.read_text(encoding="utf-8")
-    named = set(re.findall(r"`((?:artifact|thread|comment|style|decision|board)_[a-z]+)`", text))
+    named = set(re.findall(r"`((?:artifact|thread|comment|style|decision|board|presence)_[a-z]+)`", text))
     arguments = {field for t in TOOLS for field in t.request.model_fields}
 
     assert named - arguments

@@ -315,6 +315,7 @@ class Decisions:
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no decision {decision_id!r}")
         self._store.reaches(str(row["namespace"]), decision_id)
+        self._store.named.add(str(row["artifact_id"]))
         return row
 
     def _shaped(self, rows: Sequence[Row]) -> list[dict[str, object]]:
