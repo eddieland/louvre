@@ -15,6 +15,7 @@ from mcp.types import CallToolResult, TextContent, TextResourceContents
 from louvre.core import accounts, style
 from louvre.core.db import Connection
 from louvre.core.decisions import Decisions
+from louvre.core.presence import Presence
 from louvre.core.store import MAX_BODY, MAX_FEED, MAX_ORIGIN, Store
 from louvre.mcp import server
 from tests.conftest import MakeAgent, person
@@ -52,6 +53,7 @@ TOOLS = [
     "files_publish",
     "map_publish",
     "board_publish",
+    "presence_set",
 ]
 
 
@@ -347,6 +349,67 @@ def test_board_publish_puts_artifacts_side_by_side_and_publishes_the_board_again
     assert client.refused("board_publish", title="Nothing", rows=[]) == "invalid"
     assert client.refused("board_publish", title="Tiny", rows=[[{**phone, "width": 10}]]) == "invalid"
     assert client.refused("board_publish", title="Gone", rows=[[{**phone, "artifact_id": "a_nowhere"}]]) == "not_found"
+
+
+def present(conn: Connection, artifact_id: str) -> list[tuple[object, object, object]]:
+    """Read who is present on an artifact as a signed-in person does.
+
+    Returns:
+        Each agent's name, activity, and note.
+    """
+    ana = Store(conn, accounts.person_scope(person(conn, "ana")))
+    found = Presence(ana).present(artifact_id)
+    authors = [p["author"] for p in found]
+    return [
+        (a["display_name"], p["activity"], p["note"])
+        for a, p in zip(authors, found, strict=True)
+        if isinstance(a, dict)
+    ]
+
+
+def test_an_agent_calling_tools_on_an_artifact_is_present_there(client: Client, conn: Connection) -> None:
+    artifact = client.publish()["artifact_id"]
+
+    assert present(conn, artifact) == [("canopy worker", "here", "")]
+
+
+def test_presence_set_says_what_the_agent_does_until_a_call_does_it(client: Client, conn: Connection) -> None:
+    artifact = client.publish()["artifact_id"]
+
+    said = client.call("presence_set", artifact_id=artifact, activity="revising", note="Sharding, measured")
+    assert (said["activity"], said["note"]) == ("revising", "Sharding, measured")
+    assert present(conn, artifact) == [("canopy worker", "revising", "Sharding, measured")]
+
+    client.publish(REVISED, artifact_id=artifact)
+    assert present(conn, artifact) == [("canopy worker", "here", "")]
+
+    assert client.call("presence_set", artifact_id=artifact, activity="done") == {
+        "artifact_id": artifact,
+        "activity": "done",
+    }
+    assert present(conn, artifact) == []
+
+
+def test_presence_set_refuses_what_it_cannot_show(client: Client) -> None:
+    artifact = client.publish()["artifact_id"]
+
+    assert client.refused("presence_set", artifact_id=artifact, activity="napping") == "invalid"
+    assert client.refused("presence_set", artifact_id=artifact, activity="replying") == "invalid"
+    assert client.refused("presence_set", artifact_id=artifact, activity="reading", seconds=3600) == "invalid"
+    assert client.refused("presence_set", artifact_id="a_missing", activity="reading") == "not_found"
+
+
+def test_a_board_leaves_its_frames_artifacts_without_its_agent(client: Client, conn: Connection) -> None:
+    page = client.publish()["artifact_id"]
+    client.call("presence_set", artifact_id=page, activity="done")
+
+    client.call(
+        "board_publish",
+        title="One",
+        rows=[[{"artifact_id": page, "label": "Phone", "width": 390, "height": 844}]],
+    )
+
+    assert present(conn, page) == []
 
 
 def test_map_publish_publishes_geojson_that_louvre_draws_and_refuses_what_is_not(client: Client) -> None:

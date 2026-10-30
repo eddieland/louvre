@@ -148,6 +148,9 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         self.scope = scope
         #: Where Louvre's pages are, for the links it gives.
         self.base_url = base_url.rstrip("/")
+        #: Each artifact the calls through this store found by its id, or by a thread's or a decision's on it: where
+        #: an agent's call keeps it present (louvre.core.presence).
+        self.named: set[str] = set()
 
     def publish(
         self,
@@ -213,6 +216,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
                 (artifact_id, version, content_type, digest, content, text, now, new_key() if files else None),
             )
             insert_files(self._conn, artifact_id, version, files)
+        self.named.add(artifact_id)
         return {"artifact_id": artifact_id, "version": version, "url": self.url(artifact_id, version)}
 
     def read(self, artifact_id: str, version: int | None = None) -> dict[str, object]:
@@ -731,6 +735,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no artifact {artifact_id!r}")
         self.reaches(str(row["namespace"]), artifact_id)
+        self.named.add(artifact_id)
         return row
 
     def reaches(self, namespace: str, what: str) -> None:
@@ -885,6 +890,7 @@ class Store:  # noqa: PLR0904  (the contract's calls, and what modules built on 
         if row is None:
             raise Refused(Code.NOT_FOUND, f"no thread {thread_id!r}")
         self.reaches(str(row["namespace"]), thread_id)
+        self.named.add(str(row["artifact_id"]))
         return row
 
     def _own(self, comment_id: str, *, locked: bool = False) -> Row:

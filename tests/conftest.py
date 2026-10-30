@@ -55,6 +55,7 @@ OWNED = Site(
 )
 #: Every table the store writes, emptied before each test.
 TABLES = (
+    "presence",
     "reads",
     "files",
     "boards",

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import APIRequestContext, Browser, Page
 
 from tests.conftest import WRITES
 
@@ -26,6 +26,8 @@ SHOTS = ROOT / "docs" / "screenshots"
 MODE = os.environ.get("LOUVRE_SCREENS", "")
 #: How long a page may take to settle before the test fails, in seconds.
 DEADLINE = 15.0
+#: The name each person a scene signs in as signs in with, by their login.
+NAMES = {"ana": "Ana Ruiz", "kim": "Kim Lee", "lee": "Lee Chen"}
 
 
 @dataclass(frozen=True)
@@ -189,6 +191,54 @@ def _inbox_news(page: Page) -> None:
     page.wait_for_selector(".news-item", state="visible")
 
 
+def _agents_at_work(page: Page) -> None:
+    """Two of Lee's agents at work on Lee's plan: one revising it, one replying in Lee's thread on it.
+
+    Said again before each screenshot, so neither expires while the matrix runs; a token minted again under the same
+    name is the same agent.
+    """
+    origin = page.url.split("/a/")[0]
+    lee = page.context.request
+    artifact = page.url.split("/a/")[1].split("?")[0]
+    [thread] = lee.get(f"{origin}/api/artifacts/{artifact}/threads?version=1").json()["threads"]
+    worker, reviewer = (_minted(lee, origin, name) for name in ("canopy worker", "reviewer"))
+    note = "Measuring the retry under load"
+    _tool(lee, origin, worker, "presence_set", artifact_id=artifact, activity="revising", note=note)
+    _tool(lee, origin, reviewer, "presence_set", artifact_id=artifact, activity="replying", thread_id=thread["id"])
+    page.reload(wait_until="networkidle")
+    page.evaluate("document.fonts.ready")
+    # The plan is short: its frame is drawn once the bridge has marked its passage.
+    page.frame_locator("iframe.exhibit").locator("[data-louvre] span").first.wait_for()
+    page.wait_for_selector(".presence .presence-agent >> nth=1", state="visible")
+    page.wait_for_selector(".thread .replying", state="attached")
+
+
+def _minted(lee: APIRequestContext, origin: str, name: str) -> str:
+    """Mint a token for an agent of Lee's in studio/lee.
+
+    Returns:
+        Its secret.
+    """
+    given = {"name": name, "namespace": "studio/lee", "scopes": ["read", "publish", "comment"]}
+    return str(lee.post(f"{origin}/api/tokens", data=given, headers=WRITES).json()["secret"])
+
+
+def _tool(lee: APIRequestContext, origin: str, secret: str, name: str, **arguments: object) -> dict[str, object]:
+    """Call a tool over MCP with an agent's token, as its runtime would.
+
+    Returns:
+        What it returned.
+    """
+    response = lee.post(
+        f"{origin}/mcp",
+        data={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}},
+        headers={"Authorization": f"Bearer {secret}", "Accept": "application/json, text/event-stream"},
+    )
+    result = response.json()["result"]
+    assert not result["isError"], result
+    return json.loads(result["content"][0]["text"])
+
+
 #: Every screen, dark first; light at one phone and one laptop size.
 SCREENS = (
     Screen("phone-small-dark", "Small phone, 360", 360, 780, "dark", touch=True),
@@ -223,6 +273,8 @@ SCENES = (
     Scene("house-style", "An HTML artifact in the house style", "/a/{weekly}", _artifact_shown),
     Scene("house-style-decision", "A decision in the house style", "/a/{decision}", _artifact_shown),
     Scene("house-style-plan", "A plan in the house style", "/a/{plan}", _artifact_shown),
+    # Lee's own artifact, in Lee's namespace, so no other scene shows its agents.
+    Scene("presence", "An artifact, two agents at work on it", "/a/{at_work}", _agents_at_work, login="lee"),
     Scene("house-style-map", "A map in the house style, drawn by the map kit", "/a/{map}", _map_drawn),
     Scene("geodata", "GeoJSON, drawn by Louvre as a map, a decision on its places", "/a/{poles}", _map_drawn),
     Scene(
@@ -301,6 +353,43 @@ def demo(live_app: str) -> dict[str, str]:
     return {name: next(a["id"] for a in listed if a["title"].startswith(t)) for name, t in DEMO.items()}
 
 
+#: The plan Lee's agent publishes for the presence scene, and the passage Lee comments on.
+AT_WORK = """# Retry the fraud check once
+
+The fraud check times out at p99 under load, so checkout declines carts it would have approved.
+
+We retry it twice before declining, which doubles the wait at submit.
+"""
+
+
+@pytest.fixture(scope="module")
+def at_work(live_app: str, browser: Browser) -> dict[str, str]:
+    """Lee's plan, published by Lee's agent in studio/lee, with a thread of Lee's on it, by the name `at_work`."""
+    context = browser.new_context()
+    try:
+        lee = context.request
+        signed_in = lee.post(f"{live_app}/auth/dev", data={"login": "lee", "name": NAMES["lee"]}, headers=WRITES)
+        assert signed_in.ok
+        secret = _minted(lee, live_app, "canopy worker")
+        made = _tool(
+            lee,
+            live_app,
+            secret,
+            "artifact_publish",
+            title="Retry the fraud check once",
+            content_type="text/markdown",
+            content=AT_WORK,
+        )
+        artifact = str(made["artifact_id"])
+        thread = {"anchor": {"exact": "which doubles the wait at submit"}, "body": "How long is the wait now?"}
+        assert lee.post(f"{live_app}/api/artifacts/{artifact}/threads", data=thread, headers=WRITES).ok
+        # Its publish keeps the agent present for a while; each screenshot says what it is doing afresh instead.
+        _tool(lee, live_app, secret, "presence_set", artifact_id=artifact, activity="done")
+    finally:
+        context.close()
+    return {"at_work": artifact}
+
+
 @browser_only
 @pytest.mark.parametrize("screen", SCREENS, ids=[s.name for s in SCREENS])
 @pytest.mark.parametrize("scene", SCENES, ids=[s.name for s in SCENES])
@@ -308,6 +397,7 @@ def test_a_page_fits_the_screen(
     request: pytest.FixtureRequest,
     live_app: str,
     demo: Mapping[str, str],
+    at_work: Mapping[str, str],
     browser: Browser,
     scene: Scene,
     screen: Screen,
@@ -321,7 +411,7 @@ def test_a_page_fits_the_screen(
         reduced_motion="reduce",
     )
     if scene.signed_in:
-        who = {"login": scene.login, "name": {"ana": "Ana Ruiz", "kim": "Kim Lee"}[scene.login]}
+        who = {"login": scene.login, "name": NAMES[scene.login]}
         signed = context.request.post(f"{app}/auth/dev", data=who, headers=WRITES)
         assert signed.status == 204
     errors: list[str] = []
@@ -329,7 +419,7 @@ def test_a_page_fits_the_screen(
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
-        page.goto(app + scene.path.format_map(demo), wait_until="networkidle")
+        page.goto(app + scene.path.format_map({**demo, **at_work}), wait_until="networkidle")
         page.evaluate("document.fonts.ready")
         if scene.act:
             scene.act(page)

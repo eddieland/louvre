@@ -136,6 +136,19 @@ mint tokens (its conventions for agents), and a name for its tabs. Each is set i
 (docs/DEPLOY.md), in Markdown of which Louvre keeps paragraphs, emphasis, code, and links, and draws as text, never as
 HTML, so the owner's words cannot run as markup beside a person's session (L7). An artifact's page is untouched.
 
+### U14. A reader sees which agents are at work on an artifact, live
+
+Built (2026-10-30), at the operator's word, outside the milestones; awaiting their pass on the running page. A person
+reading an artifact sees each agent at work on it now, marked as an agent and named with the person it works for, and
+what it is doing: reading, revising the page, or replying in a thread, which the thread says too. An agent is present
+from its own calls, so one written against canopy's contract alone shows where it works: a call that names the artifact,
+or a thread or a decision on it, keeps it present for two minutes. One that says more calls `presence_set`, a tool of
+Louvre's (D011), for as long as it names, up to fifteen minutes; the call that does what it said, publishing the version
+or the reply, ends it, as does saying it is done. Nothing is shown past its expiry, so a page never says an agent is
+working after it stopped: a stale "working" is worse than none. The page reads presence every ten seconds while it is
+shown, since Louvre runs stateless (D010) and keeps no stream open; a presence is the moment's, in no feed and no inbox.
+People's own presence, who else is reading, is not built: nobody has asked for it.
+
 ## The contract
 
 ### L1. Serve the artifacts contract's eight tools over MCP's streamable HTTP
@@ -143,8 +156,8 @@ HTML, so the owner's words cannot run as markup beside a person's session (L7). 
 Built. `artifact_publish`, `artifact_read`, `artifact_list`, `thread_list`, `comment_feed`,
 `comment_reply`, `comment_create`, and `thread_resolve`, with the inputs, results, and refusal codes the contract
 names, so a skill written against canopy's local store works against Louvre unchanged. No tool deletes an artifact or
-changes who may see it. Louvre's own tools, `style_get` and `style_check` (U6) and the decisions' five (U7), are
-added beside them and change none of them (D011).
+changes who may see it. Louvre's own tools, `style_get` and `style_check` (U6), the decisions' five (U7), and
+`presence_set` (U14), are added beside them and change none of them (D011).
 
 ### L2. Versions keep their threads, and anchors are words, never positions
 

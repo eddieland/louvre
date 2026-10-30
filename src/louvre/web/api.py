@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-from louvre.core import accounts, boards, demo, explorations, geodata, inbox, search, style
+from louvre.core import accounts, boards, demo, explorations, geodata, inbox, presence, search, style
 from louvre.core.decisions import MAX_OPTIONS, Decisions
 from louvre.core.store import MAX_BODY, MAX_EXACT, Code, Refused, iso
 from louvre.core.text import CONTEXT, Anchor
@@ -187,6 +187,12 @@ def threads(
         thread["unread"] = thread["id"] in fresh
     _name_agents(conn, [c["author"] for t in listed for c in _dicts(t["comments"])])
     return {**found, "through": through}
+
+
+@router.get("/artifacts/{artifact_id}/presence")
+def artifact_presence(store: Reader, artifact_id: str) -> dict[str, object]:
+    """The agents at work on an artifact now, which its page reads again every few seconds (REQUIREMENTS U14)."""
+    return {"present": presence.Presence(store).present(artifact_id)}
 
 
 @router.post("/artifacts/{artifact_id}/read")

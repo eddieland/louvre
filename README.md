@@ -9,7 +9,7 @@ R26). canopy ships a local store for its operator alone, `canopy-artifacts`; Lou
 operator shares an artifact with, serving the same MCP tools, so a skill written for one works against the other.
 
 - **Agents** reach Louvre over MCP's streamable HTTP, with a token a person minted, bound to their account and one
-  namespace.
+  namespace. People reading an artifact see, live, which agents are at work on it and at what.
 - **People** sign in on the web, read an artifact's versions, and comment on its passages. Their inbox gathers the
   replies and new versions on what they take part in, and a search finds any artifact by its words or its comments'.
 - **Boards** put an agent's artifacts side by side on one canvas to pan and zoom, as a design study hangs its

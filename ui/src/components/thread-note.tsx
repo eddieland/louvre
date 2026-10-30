@@ -18,6 +18,8 @@ export interface ThreadNoteProps {
     hovered: boolean
     /** Whether it has news for the reader on this visit. */
     fresh?: boolean
+    /** The names of the agents replying in it now. */
+    replying?: readonly string[]
     /** Whether its passage is gone from the version shown. */
     gone: boolean
     /** The version shown. */
@@ -85,7 +87,7 @@ export function ThreadNote(props: ThreadNoteProps) {
 }
 
 function Body(props: ThreadNoteProps) {
-    const { thread, active, gone, version, account, writable, fresh } = props
+    const { thread, active, gone, version, account, writable, fresh, replying = [] } = props
     if (thread.state === 'draft') {
         return <DraftBody {...props} />
     }
@@ -112,6 +114,11 @@ function Body(props: ThreadNoteProps) {
                     />
                 ))}
             </span>
+            {replying.length > 0 ? (
+                <span className="replying">
+                    {replying.join(' and ')} {replying.length === 1 ? 'is' : 'are'} replying…
+                </span>
+            ) : null}
             {thread.state === 'resolved' ? <span className="resolved-note">Resolved</span> : null}
             {active ? <Actions {...props} thread={thread} writable={writable} /> : null}
         </>

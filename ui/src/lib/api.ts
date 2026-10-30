@@ -598,6 +598,41 @@ export function threadsQuery(id: string, version: number) {
     })
 }
 
+/** What an agent present on an artifact is doing there (louvre.core.presence.Activity). */
+export type Activity = 'here' | 'reading' | 'revising' | 'replying'
+
+/** An agent at work on an artifact now. */
+export interface Present {
+    /** The agent, named as its comments are. */
+    author: Author
+    /** What it is doing: `here` when it has said nothing more than its calls do. */
+    activity: Activity
+    /** What it said of it, in a line; empty for nothing. */
+    note: string
+    /** The thread it is replying in, or null. */
+    thread_id: string | null
+    /** Since when it has been at it, as ISO 8601. */
+    since: string
+    /** When it last called, as ISO 8601. */
+    seen_at: string
+    /** When it is gone unless it calls again, as ISO 8601. */
+    expires_at: string
+}
+
+/** How often the agents at work on an artifact are read again while its page is open and shown, in milliseconds. */
+export const PRESENCE_POLL = 10_000
+
+/** The agents at work on an artifact now, the longest at their activity first. */
+export function presenceQuery(id: string) {
+    return queryOptions({
+        queryKey: ['presence', id],
+        queryFn: () => request<{ present: Present[] }>('GET', `/api/artifacts/${encodeURIComponent(id)}/presence`),
+        // Read again while the page is shown, never in a tab put away: a presence is the moment's.
+        refetchInterval: PRESENCE_POLL,
+        refetchIntervalInBackground: false,
+    })
+}
+
 /** What changed from version `base` of an artifact to version `head`. */
 export function compareQuery(id: string, base: number, head: number) {
     return queryOptions({

@@ -356,6 +356,28 @@ Light:
 | --- | --- |
 | ![A plan in the house style, Phone, 390, light](house-style-plan/phone-light.png) | ![A plan in the house style, Laptop, 1440, light](house-style-plan/laptop-light.png) |
 
+## An artifact, two agents at work on it
+
+`/a/{at_work}`
+
+Narrow, dark:
+
+| Small phone, 360 | Phone, 390 | Tablet, 820 |
+| --- | --- | --- |
+| ![An artifact, two agents at work on it, Small phone, 360, dark](presence/phone-small-dark.png) | ![An artifact, two agents at work on it, Phone, 390, dark](presence/phone-dark.png) | ![An artifact, two agents at work on it, Tablet, 820, dark](presence/tablet-dark.png) |
+
+Wide, dark:
+
+| Tablet landscape, 1180 | Laptop, 1440 | Wide, 1920 |
+| --- | --- | --- |
+| ![An artifact, two agents at work on it, Tablet landscape, 1180, dark](presence/tablet-landscape-dark.png) | ![An artifact, two agents at work on it, Laptop, 1440, dark](presence/laptop-dark.png) | ![An artifact, two agents at work on it, Wide, 1920, dark](presence/wide-dark.png) |
+
+Light:
+
+| Phone, 390 | Laptop, 1440 |
+| --- | --- |
+| ![An artifact, two agents at work on it, Phone, 390, light](presence/phone-light.png) | ![An artifact, two agents at work on it, Laptop, 1440, light](presence/laptop-light.png) |
+
 ## A map in the house style, drawn by the map kit
 
 `/a/{map}`
