@@ -15,7 +15,9 @@ Next: how that changes later milestones, docs, or open questions.
 
 The milestones after M0 were written down 2026-10-23 from [REQUIREMENTS](../REQUIREMENTS.md): the UI and the
 interaction first, over mock data, then the store under them, at the operator's word. M8 onward were written down
-2026-10-24, at the operator's word: comparing versions, files beside a version, then maps.
+2026-10-24, at the operator's word: comparing versions, files beside a version, then maps. M14 onward were proposed
+2026-11-07 from REQUIREMENTS' gaps and open questions, for the operator to order or strike: none starts before M6, and
+before the operator's pass on what is built and waiting.
 
 ## Milestones
 
@@ -38,3 +40,9 @@ interaction first, over mock data, then the store under them, at the operator's 
 - [M11. Geodata as an artifact](M11-geodata.md): built, for the operator to accept; published by `map_publish`.
 - [M12. Comments on places](M12-places.md): built, for the operator to accept: features, points, and boxes.
 - [M13. Maps reviewed](M13-maps-reviewed.md): built, for the operator to accept: on one map, not swiped.
+- [M14. Reaching people away from Louvre](M14-reach.md): proposed; not started.
+- [M15. Louvre's tools, settled with canopy](M15-contract-settled.md): proposed; not started.
+- [M16. Boards reviewed](M16-boards-reviewed.md): proposed; not started.
+- [M17. Larger maps](M17-larger-maps.md): proposed; not started.
+- [M18. Deleting and forgetting](M18-forgetting.md): proposed; not started.
+- [M19. Louvre 1.0](M19-one.md): proposed; not started.
